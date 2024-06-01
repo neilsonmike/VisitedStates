@@ -1,0 +1,20 @@
+//
+//  VisitedStatesApp.swift
+//  VisitedStates
+//
+//  Created by Mike Neilson on 6/1/24.
+//
+
+import SwiftUI
+
+@main
+struct VisitedStatesApp: App {
+    let persistenceController = PersistenceController.shared
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+        }
+    }
+}
