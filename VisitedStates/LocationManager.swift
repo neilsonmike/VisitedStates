@@ -82,7 +82,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func saveVisitedStates() {
         let record = CKRecord(recordType: "VisitedStates")
         record["states"] = visitedStates as CKRecordValue
-        let privateDatabase = CKContainer.default().privateCloudDatabase
+        let privateDatabase = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
         privateDatabase.save(record) { record, error in
             if let error = error {
                 print("Error saving visited states: \(error)")
@@ -93,7 +93,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func loadVisitedStates() {
-        let privateDatabase = CKContainer.default().privateCloudDatabase
+        let privateDatabase = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
         let query = CKQuery(recordType: "VisitedStates", predicate: NSPredicate(value: true))
         let operation = CKQueryOperation(query: query)
 
