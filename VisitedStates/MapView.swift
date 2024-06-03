@@ -6,7 +6,7 @@ struct MapView: UIViewRepresentable {
     var locationManager: LocationManager
 
     func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView()
+        let mapView = MKMapView(frame: .zero)  // Initialize with zero frame
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .none  // Set to .none to allow custom zooming behavior
@@ -55,14 +55,14 @@ struct MapView: UIViewRepresentable {
             if let polygon = overlay as? MKPolygon {
                 let renderer = MKPolygonRenderer(polygon: polygon)
                 renderer.fillColor = UIColor.red.withAlphaComponent(0.5)
-                renderer.strokeColor = UIColor.blue
-                renderer.lineWidth = 2
+                renderer.strokeColor = UIColor.white
+                renderer.lineWidth = 0.5  // Reduced to 25% of the previous value
                 return renderer
             } else if let multiPolygon = overlay as? MKMultiPolygon {
                 let renderer = MKMultiPolygonRenderer(multiPolygon: multiPolygon)
                 renderer.fillColor = UIColor.red.withAlphaComponent(0.5)
-                renderer.strokeColor = UIColor.blue
-                renderer.lineWidth = 2
+                renderer.strokeColor = UIColor.white
+                renderer.lineWidth = 0.5  // Reduced to 25% of the previous value
                 return renderer
             }
             return MKOverlayRenderer(overlay: overlay)
