@@ -16,7 +16,7 @@
 		423B207B2C0BAE9200EE7FEF /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 423B207A2C0BAE9200EE7FEF /* Preview Assets.xcassets */; };
 		423B20A02C0BB1E200EE7FEF /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B209F2C0BB1E200EE7FEF /* LocationManager.swift */; };
 		423B20A22C0BB21C00EE7FEF /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B20A12C0BB21C00EE7FEF /* MapView.swift */; };
-		4284837C2C0D301B0021DDAE /* usstates.geojson in Resources */ = {isa = PBXBuildFile; fileRef = 4284837B2C0D301B0021DDAE /* usstates.geojson */; };
+		4284837C2C0D301B0021DDAE /* us_states.geojson in Resources */ = {isa = PBXBuildFile; fileRef = 4284837B2C0D301B0021DDAE /* us_states.geojson */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,7 +35,7 @@
 		423B209D2C0BAFCC00EE7FEF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		423B209F2C0BB1E200EE7FEF /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
 		423B20A12C0BB21C00EE7FEF /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
-		4284837B2C0D301B0021DDAE /* usstates.geojson */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; lineEnding = 0; path = usstates.geojson; sourceTree = "<group>"; };
+		4284837B2C0D301B0021DDAE /* us_states.geojson */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; lineEnding = 0; path = us_states.geojson; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -114,7 +114,7 @@
 		423B20A32C0BB32400EE7FEF /* GeoJSON */ = {
 			isa = PBXGroup;
 			children = (
-				4284837B2C0D301B0021DDAE /* usstates.geojson */,
+				4284837B2C0D301B0021DDAE /* us_states.geojson */,
 			);
 			path = GeoJSON;
 			sourceTree = "<group>";
@@ -178,7 +178,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4212952B2C0D515A00E38B54 /* blank.png in Resources */,
-				4284837C2C0D301B0021DDAE /* usstates.geojson in Resources */,
+				4284837C2C0D301B0021DDAE /* us_states.geojson in Resources */,
 				423B207B2C0BAE9200EE7FEF /* Preview Assets.xcassets in Resources */,
 				423B20772C0BAE9200EE7FEF /* Assets.xcassets in Resources */,
 			);
