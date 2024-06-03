@@ -1,13 +1,17 @@
 import SwiftUI
+import MapKit
 
 struct ContentView: View {
-    @StateObject var locationManager = LocationManager()
-    @State private var visitedStates: [String] = []
-
+    @ObservedObject var locationManager = LocationManager()
+    
     var body: some View {
-        MapView(visitedStates: $visitedStates, locationManager: locationManager)
-            .onAppear {
-                visitedStates = locationManager.visitedStates
-            }
+        VStack {
+            MapView(visitedStates: $locationManager.visitedStates, locationManager: locationManager)
+                .edgesIgnoringSafeArea(.all)
+        }
+        .onAppear {
+            locationManager.checkLocationAuthorization()
+            locationManager.loadVisitedStates()
+        }
     }
 }

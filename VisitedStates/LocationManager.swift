@@ -62,15 +62,15 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 print("Reverse geocoding failed with error: \(error.localizedDescription)")
                 return
             }
-
+            
             if let placemark = placemarks?.first, let stateAbbreviation = placemark.administrativeArea {
                 print("Current state: \(stateAbbreviation)")
-
+                
                 guard let fullStateName = self?.stateAbbreviationToFullName(stateAbbreviation) else {
                     print("State abbreviation \(stateAbbreviation) not found in mapping")
                     return
                 }
-
+                
                 if !(self?.visitedStates.contains(fullStateName) ?? false) {
                     self?.visitedStates.append(fullStateName)
                     print("Visited states: \(self?.visitedStates ?? [])")
