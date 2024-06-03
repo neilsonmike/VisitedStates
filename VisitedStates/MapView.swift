@@ -10,7 +10,6 @@ struct MapView: UIViewRepresentable {
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .follow
-        
         return mapView
     }
 
