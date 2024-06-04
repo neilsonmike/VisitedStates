@@ -41,7 +41,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func checkLocationAuthorization() {
-        switch CLLocationManager.authorizationStatus() {
+        switch locationManager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
             locationManager.startUpdatingLocation()
         case .notDetermined:
@@ -54,19 +54,31 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Location Manager did fail with error: \(error.localizedDescription)")
+        let clError = CLError(_nsError: error as NSError)
+        switch clError.code {
+        case .locationUnknown:
+            print("Location unknown.")
+        case .denied:
+            print("Access to location services denied.")
+        case .network:
+            print("Network error.")
+        default:
+            print("Location Manager did fail with error: \(error.localizedDescription)")
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
         let currentTime = Date()
-        guard let lastUpdateTime = lastLocationUpdateTime, currentTime.timeIntervalSince(lastUpdateTime) >= 10 else {
+        
+        if let lastUpdateTime = lastLocationUpdateTime, currentTime.timeIntervalSince(lastUpdateTime) < 10 {
             return
         }
         
         lastLocationUpdateTime = currentTime
-        guard let location = locations.last else { return }
         currentLocation = location
         print("Updated location: \(location)")
+        updateVisitedStates(location: location)
     }
 
     func updateVisitedStates(location: CLLocation) {
@@ -85,18 +97,21 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 return
             }
             
-            if let placemark = placemarks?.first, let stateAbbreviation = placemark.administrativeArea {
-                print("Current state: \(stateAbbreviation)")
-                
-                guard let fullStateName = self?.stateAbbreviationToFullName(stateAbbreviation) else {
-                    print("State abbreviation \(stateAbbreviation) not found in mapping")
-                    return
-                }
-                
-                if !(self?.visitedStates.contains(fullStateName) ?? false) {
-                    self?.visitedStates.append(fullStateName)
-                    print("Visited states: \(self?.visitedStates ?? [])")
-                }
+            guard let placemark = placemarks?.first, let stateAbbreviation = placemark.administrativeArea else {
+                print("No valid placemark found.")
+                return
+            }
+            
+            print("Current state: \(stateAbbreviation)")
+            
+            guard let fullStateName = self?.stateAbbreviationToFullName(stateAbbreviation) else {
+                print("State abbreviation \(stateAbbreviation) not found in mapping")
+                return
+            }
+            
+            if !(self?.visitedStates.contains(fullStateName) ?? false) {
+                self?.visitedStates.append(fullStateName)
+                print("Visited states: \(self?.visitedStates ?? [])")
             }
         }
     }
@@ -134,26 +149,28 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         var cloudVisitedStates: [String] = []
 
-        operation.recordFetchedBlock = { record in
-            if let states = record["states"] as? [String] {
-                cloudVisitedStates = states
+        operation.recordMatchedBlock = { recordID, result in
+            switch result {
+            case .success(let record):
+                if let states = record["states"] as? [String] {
+                    cloudVisitedStates = states
+                }
+            case .failure(let error):
+                print("Failed to fetch record: \(error)")
             }
         }
 
-        operation.queryCompletionBlock = { cursor, error in
-            if let error = error as? CKError, error.code == .notAuthenticated {
-                print("Failed to load visited states: \(error)")
-                self.isSyncing = false
-                // Prompt the user to sign in to iCloud or handle the error appropriately
-            } else if let error = error {
-                print("Failed to load visited states: \(error)")
-                self.isSyncing = false
-            } else {
+        operation.queryResultBlock = { result in
+            switch result {
+            case .success:
                 DispatchQueue.main.async {
                     // Merge local and cloud states, respecting CloudKit as the source of truth
                     self.mergeCloudStates(cloudVisitedStates)
                     self.isSyncing = false
                 }
+            case .failure(let error):
+                print("Failed to load visited states: \(error)")
+                self.isSyncing = false
             }
         }
 

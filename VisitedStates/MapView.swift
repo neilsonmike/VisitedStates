@@ -6,13 +6,26 @@ struct MapView: UIViewRepresentable {
     var locationManager: LocationManager
 
     func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView(frame: .zero)  // Initialize with zero frame
+        let mapView = MKMapView(frame: .zero)
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .none  // Set to .none to allow custom zooming behavior
         mapView.isUserInteractionEnabled = false  // Disable user interaction
         mapView.isScrollEnabled = false  // Disable scrolling
         mapView.isZoomEnabled = false  // Disable zooming
+        mapView.mapType = .standard  // Use standard map type
+        mapView.showsBuildings = false  // Hide buildings
+        mapView.pointOfInterestFilter = .excludingAll  // Hide points of interest
+        mapView.showsCompass = false  // Hide compass
+        mapView.showsScale = false  // Hide scale
+        mapView.showsTraffic = false  // Hide traffic
+
+        // Adding an empty overlay to initialize the map correctly
+        let initialCoordinate = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)  // Default to San Francisco
+        let initialSpan = MKCoordinateSpan(latitudeDelta: 10, longitudeDelta: 10)
+        let initialRegion = MKCoordinateRegion(center: initialCoordinate, span: initialSpan)
+        mapView.setRegion(initialRegion, animated: false)
+
         return mapView
     }
 
@@ -110,25 +123,8 @@ struct MapView: UIViewRepresentable {
                         } else if let multiPolygon = geometry as? MKMultiPolygon {
                             allPolygons.append(contentsOf: multiPolygon.polygons)
                             print("Added multiPolygon with \(multiPolygon.polygons.count) polygons for state: \(stateName)")
-                        } else if let coordinatesArray = geometry as? [[[Double]]] {
-                            for coordinates in coordinatesArray {
-                                let coords = coordinates.map { CLLocationCoordinate2D(latitude: $0[1], longitude: $0[0]) }
-                                let polygon = MKPolygon(coordinates: coords, count: coords.count)
-                                allPolygons.append(polygon)
-                                print("Added coordinates array polygon for state: \(stateName)")
-                            }
-                        } else if let multiPolygonArray = geometry as? [[[[Double]]]] {
-                            for polygonArray in multiPolygonArray {
-                                for coordinates in polygonArray {
-                                    let coords = coordinates.map { CLLocationCoordinate2D(latitude: $0[1], longitude: $0[0]) }
-                                    let polygon = MKPolygon(coordinates: coords, count: coords.count)
-                                    allPolygons.append(polygon)
-                                    print("Added multiPolygonArray polygon for state: \(stateName)")
-                                }
-                            }
                         } else {
-                            print("Failed to create polygon for state: \(stateName)")
-                            print("Geometry data: \(geometry)")
+                            print("Unknown geometry type for state: \(stateName)")
                         }
                     }
 
