@@ -185,6 +185,64 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         visitedStates = combinedStates
         saveVisitedStates()
         print("Merged local and cloud states: \(combinedStates)")
+
+        // Save combined states to CloudKit
+        saveToCloudKit(combinedStates)
+    }
+
+    func saveToCloudKit(_ states: [String]) {
+        let privateDatabase = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
+        let recordID = CKRecord.ID(recordName: "VisitedStates")
+        
+        // Fetch the current record to get the latest changes
+        privateDatabase.fetch(withRecordID: recordID) { [weak self] fetchedRecord, error in
+            if let error = error {
+                if let ckError = error as? CKError, ckError.code == .unknownItem {
+                    // Record does not exist, create a new one
+                    let record = CKRecord(recordType: "VisitedStates", recordID: recordID)
+                    record["states"] = states as CKRecordValue
+                    self?.saveRecordToCloudKit(record)
+                } else {
+                    print("Error fetching record from CloudKit: \(error)")
+                }
+                return
+            }
+            
+            if let record = fetchedRecord {
+                // Update the fetched record with the new states
+                record["states"] = states as CKRecordValue
+                self?.saveRecordToCloudKit(record)
+            }
+        }
+    }
+
+    func saveRecordToCloudKit(_ record: CKRecord) {
+        let privateDatabase = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
+        
+        privateDatabase.save(record) { savedRecord, error in
+            if let error = error {
+                if let ckError = error as? CKError, ckError.code == .serverRecordChanged {
+                    // Handle server record changed error
+                    print("Server record changed. Fetching latest record and retrying save.")
+                    self.handleServerRecordChanged(record, error: ckError)
+                } else {
+                    print("Error saving visited states to CloudKit: \(error)")
+                }
+            } else {
+                print("Visited states saved to CloudKit")
+            }
+        }
+    }
+
+    func handleServerRecordChanged(_ record: CKRecord, error: CKError) {
+        if let serverRecord = error.serverRecord {
+            // Merge local changes with server record
+            serverRecord["states"] = record["states"]
+            // Save the merged record to CloudKit
+            saveRecordToCloudKit(serverRecord)
+        } else {
+            print("Failed to handle server record changed error: \(error)")
+        }
     }
 
     func stateAbbreviationToFullName(_ abbreviation: String) -> String? {
