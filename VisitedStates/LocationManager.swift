@@ -5,6 +5,12 @@ import CloudKit
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let locationManager = CLLocationManager()
     private var lastGeocodeRequestTime: Date?
+    private var lastLocationUpdateTime: Date?
+    private let userDefaultsKey = "visitedStates"
+    private var isSyncing = false
+    private var isSavingLocally = false
+    private var syncTimer: Timer?
+    private var syncInterval: TimeInterval = 300  // 5 minutes
 
     @Published var currentLocation: CLLocation? {
         didSet {
@@ -16,7 +22,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     @Published var visitedStates: [String] = [] {
         didSet {
-            saveVisitedStates()
+            if !isSavingLocally {
+                saveVisitedStates()
+            }
+            if !isSyncing {
+                scheduleSyncWithCloudKit()
+            }
         }
     }
 
@@ -24,6 +35,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.distanceFilter = 100  // Adjust the distance filter if needed
+        loadVisitedStates()
         checkLocationAuthorization()
     }
 
@@ -33,8 +46,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             locationManager.startUpdatingLocation()
         case .notDetermined:
             locationManager.requestWhenInUseAuthorization()
-        default:
-            break
+        case .restricted, .denied:
+            print("Location services are restricted or denied")
+        @unknown default:
+            print("Unknown location authorization status")
         }
     }
 
@@ -43,8 +58,15 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let currentTime = Date()
+        guard let lastUpdateTime = lastLocationUpdateTime, currentTime.timeIntervalSince(lastUpdateTime) >= 10 else {
+            return
+        }
+        
+        lastLocationUpdateTime = currentTime
         guard let location = locations.last else { return }
         currentLocation = location
+        print("Updated location: \(location)")
     }
 
     func updateVisitedStates(location: CLLocation) {
@@ -80,46 +102,72 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func saveVisitedStates() {
-        let record = CKRecord(recordType: "VisitedStates")
-        record["states"] = visitedStates as CKRecordValue
-        let privateDatabase = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
-        privateDatabase.save(record) { record, error in
-            if let error = error {
-                print("Error saving visited states: \(error)")
-            } else {
-                print("Visited states saved successfully")
-            }
-        }
+        isSavingLocally = true
+        UserDefaults.standard.set(visitedStates, forKey: userDefaultsKey)
+        isSavingLocally = false
+        print("Visited states saved locally")
     }
 
     func loadVisitedStates() {
+        if let savedStates = UserDefaults.standard.array(forKey: userDefaultsKey) as? [String] {
+            visitedStates = savedStates
+            print("Loaded visited states from local storage: \(savedStates)")
+        } else {
+            visitedStates = []
+            print("No visited states found in local storage")
+        }
+        syncWithCloudKit()
+    }
+
+    func scheduleSyncWithCloudKit() {
+        syncTimer?.invalidate()
+        syncTimer = Timer.scheduledTimer(withTimeInterval: syncInterval, repeats: false) { [weak self] _ in
+            self?.syncWithCloudKit()
+        }
+    }
+
+    func syncWithCloudKit() {
+        isSyncing = true
         let privateDatabase = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
         let query = CKQuery(recordType: "VisitedStates", predicate: NSPredicate(value: true))
         let operation = CKQueryOperation(query: query)
 
-        var loadedStates: [String] = []
+        var cloudVisitedStates: [String] = []
 
         operation.recordFetchedBlock = { record in
             if let states = record["states"] as? [String] {
-                loadedStates = states
+                cloudVisitedStates = states
             }
         }
 
         operation.queryCompletionBlock = { cursor, error in
             if let error = error as? CKError, error.code == .notAuthenticated {
                 print("Failed to load visited states: \(error)")
+                self.isSyncing = false
                 // Prompt the user to sign in to iCloud or handle the error appropriately
             } else if let error = error {
                 print("Failed to load visited states: \(error)")
+                self.isSyncing = false
             } else {
                 DispatchQueue.main.async {
-                    self.visitedStates = loadedStates
-                    print("Loaded visited states: \(loadedStates)")
+                    // Merge local and cloud states, respecting CloudKit as the source of truth
+                    self.mergeCloudStates(cloudVisitedStates)
+                    self.isSyncing = false
                 }
             }
         }
 
         privateDatabase.add(operation)
+    }
+
+    func mergeCloudStates(_ cloudStates: [String]) {
+        // Combine local and cloud states, respecting CloudKit as the source of truth
+        let combinedStates = Array(Set(cloudStates + visitedStates))
+        
+        // Update local storage to reflect the merged states
+        visitedStates = combinedStates
+        saveVisitedStates()
+        print("Merged local and cloud states: \(combinedStates)")
     }
 
     func stateAbbreviationToFullName(_ abbreviation: String) -> String? {

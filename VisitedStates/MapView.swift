@@ -18,6 +18,7 @@ struct MapView: UIViewRepresentable {
 
     func updateUIView(_ uiView: MKMapView, context: Context) {
         // Clear previous overlays
+        print("Removing previous overlays")
         uiView.removeOverlays(uiView.overlays)
 
         var overlays: [MKOverlay] = []
@@ -36,7 +37,13 @@ struct MapView: UIViewRepresentable {
         // Adjust the map region to fit all visited states
         if !overlays.isEmpty {
             let boundingRegion = calculateBoundingRegion(for: overlays)
-            uiView.setRegion(boundingRegion, animated: true)
+            // Ensure the region is valid
+            if isValidRegion(boundingRegion) {
+                print("Setting region: \(boundingRegion)")
+                uiView.setRegion(boundingRegion, animated: true)
+            } else {
+                print("Invalid region calculated, skipping region adjustment")
+            }
         }
     }
 
@@ -99,13 +106,16 @@ struct MapView: UIViewRepresentable {
                     for geometry in feature.geometry {
                         if let polygon = geometry as? MKPolygon {
                             allPolygons.append(polygon)
+                            print("Added polygon with \(polygon.pointCount) points for state: \(stateName)")
                         } else if let multiPolygon = geometry as? MKMultiPolygon {
                             allPolygons.append(contentsOf: multiPolygon.polygons)
+                            print("Added multiPolygon with \(multiPolygon.polygons.count) polygons for state: \(stateName)")
                         } else if let coordinatesArray = geometry as? [[[Double]]] {
                             for coordinates in coordinatesArray {
                                 let coords = coordinates.map { CLLocationCoordinate2D(latitude: $0[1], longitude: $0[0]) }
                                 let polygon = MKPolygon(coordinates: coords, count: coords.count)
                                 allPolygons.append(polygon)
+                                print("Added coordinates array polygon for state: \(stateName)")
                             }
                         } else if let multiPolygonArray = geometry as? [[[[Double]]]] {
                             for polygonArray in multiPolygonArray {
@@ -113,6 +123,7 @@ struct MapView: UIViewRepresentable {
                                     let coords = coordinates.map { CLLocationCoordinate2D(latitude: $0[1], longitude: $0[0]) }
                                     let polygon = MKPolygon(coordinates: coords, count: coords.count)
                                     allPolygons.append(polygon)
+                                    print("Added multiPolygonArray polygon for state: \(stateName)")
                                 }
                             }
                         } else {
@@ -163,13 +174,43 @@ struct MapView: UIViewRepresentable {
             }
         }
 
-        let centerLat = (minLat + maxLat) / 2
-        let centerLon = (minLon + maxLon) / 2
-        let spanLat = (maxLat - minLat) * 1.2  // Add 20% margin
-        let spanLon = (maxLon - minLon) * 1.2  // Add 20% margin
+        // Check if the bounding box crosses the International Date Line
+        if maxLon - minLon > 180 {
+            // Handle the case where the bounding box spans the International Date Line
+            let centerLat = (minLat + maxLat) / 2
+            let centerLon = ((minLon + maxLon + 360) / 2).truncatingRemainder(dividingBy: 360)
+            let spanLat = (maxLat - minLat) * 1.2  // Add 20% margin
+            let spanLon = (360 - (maxLon - minLon)) * 1.2  // Adjust span considering the wrap-around
 
-        return MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
-                                  span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon))
+            // Normalize centerLon to be within [-180, 180]
+            let normalizedCenterLon = (centerLon > 180) ? centerLon - 360 : centerLon
+
+            let region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: normalizedCenterLon),
+                                            span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon))
+            print("Calculated region crossing date line: \(region)")
+            return region
+        } else {
+            // Normal case
+            let centerLat = (minLat + maxLat) / 2
+            let centerLon = (minLon + maxLon) / 2
+            let spanLat = (maxLat - minLat) * 1.2  // Add 20% margin
+            let spanLon = (maxLon - minLon) * 1.2  // Add 20% margin
+
+            // Ensure the spans are within a valid range
+            let finalSpanLat = min(spanLat, 90.0)
+            let finalSpanLon = min(spanLon, 180.0)
+
+            let region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+                                            span: MKCoordinateSpan(latitudeDelta: finalSpanLat, longitudeDelta: finalSpanLon))
+            print("Calculated region: \(region)")
+            return region
+        }
+    }
+
+    func isValidRegion(_ region: MKCoordinateRegion) -> Bool {
+        // Check if the region is valid
+        let maxSpan = MKCoordinateSpan(latitudeDelta: 90.0, longitudeDelta: 180.0)
+        return region.span.latitudeDelta <= maxSpan.latitudeDelta && region.span.longitudeDelta <= maxSpan.longitudeDelta
     }
 
     func loadGeoJSONData() -> String? {
