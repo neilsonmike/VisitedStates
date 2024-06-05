@@ -1,17 +1,40 @@
 import SwiftUI
-import MapKit
 
 struct ContentView: View {
-    @ObservedObject var locationManager = LocationManager()
-    
+    @StateObject var locationManager = LocationManager()
+    @State var visitedStates: [String] = []
+
     var body: some View {
         VStack {
-            MapView(visitedStates: $locationManager.visitedStates, locationManager: locationManager)
+            MapView(visitedStates: $visitedStates, locationManager: locationManager)
                 .edgesIgnoringSafeArea(.all)
+            HStack {
+                Button(action: {
+                    locationManager.clearLocalData()
+                }) {
+                    Text("Clear Local Data")
+                        .padding()
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                }
+                Button(action: {
+                    locationManager.clearAllData()
+                }) {
+                    Text("Clear All Data")
+                        .padding()
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                }
+            }
+            .padding()
         }
         .onAppear {
-            locationManager.checkLocationAuthorization()
-            locationManager.loadVisitedStates()
+            visitedStates = locationManager.visitedStates
+        }
+        .onChange(of: locationManager.visitedStates) { newValue in
+            visitedStates = newValue
         }
     }
 }

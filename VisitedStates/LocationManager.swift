@@ -112,6 +112,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             if !(self?.visitedStates.contains(fullStateName) ?? false) {
                 self?.visitedStates.append(fullStateName)
                 print("Visited states: \(self?.visitedStates ?? [])")
+                // Trigger immediate sync
+                self?.syncWithCloudKit()
             }
         }
     }
@@ -143,6 +145,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     func syncWithCloudKit() {
         isSyncing = true
+        print("Starting sync with CloudKit")
         let privateDatabase = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
         let query = CKQuery(recordType: "VisitedStates", predicate: NSPredicate(value: true))
         let operation = CKQueryOperation(query: query)
@@ -153,7 +156,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             switch result {
             case .success(let record):
                 if let states = record["states"] as? [String] {
-                    cloudVisitedStates = states
+                    cloudVisitedStates.append(contentsOf: states)
+                    print("Fetched states from CloudKit: \(states)")
                 }
             case .failure(let error):
                 print("Failed to fetch record: \(error)")
@@ -164,6 +168,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             switch result {
             case .success:
                 DispatchQueue.main.async {
+                    print("Finished fetching records from CloudKit: \(cloudVisitedStates)")
                     // Merge local and cloud states, respecting CloudKit as the source of truth
                     self.mergeCloudStates(cloudVisitedStates)
                     self.isSyncing = false
@@ -187,31 +192,53 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         print("Merged local and cloud states: \(combinedStates)")
 
         // Save combined states to CloudKit
-        saveToCloudKit(combinedStates)
+        syncLocalStatesToCloudKit(localStates: combinedStates, cloudStates: cloudStates)
     }
 
-    func saveToCloudKit(_ states: [String]) {
+    func syncLocalStatesToCloudKit(localStates: [String], cloudStates: [String]) {
         let privateDatabase = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
-        let recordID = CKRecord.ID(recordName: "VisitedStates")
-        
-        // Fetch the current record to get the latest changes
-        privateDatabase.fetch(withRecordID: recordID) { [weak self] fetchedRecord, error in
-            if let error = error {
-                if let ckError = error as? CKError, ckError.code == .unknownItem {
-                    // Record does not exist, create a new one
-                    let record = CKRecord(recordType: "VisitedStates", recordID: recordID)
-                    record["states"] = states as CKRecordValue
-                    self?.saveRecordToCloudKit(record)
+        let statesToSync = localStates.filter { !cloudStates.contains($0) }
+
+        if !statesToSync.isEmpty {
+            print("Syncing states to CloudKit: \(statesToSync)")
+            let recordID = CKRecord.ID(recordName: "VisitedStates")
+            let record = CKRecord(recordType: "VisitedStates", recordID: recordID)
+            record["states"] = statesToSync as CKRecordValue
+            record["lastUpdated"] = Date()
+
+            privateDatabase.save(record) { savedRecord, error in
+                if let error = error {
+                    if let ckError = error as? CKError, ckError.code == .serverRecordChanged {
+                        // Handle server record changed error
+                        print("Server record changed. Fetching latest record and retrying save.")
+                        self.handleServerRecordChanged(record, error: ckError)
+                    } else {
+                        print("Error saving visited states to CloudKit: \(error)")
+                    }
                 } else {
-                    print("Error fetching record from CloudKit: \(error)")
+                    print("Visited states saved to CloudKit")
                 }
+            }
+        }
+    }
+
+    func handleServerRecordChanged(_ record: CKRecord, error: CKError) {
+        let privateDatabase = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
+
+        privateDatabase.fetch(withRecordID: record.recordID) { fetchedRecord, fetchError in
+            if let fetchError = fetchError {
+                print("Error fetching record from CloudKit: \(fetchError)")
                 return
             }
             
-            if let record = fetchedRecord {
-                // Update the fetched record with the new states
-                record["states"] = states as CKRecordValue
-                self?.saveRecordToCloudKit(record)
+            if let serverRecord = fetchedRecord {
+                // Merge local changes with server record
+                var updatedStates = serverRecord["states"] as? [String] ?? []
+                updatedStates.append(contentsOf: record["states"] as? [String] ?? [])
+                serverRecord["states"] = Array(Set(updatedStates)) as CKRecordValue
+                serverRecord["lastUpdated"] = Date()
+                // Save the merged record to CloudKit
+                self.saveRecordToCloudKit(serverRecord)
             }
         }
     }
@@ -221,27 +248,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         privateDatabase.save(record) { savedRecord, error in
             if let error = error {
-                if let ckError = error as? CKError, ckError.code == .serverRecordChanged {
-                    // Handle server record changed error
-                    print("Server record changed. Fetching latest record and retrying save.")
-                    self.handleServerRecordChanged(record, error: ckError)
-                } else {
-                    print("Error saving visited states to CloudKit: \(error)")
-                }
+                print("Error saving visited states to CloudKit: \(error)")
             } else {
                 print("Visited states saved to CloudKit")
             }
-        }
-    }
-
-    func handleServerRecordChanged(_ record: CKRecord, error: CKError) {
-        if let serverRecord = error.serverRecord {
-            // Merge local changes with server record
-            serverRecord["states"] = record["states"]
-            // Save the merged record to CloudKit
-            saveRecordToCloudKit(serverRecord)
-        } else {
-            print("Failed to handle server record changed error: \(error)")
         }
     }
 
@@ -299,5 +309,57 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             "WY": "Wyoming"
         ]
         return stateNames[abbreviation]
+    }
+
+    // Add functionality for the buttons
+    func clearLocalData() {
+        visitedStates = []
+        saveVisitedStates()
+        print("Local data cleared")
+        syncWithCloudKit()  // Reload from CloudKit
+    }
+
+    func clearAllData() {
+        visitedStates = []
+        saveVisitedStates()
+        clearCloudKitData()
+        print("All data cleared from both local storage and CloudKit")
+    }
+
+    func clearCloudKitData() {
+        let privateDatabase = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
+        let query = CKQuery(recordType: "VisitedStates", predicate: NSPredicate(value: true))
+        let operation = CKQueryOperation(query: query)
+
+        var recordIDsToDelete: [CKRecord.ID] = []
+
+        operation.recordMatchedBlock = { recordID, result in
+            switch result {
+            case .success(let record):
+                recordIDsToDelete.append(record.recordID)
+            case .failure(let error):
+                print("Failed to fetch record: \(error)")
+            }
+        }
+
+        operation.queryResultBlock = { result in
+            switch result {
+            case .success:
+                // Delete records
+                let deleteOperation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsToDelete)
+                deleteOperation.modifyRecordsCompletionBlock = { savedRecords, deletedRecordIDs, error in
+                    if let error = error {
+                        print("Error deleting records from CloudKit: \(error)")
+                    } else {
+                        print("Successfully deleted records from CloudKit")
+                    }
+                }
+                privateDatabase.add(deleteOperation)
+            case .failure(let error):
+                print("Failed to load visited states: \(error)")
+            }
+        }
+
+        privateDatabase.add(operation)
     }
 }

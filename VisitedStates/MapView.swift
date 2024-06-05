@@ -146,6 +146,67 @@ struct MapView: UIViewRepresentable {
         var minLon = CLLocationDegrees(180.0)
         var maxLon = CLLocationDegrees(-180.0)
 
+        var containsAlaska = false
+
+        for overlay in overlays {
+            if let polygon = overlay as? MKPolygon {
+                let points = polygon.points()
+                for i in 0..<polygon.pointCount {
+                    let coord = points[i].coordinate
+                    minLat = min(minLat, coord.latitude)
+                    maxLat = max(maxLat, coord.latitude)
+                    minLon = min(minLon, coord.longitude)
+                    maxLon = max(maxLon, coord.longitude)
+                    if coord.longitude > 170 || coord.longitude < -170 {
+                        containsAlaska = true
+                    }
+                }
+            } else if let multiPolygon = overlay as? MKMultiPolygon {
+                for polygon in multiPolygon.polygons {
+                    let points = polygon.points()
+                    for i in 0..<polygon.pointCount {
+                        let coord = points[i].coordinate
+                        minLat = min(minLat, coord.latitude)
+                        maxLat = max(maxLat, coord.latitude)
+                        minLon = min(minLon, coord.longitude)
+                        maxLon = max(maxLon, coord.longitude)
+                        if coord.longitude > 170 || coord.longitude < -170 {
+                            containsAlaska = true
+                        }
+                    }
+                }
+            }
+        }
+
+        // Adjust the bounds if Alaska is included
+        if containsAlaska {
+            maxLat = max(maxLat, 70)
+            minLon = min(minLon, -180)
+        }
+
+        let centerLat = (minLat + maxLat) / 2
+        var centerLon = (minLon + maxLon) / 2
+        let spanLat = (maxLat - minLat) * 1.2  // Add 20% margin
+        let spanLon = (maxLon - minLon) * 1.2  // Add 20% margin
+
+        // Adjust centerLon if it crosses the International Date Line
+        if containsAlaska && (maxLon - minLon > 180) {
+            centerLon = (centerLon + 180).truncatingRemainder(dividingBy: 360) - 180
+        }
+
+        let region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+                                        span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon))
+        print("Calculated region: \(region)")
+
+        return isValidRegion(region) ? region : calculateBoundingRegionFallback(overlays: overlays, containsAlaska: containsAlaska)
+    }
+
+    func calculateBoundingRegionFallback(overlays: [MKOverlay], containsAlaska: Bool) -> MKCoordinateRegion {
+        var minLat = CLLocationDegrees(90.0)
+        var maxLat = CLLocationDegrees(-90.0)
+        var minLon = CLLocationDegrees(180.0)
+        var maxLon = CLLocationDegrees(-180.0)
+
         for overlay in overlays {
             if let polygon = overlay as? MKPolygon {
                 let points = polygon.points()
@@ -170,37 +231,20 @@ struct MapView: UIViewRepresentable {
             }
         }
 
-        // Check if the bounding box crosses the International Date Line
-        if maxLon - minLon > 180 {
-            // Handle the case where the bounding box spans the International Date Line
-            let centerLat = (minLat + maxLat) / 2
-            let centerLon = ((minLon + maxLon + 360) / 2).truncatingRemainder(dividingBy: 360)
-            let spanLat = (maxLat - minLat) * 1.2  // Add 20% margin
-            let spanLon = (360 - (maxLon - minLon)) * 1.2  // Adjust span considering the wrap-around
-
-            // Normalize centerLon to be within [-180, 180]
-            let normalizedCenterLon = (centerLon > 180) ? centerLon - 360 : centerLon
-
-            let region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: normalizedCenterLon),
-                                            span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon))
-            print("Calculated region crossing date line: \(region)")
-            return region
-        } else {
-            // Normal case
-            let centerLat = (minLat + maxLat) / 2
-            let centerLon = (minLon + maxLon) / 2
-            let spanLat = (maxLat - minLat) * 1.2  // Add 20% margin
-            let spanLon = (maxLon - minLon) * 1.2  // Add 20% margin
-
-            // Ensure the spans are within a valid range
-            let finalSpanLat = min(spanLat, 90.0)
-            let finalSpanLon = min(spanLon, 180.0)
-
-            let region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
-                                            span: MKCoordinateSpan(latitudeDelta: finalSpanLat, longitudeDelta: finalSpanLon))
-            print("Calculated region: \(region)")
-            return region
+        if containsAlaska {
+            maxLat = max(maxLat, 70)
+            minLon = min(minLon, -180)
         }
+
+        let centerLat = (minLat + maxLat) / 2
+        let centerLon = (minLon + maxLon) / 2
+        let spanLat = (maxLat - minLat) * 1.2  // Add 20% margin
+        let spanLon = (maxLon - minLon) * 1.2  // Add 20% margin
+
+        let fallbackRegion = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+                                                span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon))
+        print("Fallback region: \(fallbackRegion)")
+        return fallbackRegion
     }
 
     func isValidRegion(_ region: MKCoordinateRegion) -> Bool {
