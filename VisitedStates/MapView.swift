@@ -10,9 +10,9 @@ struct MapView: UIViewRepresentable {
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .none  // Set to .none to allow custom zooming behavior
-        mapView.isUserInteractionEnabled = false  // Disable user interaction for production
-        mapView.isScrollEnabled = false  // Disable scrolling for production
-        mapView.isZoomEnabled = false  // Disable zooming for production
+        mapView.isUserInteractionEnabled = true  // Enable user interaction for testing
+        mapView.isScrollEnabled = true  // Enable scrolling for testing
+        mapView.isZoomEnabled = true  // Enable zooming for testing
         mapView.mapType = .standard  // Use standard map type
         mapView.showsBuildings = false  // Hide buildings
         mapView.pointOfInterestFilter = .excludingAll  // Hide points of interest
@@ -118,10 +118,10 @@ struct MapView: UIViewRepresentable {
 
                     for geometry in feature.geometry {
                         if let polygon = geometry as? MKPolygon {
-                            allPolygons.append(transformPolygon(polygon, for: stateName))
+                            allPolygons.append(polygon)
                             print("Added polygon with \(polygon.pointCount) points for state: \(stateName)")
                         } else if let multiPolygon = geometry as? MKMultiPolygon {
-                            allPolygons.append(contentsOf: transformMultiPolygon(multiPolygon, for: stateName))
+                            allPolygons.append(contentsOf: multiPolygon.polygons)
                             print("Added multiPolygon with \(multiPolygon.polygons.count) polygons for state: \(stateName)")
                         } else {
                             print("Unknown geometry type for state: \(stateName)")
@@ -138,38 +138,6 @@ struct MapView: UIViewRepresentable {
         }
         print("State \(state) not found in GeoJSON data. Available states: \(stateNames)")
         return nil
-    }
-
-    func transformPolygon(_ polygon: MKPolygon, for state: String) -> MKPolygon {
-        if state == "Alaska" {
-            return transformCoordinates(for: polygon, scaleLat: 0.5, scaleLon: 0.4, offset: CLLocationCoordinate2D(latitude: 47.0, longitude: -135.0))
-        } else if state == "Hawaii" {
-            return transformCoordinates(for: polygon, scaleLat: 1.0, scaleLon: 1.2, offset: CLLocationCoordinate2D(latitude: 80.0, longitude: -123.0))
-        } else {
-            return polygon
-        }
-    }
-
-    func transformMultiPolygon(_ multiPolygon: MKMultiPolygon, for state: String) -> [MKPolygon] {
-        if state == "Alaska" || state == "Hawaii" {
-            return multiPolygon.polygons.map { transformPolygon($0, for: state) }
-        } else {
-            return multiPolygon.polygons
-        }
-    }
-
-    func transformCoordinates(for polygon: MKPolygon, scaleLat: Double, scaleLon: Double, offset: CLLocationCoordinate2D) -> MKPolygon {
-        let points = polygon.points()
-        var transformedCoordinates = [CLLocationCoordinate2D]()
-
-        for i in 0..<polygon.pointCount {
-            var coord = points[i].coordinate
-            coord.latitude = (coord.latitude - 64) * scaleLat + offset.latitude  // Centering transformation on Alaska's latitude
-            coord.longitude = (coord.longitude + 150) * scaleLon + offset.longitude  // Centering transformation on Alaska's longitude
-            transformedCoordinates.append(coord)
-        }
-
-        return MKPolygon(coordinates: transformedCoordinates, count: transformedCoordinates.count)
     }
 
     func calculateBoundingRegion(for overlays: [MKOverlay]) -> MKCoordinateRegion {
