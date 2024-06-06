@@ -10,9 +10,9 @@ struct MapView: UIViewRepresentable {
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .none  // Set to .none to allow custom zooming behavior
-        mapView.isUserInteractionEnabled = false  // Disable user interaction
-        mapView.isScrollEnabled = false  // Disable scrolling
-        mapView.isZoomEnabled = false  // Disable zooming
+        mapView.isUserInteractionEnabled = false  // Disable user interaction for production
+        mapView.isScrollEnabled = false  // Disable scrolling for production
+        mapView.isZoomEnabled = false  // Disable zooming for production
         mapView.mapType = .standard  // Use standard map type
         mapView.showsBuildings = false  // Hide buildings
         mapView.pointOfInterestFilter = .excludingAll  // Hide points of interest
@@ -118,10 +118,10 @@ struct MapView: UIViewRepresentable {
 
                     for geometry in feature.geometry {
                         if let polygon = geometry as? MKPolygon {
-                            allPolygons.append(polygon)
+                            allPolygons.append(transformPolygon(polygon, for: stateName))
                             print("Added polygon with \(polygon.pointCount) points for state: \(stateName)")
                         } else if let multiPolygon = geometry as? MKMultiPolygon {
-                            allPolygons.append(contentsOf: multiPolygon.polygons)
+                            allPolygons.append(contentsOf: transformMultiPolygon(multiPolygon, for: stateName))
                             print("Added multiPolygon with \(multiPolygon.polygons.count) polygons for state: \(stateName)")
                         } else {
                             print("Unknown geometry type for state: \(stateName)")
@@ -140,73 +140,44 @@ struct MapView: UIViewRepresentable {
         return nil
     }
 
+    func transformPolygon(_ polygon: MKPolygon, for state: String) -> MKPolygon {
+        if state == "Alaska" {
+            return transformCoordinates(for: polygon, scaleLat: 0.5, scaleLon: 0.4, offset: CLLocationCoordinate2D(latitude: 47.0, longitude: -135.0))
+        } else if state == "Hawaii" {
+            return transformCoordinates(for: polygon, scaleLat: 1.0, scaleLon: 1.2, offset: CLLocationCoordinate2D(latitude: 80.0, longitude: -123.0))
+        } else {
+            return polygon
+        }
+    }
+
+    func transformMultiPolygon(_ multiPolygon: MKMultiPolygon, for state: String) -> [MKPolygon] {
+        if state == "Alaska" || state == "Hawaii" {
+            return multiPolygon.polygons.map { transformPolygon($0, for: state) }
+        } else {
+            return multiPolygon.polygons
+        }
+    }
+
+    func transformCoordinates(for polygon: MKPolygon, scaleLat: Double, scaleLon: Double, offset: CLLocationCoordinate2D) -> MKPolygon {
+        let points = polygon.points()
+        var transformedCoordinates = [CLLocationCoordinate2D]()
+
+        for i in 0..<polygon.pointCount {
+            var coord = points[i].coordinate
+            coord.latitude = (coord.latitude - 64) * scaleLat + offset.latitude  // Centering transformation on Alaska's latitude
+            coord.longitude = (coord.longitude + 150) * scaleLon + offset.longitude  // Centering transformation on Alaska's longitude
+            transformedCoordinates.append(coord)
+        }
+
+        return MKPolygon(coordinates: transformedCoordinates, count: transformedCoordinates.count)
+    }
+
     func calculateBoundingRegion(for overlays: [MKOverlay]) -> MKCoordinateRegion {
         var minLat = CLLocationDegrees(90.0)
         var maxLat = CLLocationDegrees(-90.0)
         var minLon = CLLocationDegrees(180.0)
         var maxLon = CLLocationDegrees(-180.0)
 
-        var containsAlaska = false
-
-        for overlay in overlays {
-            if let polygon = overlay as? MKPolygon {
-                let points = polygon.points()
-                for i in 0..<polygon.pointCount {
-                    let coord = points[i].coordinate
-                    minLat = min(minLat, coord.latitude)
-                    maxLat = max(maxLat, coord.latitude)
-                    minLon = min(minLon, coord.longitude)
-                    maxLon = max(maxLon, coord.longitude)
-                    if coord.longitude > 170 || coord.longitude < -170 {
-                        containsAlaska = true
-                    }
-                }
-            } else if let multiPolygon = overlay as? MKMultiPolygon {
-                for polygon in multiPolygon.polygons {
-                    let points = polygon.points()
-                    for i in 0..<polygon.pointCount {
-                        let coord = points[i].coordinate
-                        minLat = min(minLat, coord.latitude)
-                        maxLat = max(maxLat, coord.latitude)
-                        minLon = min(minLon, coord.longitude)
-                        maxLon = max(maxLon, coord.longitude)
-                        if coord.longitude > 170 || coord.longitude < -170 {
-                            containsAlaska = true
-                        }
-                    }
-                }
-            }
-        }
-
-        // Adjust the bounds if Alaska is included
-        if containsAlaska {
-            maxLat = max(maxLat, 70)
-            minLon = min(minLon, -180)
-        }
-
-        let centerLat = (minLat + maxLat) / 2
-        var centerLon = (minLon + maxLon) / 2
-        let spanLat = (maxLat - minLat) * 1.2  // Add 20% margin
-        let spanLon = (maxLon - minLon) * 1.2  // Add 20% margin
-
-        // Adjust centerLon if it crosses the International Date Line
-        if containsAlaska && (maxLon - minLon > 180) {
-            centerLon = (centerLon + 180).truncatingRemainder(dividingBy: 360) - 180
-        }
-
-        let region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
-                                        span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon))
-        print("Calculated region: \(region)")
-
-        return isValidRegion(region) ? region : calculateBoundingRegionFallback(overlays: overlays, containsAlaska: containsAlaska)
-    }
-
-    func calculateBoundingRegionFallback(overlays: [MKOverlay], containsAlaska: Bool) -> MKCoordinateRegion {
-        var minLat = CLLocationDegrees(90.0)
-        var maxLat = CLLocationDegrees(-90.0)
-        var minLon = CLLocationDegrees(180.0)
-        var maxLon = CLLocationDegrees(-180.0)
-
         for overlay in overlays {
             if let polygon = overlay as? MKPolygon {
                 let points = polygon.points()
@@ -229,11 +200,6 @@ struct MapView: UIViewRepresentable {
                     }
                 }
             }
-        }
-
-        if containsAlaska {
-            maxLat = max(maxLat, 70)
-            minLon = min(minLon, -180)
         }
 
         let centerLat = (minLat + maxLat) / 2
@@ -241,10 +207,14 @@ struct MapView: UIViewRepresentable {
         let spanLat = (maxLat - minLat) * 1.2  // Add 20% margin
         let spanLon = (maxLon - minLon) * 1.2  // Add 20% margin
 
-        let fallbackRegion = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
-                                                span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon))
-        print("Fallback region: \(fallbackRegion)")
-        return fallbackRegion
+        // Ensure the spans are within a valid range
+        let finalSpanLat = min(spanLat, 90.0)
+        let finalSpanLon = min(spanLon, 180.0)
+
+        let region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
+                                        span: MKCoordinateSpan(latitudeDelta: finalSpanLat, longitudeDelta: finalSpanLon))
+        print("Calculated region: \(region)")
+        return region
     }
 
     func isValidRegion(_ region: MKCoordinateRegion) -> Bool {
