@@ -8,12 +8,16 @@
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>VisitedStates</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
+	<key>MBXAccessToken</key>
+	<string>pk.eyJ1IjoibW5laWxzb24iLCJhIjoiY2x4M3B4N3l6MHRmdzJscTFhOWFyaWNzOSJ9.XjvJdgy484j2OLjHPOM3Uw</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We need your location to highlight visited states even when the app is in the background.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
@@ -26,5 +30,7 @@
 	<array>
 		<string>location</string>
 	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>launchscreen.storyboard</string>
 </dict>
 </plist>

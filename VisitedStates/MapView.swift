@@ -1,6 +1,7 @@
 import SwiftUI
 import MapKit
 
+
 struct MapView: UIViewRepresentable {
     @Binding var visitedStates: [String]
     var locationManager: LocationManager
