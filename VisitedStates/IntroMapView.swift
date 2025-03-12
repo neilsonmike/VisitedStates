@@ -27,7 +27,7 @@ struct IntroMapView: View {
             }
             .edgesIgnoringSafeArea(.all)
 
-            Text("Visited States")
+            Text("VisitedStates")
                 .font(.system(size: 36, weight: .bold))
                 .foregroundColor(.red)
                 .opacity(fadeOutIntro ? 0 : 1)
@@ -91,7 +91,7 @@ struct IntroMapView: View {
             }
             path.closeSubpath()
 
-            context.fill(path, with: .color(settings.stateFillColor))
+            context.fill(path, with: .color(.gray))
             context.stroke(path, with: .color(settings.stateStrokeColor), lineWidth: MapView.borderLineWidth)
         }
     }
