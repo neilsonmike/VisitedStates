@@ -1,208 +1,457 @@
 import SwiftUI
 import MapKit
 
+// MARK: - StateBoundaryManager
 
-struct MapView: UIViewRepresentable {
-    @Binding var visitedStates: [String]
-    var locationManager: LocationManager
-
-    func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView(frame: .zero)
-        mapView.delegate = context.coordinator
-        mapView.showsUserLocation = true
-        mapView.userTrackingMode = .none  // Set to .none to allow custom zooming behavior
-        mapView.isUserInteractionEnabled = true  // Enable user interaction for testing
-        mapView.isScrollEnabled = true  // Enable scrolling for testing
-        mapView.isZoomEnabled = true  // Enable zooming for testing
-        mapView.mapType = .standard  // Use standard map type
-        mapView.showsBuildings = false  // Hide buildings
-        mapView.pointOfInterestFilter = .excludingAll  // Hide points of interest
-        mapView.showsCompass = false  // Hide compass
-        mapView.showsScale = false  // Hide scale
-        mapView.showsTraffic = false  // Hide traffic
-
-        // Adding an empty overlay to initialize the map correctly
-        let initialCoordinate = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)  // Default to San Francisco
-        let initialSpan = MKCoordinateSpan(latitudeDelta: 10, longitudeDelta: 10)
-        let initialRegion = MKCoordinateRegion(center: initialCoordinate, span: initialSpan)
-        mapView.setRegion(initialRegion, animated: false)
-
-        return mapView
+class StateBoundaryManager {
+    static let shared = StateBoundaryManager()
+    var statePolygons: [String: [MKPolygon]] = [:]
+    
+    private init() {
+        loadGeoJSON()
     }
-
-    func updateUIView(_ uiView: MKMapView, context: Context) {
-        // Clear previous overlays
-        print("Removing previous overlays")
-        uiView.removeOverlays(uiView.overlays)
-
-        var overlays: [MKOverlay] = []
-
-        // Add overlays for visited states
-        for state in visitedStates {
-            if let overlay = getStateOverlay(for: state) {
-                overlays.append(overlay)
-                uiView.addOverlay(overlay)
-                print("Added overlay for state: \(state)")
-            } else {
-                print("No overlay found for state: \(state)")
-            }
-        }
-
-        // Adjust the map region to fit all visited states
-        if !overlays.isEmpty {
-            let boundingRegion = calculateBoundingRegion(for: overlays)
-            // Ensure the region is valid
-            if isValidRegion(boundingRegion) {
-                print("Setting region: \(boundingRegion)")
-                uiView.setRegion(boundingRegion, animated: true)
-            } else {
-                print("Invalid region calculated, skipping region adjustment")
-            }
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
-    class Coordinator: NSObject, MKMapViewDelegate {
-        var parent: MapView
-
-        init(_ parent: MapView) {
-            self.parent = parent
-        }
-
-        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let polygon = overlay as? MKPolygon {
-                let renderer = MKPolygonRenderer(polygon: polygon)
-                renderer.fillColor = UIColor.red.withAlphaComponent(0.5)
-                renderer.strokeColor = UIColor.white
-                renderer.lineWidth = 0.5  // Reduced to 25% of the previous value
-                return renderer
-            } else if let multiPolygon = overlay as? MKMultiPolygon {
-                let renderer = MKMultiPolygonRenderer(multiPolygon: multiPolygon)
-                renderer.fillColor = UIColor.red.withAlphaComponent(0.5)
-                renderer.strokeColor = UIColor.white
-                renderer.lineWidth = 0.5  // Reduced to 25% of the previous value
-                return renderer
-            }
-            return MKOverlayRenderer(overlay: overlay)
-        }
-    }
-
-    func getStateOverlay(for state: String) -> MKOverlay? {
-        guard let geoJSONString = loadGeoJSONData() else {
-            print("Failed to load GeoJSON data from file")
-            return nil
-        }
-
-        guard let data = geoJSONString.data(using: .utf8) else {
-            print("Failed to convert JSON string to data")
-            return nil
-        }
-
-        guard let features = try? MKGeoJSONDecoder().decode(data).compactMap({ $0 as? MKGeoJSONFeature }) else {
-            print("Failed to decode GeoJSON data")
-            return nil
-        }
-
-        var stateNames = [String]()
-        for feature in features {
-            if let properties = feature.properties,
-               let json = try? JSONSerialization.jsonObject(with: properties, options: []) as? [String: Any],
-               let stateName = json["NAME"] as? String {
-                stateNames.append(stateName)
-                print("Parsed state name: \(stateName)")
-                if stateName == state {
-                    print("Found state: \(stateName)")
-                    var allPolygons: [MKPolygon] = []
-
-                    for geometry in feature.geometry {
-                        if let polygon = geometry as? MKPolygon {
-                            allPolygons.append(polygon)
-                            print("Added polygon with \(polygon.pointCount) points for state: \(stateName)")
-                        } else if let multiPolygon = geometry as? MKMultiPolygon {
-                            allPolygons.append(contentsOf: multiPolygon.polygons)
-                            print("Added multiPolygon with \(multiPolygon.polygons.count) polygons for state: \(stateName)")
-                        } else {
-                            print("Unknown geometry type for state: \(stateName)")
-                        }
-                    }
-
-                    if allPolygons.count == 1 {
-                        return allPolygons.first
-                    } else if allPolygons.count > 1 {
-                        return MKMultiPolygon(allPolygons)
-                    }
-                }
-            }
-        }
-        print("State \(state) not found in GeoJSON data. Available states: \(stateNames)")
-        return nil
-    }
-
-    func calculateBoundingRegion(for overlays: [MKOverlay]) -> MKCoordinateRegion {
-        var minLat = CLLocationDegrees(90.0)
-        var maxLat = CLLocationDegrees(-90.0)
-        var minLon = CLLocationDegrees(180.0)
-        var maxLon = CLLocationDegrees(-180.0)
-
-        for overlay in overlays {
-            if let polygon = overlay as? MKPolygon {
-                let points = polygon.points()
-                for i in 0..<polygon.pointCount {
-                    let coord = points[i].coordinate
-                    minLat = min(minLat, coord.latitude)
-                    maxLat = max(maxLat, coord.latitude)
-                    minLon = min(minLon, coord.longitude)
-                    maxLon = max(maxLon, coord.longitude)
-                }
-            } else if let multiPolygon = overlay as? MKMultiPolygon {
-                for polygon in multiPolygon.polygons {
-                    let points = polygon.points()
-                    for i in 0..<polygon.pointCount {
-                        let coord = points[i].coordinate
-                        minLat = min(minLat, coord.latitude)
-                        maxLat = max(maxLat, coord.latitude)
-                        minLon = min(minLon, coord.longitude)
-                        maxLon = max(maxLon, coord.longitude)
-                    }
-                }
-            }
-        }
-
-        let centerLat = (minLat + maxLat) / 2
-        let centerLon = (minLon + maxLon) / 2
-        let spanLat = (maxLat - minLat) * 1.2  // Add 20% margin
-        let spanLon = (maxLon - minLon) * 1.2  // Add 20% margin
-
-        // Ensure the spans are within a valid range
-        let finalSpanLat = min(spanLat, 90.0)
-        let finalSpanLon = min(spanLon, 180.0)
-
-        let region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon),
-                                        span: MKCoordinateSpan(latitudeDelta: finalSpanLat, longitudeDelta: finalSpanLon))
-        print("Calculated region: \(region)")
-        return region
-    }
-
-    func isValidRegion(_ region: MKCoordinateRegion) -> Bool {
-        // Check if the region is valid
-        let maxSpan = MKCoordinateSpan(latitudeDelta: 90.0, longitudeDelta: 180.0)
-        return region.span.latitudeDelta <= maxSpan.latitudeDelta && region.span.longitudeDelta <= maxSpan.longitudeDelta
-    }
-
-    func loadGeoJSONData() -> String? {
+    
+    private func loadGeoJSON() {
         guard let url = Bundle.main.url(forResource: "us_states", withExtension: "geojson") else {
-            print("GeoJSON file not found")
-            return nil
+            print("us_states.geojson file not found in bundle.")
+            return
         }
         do {
             let data = try Data(contentsOf: url)
-            return String(data: data, encoding: .utf8)
+            let geoJSONObjects = try MKGeoJSONDecoder().decode(data)
+            for item in geoJSONObjects {
+                if let feature = item as? MKGeoJSONFeature,
+                   let propertiesData = feature.properties,
+                   let properties = try? JSONSerialization.jsonObject(with: propertiesData) as? [String: Any],
+                   let stateName = properties["NAME"] as? String {
+                    
+                    for geometry in feature.geometry {
+                        if let polygon = geometry as? MKPolygon {
+                            statePolygons[stateName, default: []].append(polygon)
+                        } else if let multiPolygon = geometry as? MKMultiPolygon {
+                            statePolygons[stateName, default: []].append(contentsOf: multiPolygon.polygons)
+                        }
+                    }
+                }
+            }
+            print("Loaded states: \(Array(statePolygons.keys))")
         } catch {
-            print("Failed to load GeoJSON file: \(error)")
-            return nil
+            print("Error decoding GeoJSON: \(error)")
+        }
+    }
+}
+
+// MARK: - MapView
+
+struct MapView: View {
+    @Binding var visitedStates: [String]
+    @EnvironmentObject var settings: AppSettings
+    
+    // A constant border thickness for all states
+    static let borderLineWidth: CGFloat = 0.5
+
+    // We'll reference "California alone" as the baseline for scale
+    static let californiaCenter = CLLocationCoordinate2D(latitude: 37.3, longitude: -119.5)
+    static let californiaSpan   = MKCoordinateSpan(latitudeDelta: 10.0, longitudeDelta: 10.0)
+    
+    static let referenceScale: CGFloat = {
+        let refRect = regionToMapRect(center: californiaCenter, span: californiaSpan)
+        let extraPaddingFraction: Double = 0.02
+        let extraDx = refRect.size.width * extraPaddingFraction
+        let extraDy = refRect.size.height * extraPaddingFraction
+        let paddedRect = refRect.insetBy(dx: -extraDx, dy: -extraDy)
+        
+        let testWidth:  CGFloat = 400
+        let testHeight: CGFloat = 400
+        let scaleX = testWidth  / CGFloat(paddedRect.size.width)
+        let scaleY = testHeight / CGFloat(paddedRect.size.height)
+        return min(scaleX, scaleY)
+    }()
+    
+    static func regionToMapRect(center: CLLocationCoordinate2D, span: MKCoordinateSpan) -> MKMapRect {
+        let centerPoint = MKMapPoint(center)
+        let widthMeters  = span.longitudeDelta * 111_000.0
+        let heightMeters = span.latitudeDelta  * 111_000.0
+        let origin = MKMapPoint(x: centerPoint.x - widthMeters / 2,
+                                y: centerPoint.y - heightMeters / 2)
+        return MKMapRect(origin: origin,
+                         size: MKMapSize(width: widthMeters, height: heightMeters))
+    }
+
+    static let preferredMapRects: [String: MKMapRect] = {
+        func regionToMapRect(center: CLLocationCoordinate2D, span: MKCoordinateSpan) -> MKMapRect {
+            let centerPoint = MKMapPoint(center)
+            let widthMeters  = span.longitudeDelta * 111_000.0
+            let heightMeters = span.latitudeDelta  * 111_000.0
+            let origin = MKMapPoint(x: centerPoint.x - widthMeters / 2,
+                                    y: centerPoint.y - heightMeters / 2)
+            return MKMapRect(origin: origin,
+                             size: MKMapSize(width: widthMeters, height: heightMeters))
+        }
+        
+        let alaskaRect = regionToMapRect(
+            center: CLLocationCoordinate2D(latitude: 64.0, longitude: -152.0),
+            span: MKCoordinateSpan(latitudeDelta: 275.0, longitudeDelta: 275.0)
+        )
+        let hawaiiRect = regionToMapRect(
+            center: CLLocationCoordinate2D(latitude: 20.7, longitude: -156.5),
+            span: MKCoordinateSpan(latitudeDelta: 4.0,  longitudeDelta: 30.0)
+        )
+        
+        return [
+            "Alaska": alaskaRect,
+            "Hawaii": hawaiiRect
+        ]
+    }()
+    
+    var body: some View {
+        ZStack {
+            GeometryReader { geometry in
+                
+                // Exclude DC from the count only:
+                let visitedStatesExcludingDC = visitedStates.filter { $0 != "District of Columbia" }
+                let visitedCount = visitedStatesExcludingDC.count
+                
+                let showAlaska = visitedStates.contains("Alaska")
+                let showHawaii = visitedStates.contains("Hawaii")
+                
+                // For actual drawing, we still use "visitedStates"
+                // so DC is drawn if visited
+                let contiguousStates = visitedStates.filter { $0 != "Alaska" && $0 != "Hawaii" }
+                let noContiguousStates = contiguousStates.isEmpty
+                
+                if visitedCount == 2 && showAlaska && showHawaii && noContiguousStates {
+                    // 2 visited states are AK + HI, no contiguous
+                    VStack(spacing: 0) {
+                        InsetStateView(stateName: "Alaska")
+                            .environmentObject(settings)
+                            .frame(width: geometry.size.width, height: geometry.size.height / 2)
+                        
+                        InsetStateView(stateName: "Hawaii")
+                            .environmentObject(settings)
+                            .frame(width: geometry.size.width, height: geometry.size.height / 2)
+                    }
+                }
+                else if visitedCount == 1 && (showAlaska || showHawaii) && noContiguousStates {
+                    // 1 visited, AK or HI only
+                    if showAlaska {
+                        FullScreenStateView(state: "Alaska")
+                            .environmentObject(settings)
+                    } else {
+                        FullScreenStateView(state: "Hawaii")
+                            .environmentObject(settings)
+                    }
+                }
+                else {
+                    // Might have contiguous states plus possibly AK or HI
+                    let insetsCount = (showAlaska ? 1 : 0) + (showHawaii ? 1 : 0)
+                    let boxSize: CGFloat = geometry.size.width * 0.375
+                    
+                    ZStack(alignment: .bottomLeading) {
+                        // Use "contiguousStates" to draw the lower 48, but DC is included here if it’s in visited
+                        ContiguousStatesCanvas(
+                            visitedStates: contiguousStates,
+                            totalSize: CGSize(width: geometry.size.width, height: geometry.size.height)
+                        )
+                        .environmentObject(settings)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        
+                        if insetsCount > 0 {
+                            if showAlaska && showHawaii {
+                                HStack(spacing: 0) {
+                                    InsetStateView(stateName: "Alaska")
+                                        .environmentObject(settings)
+                                        .frame(width: boxSize, height: boxSize)
+                                    
+                                    InsetStateView(stateName: "Hawaii")
+                                        .environmentObject(settings)
+                                        .frame(width: boxSize, height: boxSize)
+                                }
+                                .padding([.leading, .bottom], 8)
+                            }
+                            else if showAlaska {
+                                InsetStateView(stateName: "Alaska")
+                                    .environmentObject(settings)
+                                    .frame(width: boxSize, height: boxSize)
+                                    .padding([.leading, .bottom], 8)
+                            }
+                            else if showHawaii {
+                                InsetStateView(stateName: "Hawaii")
+                                    .environmentObject(settings)
+                                    .frame(width: boxSize, height: boxSize)
+                                    .padding([.leading, .bottom], 8)
+                            }
+                        }
+                    }
+                }
+                
+                // Display stats label "XX/50 States Visited"
+                let labelText = "\(visitedCount)/50 States Visited"
+                Text(labelText)
+                    .foregroundColor(.gray)
+                    .font(.system(size: 16, weight: .regular))
+                    .position(x: geometry.size.width / 2, y: geometry.size.height * 0.2)
+            }
+        }
+    }
+}
+
+// MARK: - ContiguousStatesCanvas
+
+struct ContiguousStatesCanvas: View {
+    @EnvironmentObject var settings: AppSettings
+    let visitedStates: [String]
+    let totalSize: CGSize
+    
+    var body: some View {
+        Canvas { context, size in
+            if !visitedStates.isEmpty,
+               let unionRect = computeUnionMapRect(for: visitedStates) {
+                
+                let extraPaddingFraction: Double = 0.02
+                let extraDx = unionRect.size.width * extraPaddingFraction
+                let extraDy = unionRect.size.height * extraPaddingFraction
+                let paddedUnionRect = unionRect.insetBy(dx: -extraDx, dy: -extraDy)
+                
+                let scaleX = size.width / CGFloat(paddedUnionRect.size.width)
+                let scaleY = size.height / CGFloat(paddedUnionRect.size.height)
+                let scale = min(scaleX, scaleY)
+                
+                let offsetX = (size.width - (paddedUnionRect.size.width * scale)) / 2
+                let offsetY = (size.height - (paddedUnionRect.size.height * scale)) / 2
+                
+                let fillColor   = settings.stateFillColor
+                let strokeColor = settings.stateStrokeColor
+                
+                for state in visitedStates {
+                    if let polygons = StateBoundaryManager.shared.statePolygons[state] {
+                        for polygon in polygons {
+                            var path = Path()
+                            let pointCount = polygon.pointCount
+                            guard pointCount > 0 else { continue }
+                            let points = polygon.points()
+                            let firstPoint = points[0]
+                            
+                            func transformedX(_ p: MKMapPoint) -> CGFloat {
+                                offsetX + CGFloat(p.x - paddedUnionRect.origin.x) * scale
+                            }
+                            func transformedY(_ p: MKMapPoint) -> CGFloat {
+                                offsetY + CGFloat(p.y - paddedUnionRect.origin.y) * scale
+                            }
+                            
+                            path.move(to: CGPoint(x: transformedX(firstPoint), y: transformedY(firstPoint)))
+                            for i in 1..<pointCount {
+                                let mp = points[i]
+                                path.addLine(to: CGPoint(x: transformedX(mp), y: transformedY(mp)))
+                            }
+                            path.closeSubpath()
+                            
+                            context.fill(path, with: .color(fillColor))
+                            context.stroke(path, with: .color(strokeColor), lineWidth: MapView.borderLineWidth)
+                        }
+                    }
+                }
+            }
+        }
+        .background(settings.backgroundColor)
+    }
+    
+    func computeUnionMapRect(for states: [String]) -> MKMapRect? {
+        var unionRect: MKMapRect?
+        for state in states {
+            if let polys = StateBoundaryManager.shared.statePolygons[state] {
+                for poly in polys {
+                    unionRect = unionRect?.union(poly.boundingMapRect) ?? poly.boundingMapRect
+                }
+            }
+        }
+        return unionRect
+    }
+}
+
+// MARK: - FullScreenStateView
+
+struct FullScreenStateView: View {
+    var state: String
+    @EnvironmentObject var settings: AppSettings
+
+    var body: some View {
+        GeometryReader { geometry in
+            Canvas { context, size in
+                if let mapRect = MapView.preferredMapRects[state] {
+                    let extraPaddingFraction: Double = 0.02
+                    let extraDx = mapRect.size.width * extraPaddingFraction
+                    let extraDy = mapRect.size.height * extraPaddingFraction
+                    let paddedRect = mapRect.insetBy(dx: -extraDx, dy: -extraDy)
+                    
+                    let scaleX = size.width / CGFloat(paddedRect.size.width)
+                    let scaleY = size.height / CGFloat(paddedRect.size.height)
+                    let scale = min(scaleX, scaleY)
+                    
+                    let offsetX = (size.width - (paddedRect.size.width * scale)) / 2
+                    let offsetY = (size.height - (paddedRect.size.height * scale)) / 2
+                    
+                    func tx(_ p: MKMapPoint) -> CGFloat {
+                        offsetX + CGFloat(p.x - paddedRect.origin.x) * scale
+                    }
+                    func ty(_ p: MKMapPoint) -> CGFloat {
+                        offsetY + CGFloat(p.y - paddedRect.origin.y) * scale
+                    }
+                    
+                    if let polygons = StateBoundaryManager.shared.statePolygons[state] {
+                        for polygon in polygons {
+                            var path = Path()
+                            let count = polygon.pointCount
+                            guard count > 0 else { continue }
+                            let pts = polygon.points()
+                            let firstPt = pts[0]
+                            
+                            path.move(to: CGPoint(x: tx(firstPt), y: ty(firstPt)))
+                            for i in 1..<count {
+                                let mp = pts[i]
+                                path.addLine(to: CGPoint(x: tx(mp), y: ty(mp)))
+                            }
+                            path.closeSubpath()
+                            
+                            context.fill(path, with: .color(settings.stateFillColor))
+                            context.stroke(path, with: .color(settings.stateStrokeColor), lineWidth: MapView.borderLineWidth)
+                        }
+                    }
+                }
+                else if let unionRect = computeUnionMapRectForState(state: state) {
+                    let extraPaddingFraction: Double = 0.02
+                    let extraDx = unionRect.size.width * extraPaddingFraction
+                    let extraDy = unionRect.size.height * extraPaddingFraction
+                    let paddedUnionRect = unionRect.insetBy(dx: -extraDx, dy: -extraDy)
+                    
+                    let scaleX = size.width / CGFloat(paddedUnionRect.size.width)
+                    let scaleY = size.height / CGFloat(paddedUnionRect.size.height)
+                    let scale = min(scaleX, scaleY)
+                    
+                    let drawnWidth  = CGFloat(paddedUnionRect.size.width)  * scale
+                    let drawnHeight = CGFloat(paddedUnionRect.size.height) * scale
+                    
+                    let offsetX = (size.width  - drawnWidth)  / 2
+                    let offsetY = (size.height - drawnHeight) / 2
+                    
+                    func transformedX(_ p: MKMapPoint) -> CGFloat {
+                        offsetX + CGFloat(p.x - paddedUnionRect.origin.x) * scale
+                    }
+                    func transformedY(_ p: MKMapPoint) -> CGFloat {
+                        offsetY + CGFloat(p.y - paddedUnionRect.origin.y) * scale
+                    }
+                    
+                    if let polygons = StateBoundaryManager.shared.statePolygons[state] {
+                        for polygon in polygons {
+                            var path = Path()
+                            let pointCount = polygon.pointCount
+                            guard pointCount > 0 else { continue }
+                            let points = polygon.points()
+                            let firstPoint = points[0]
+                            
+                            path.move(to: CGPoint(x: transformedX(firstPoint),
+                                                  y: transformedY(firstPoint)))
+                            for i in 1..<pointCount {
+                                let mp = points[i]
+                                path.addLine(to: CGPoint(x: transformedX(mp), y: transformedY(mp)))
+                            }
+                            path.closeSubpath()
+                            
+                            context.fill(path, with: .color(settings.stateFillColor))
+                            context.stroke(path, with: .color(settings.stateStrokeColor), lineWidth: MapView.borderLineWidth)
+                        }
+                    }
+                }
+            }
+            .background(settings.backgroundColor)
+        }
+    }
+    
+    func computeUnionMapRectForState(state: String) -> MKMapRect? {
+        var unionRect: MKMapRect?
+        if let polygons = StateBoundaryManager.shared.statePolygons[state] {
+            for poly in polygons {
+                if unionRect == nil {
+                    unionRect = poly.boundingMapRect
+                } else {
+                    unionRect = unionRect?.union(poly.boundingMapRect)
+                }
+            }
+        }
+        return unionRect
+    }
+}
+
+// MARK: - InsetStateView
+
+struct InsetStateView: View {
+    let stateName: String
+    @EnvironmentObject var settings: AppSettings
+    
+    var body: some View {
+        GeometryReader { geo in
+            Canvas { context, size in
+                if let mapRect = MapView.preferredMapRects[stateName] {
+                    drawState(mapRect: mapRect, size: size, context: &context)
+                }
+                else if let unionRect = computeUnionRect(for: stateName) {
+                    drawState(mapRect: unionRect, size: size, context: &context)
+                }
+            }
+            .background(settings.backgroundColor)
+        }
+    }
+    
+    private func computeUnionRect(for state: String) -> MKMapRect? {
+        guard let polygons = StateBoundaryManager.shared.statePolygons[stateName] else { return nil }
+        var unionRect: MKMapRect?
+        for poly in polygons {
+            unionRect = unionRect?.union(poly.boundingMapRect) ?? poly.boundingMapRect
+        }
+        return unionRect
+    }
+    
+    private func drawState(mapRect: MKMapRect, size: CGSize, context: inout GraphicsContext) {
+        let extraPaddingFraction: Double = 0.02
+        let extraDx = mapRect.size.width * extraPaddingFraction
+        let extraDy = mapRect.size.height * extraPaddingFraction
+        let paddedRect = mapRect.insetBy(dx: -extraDx, dy: -extraDy)
+        
+        let scaleX = size.width / CGFloat(paddedRect.size.width)
+        let scaleY = size.height / CGFloat(paddedRect.size.height)
+        let scale = min(scaleX, scaleY)
+        
+        let offsetX = (size.width - (paddedRect.size.width * scale)) / 2
+        let offsetY = (size.height - (paddedRect.size.height * scale)) / 2
+        
+        func tx(_ p: MKMapPoint) -> CGFloat {
+            offsetX + CGFloat(p.x - paddedRect.origin.x) * scale
+        }
+        func ty(_ p: MKMapPoint) -> CGFloat {
+            offsetY + CGFloat(p.y - paddedRect.origin.y) * scale
+        }
+        
+        if let polygons = StateBoundaryManager.shared.statePolygons[stateName] {
+            for polygon in polygons {
+                var path = Path()
+                let count = polygon.pointCount
+                guard count > 0 else { continue }
+                let pts = polygon.points()
+                let firstPt = pts[0]
+                
+                path.move(to: CGPoint(x: tx(firstPt), y: ty(firstPt)))
+                for i in 1..<count {
+                    let mp = pts[i]
+                    path.addLine(to: CGPoint(x: tx(mp), y: ty(mp)))
+                }
+                path.closeSubpath()
+                
+                let fillColor   = settings.stateFillColor
+                let strokeColor = settings.stateStrokeColor
+                context.fill(path, with: .color(fillColor))
+                
+                context.stroke(path, with: .color(strokeColor), lineWidth: MapView.borderLineWidth)
+            }
         }
     }
 }

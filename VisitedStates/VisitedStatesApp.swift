@@ -1,17 +1,15 @@
-//
-//  VisitedStatesApp.swift
-//  VisitedStates
-//
-//  Created by Mike Neilson on 6/1/24.
-//
-
 import SwiftUI
 
 @main
 struct VisitedStatesApp: App {
+    @StateObject var settings = AppSettings.shared
+    @StateObject var locationManager = LocationManager()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            IntroMapView()
+                .environmentObject(settings)
+                .environmentObject(locationManager)
         }
     }
 }

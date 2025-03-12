@@ -2,43 +2,49 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject var locationManager = LocationManager()
-    @State var visitedStates: [String] = []
-
+    @StateObject var settings = AppSettings.shared
+    @State private var showingSettings = false
+    
     var body: some View {
         ZStack {
-            MapView(visitedStates: $visitedStates, locationManager: locationManager)
+            // Display the MapView with environment object
+            MapView(visitedStates: $locationManager.visitedStates)
+                .environmentObject(settings)
                 .edgesIgnoringSafeArea(.all)
             
+            // Settings button only
             VStack {
                 Spacer()
                 HStack {
+                    Spacer()
                     Button(action: {
-                        locationManager.clearLocalData()
+                        showingSettings.toggle()
                     }) {
-                        Text("Clear Local Data")
-                            .padding()
-                            .background(Color.red)
+                        Image(systemName: "ellipsis")
+                            .font(.title)
+                            .padding(12)
+                            .background(Color.gray.opacity(0.3))
                             .foregroundColor(.white)
-                            .cornerRadius(8)
+                            .clipShape(Circle())
                     }
-                    Button(action: {
-                        locationManager.clearAllData()
-                    }) {
-                        Text("Clear All Data")
-                            .padding()
-                            .background(Color.red)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                    }
+                    .padding()
                 }
-                .padding()
             }
         }
         .onAppear {
-            visitedStates = locationManager.visitedStates
+            NotificationManager.shared.appSettings = settings
         }
-        .onChange(of: locationManager.visitedStates) { newValue in
-            visitedStates = newValue
+        // Present the settings sheet
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+                .environmentObject(settings)
+                .environmentObject(locationManager)
         }
+    }
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
     }
 }

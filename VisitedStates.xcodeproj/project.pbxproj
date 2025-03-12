@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		4212952B2C0D515A00E38B54 /* blank.png in Resources */ = {isa = PBXBuildFile; fileRef = 4212952A2C0D515A00E38B54 /* blank.png */; };
+		42302CDD2D81CB7200B1C06E /* IntroMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */; };
+		42302CDF2D81E5ED00B1C06E /* LoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42302CDE2D81E5EA00B1C06E /* LoadingView.swift */; };
 		423B206E2C0BAE9100EE7FEF /* VisitedStatesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */; };
 		423B20702C0BAE9100EE7FEF /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B206F2C0BAE9100EE7FEF /* Persistence.swift */; };
 		423B20732C0BAE9100EE7FEF /* VisitedStates.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 423B20712C0BAE9100EE7FEF /* VisitedStates.xcdatamodeld */; };
@@ -19,10 +21,21 @@
 		4284837C2C0D301B0021DDAE /* us_states.geojson in Resources */ = {isa = PBXBuildFile; fileRef = 4284837B2C0D301B0021DDAE /* us_states.geojson */; };
 		428FB4692C1276D600972D45 /* launchscreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 428FB4682C1276D600972D45 /* launchscreen.storyboard */; };
 		428FB46F2C127F0900972D45 /* white_tile.png in Resources */ = {isa = PBXBuildFile; fileRef = 428FB46E2C127F0800972D45 /* white_tile.png */; };
+		42AA801E2D7B4E46008AF2DE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AA801D2D7B4B6F008AF2DE /* AppDelegate.swift */; };
+		42AA80202D7B94D8008AF2DE /* TestMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AA801F2D7B94D5008AF2DE /* TestMapView.swift */; };
+		42AA80222D7C8DC6008AF2DE /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AA80212D7C8DC2008AF2DE /* SplashView.swift */; };
+		42AA80262D7DF0EF008AF2DE /* AlaskaHawaiiSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */; };
+		42B9C8052D8000BB0012B018 /* USStates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B9C8042D8000B70012B018 /* USStates.swift */; };
+		42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B9C8062D8000CB0012B018 /* EditStatesView.swift */; };
+		42F551022D7A83DC00986E1F /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F551012D7A83D600986E1F /* AppSettings.swift */; };
+		42F551042D7A83F300986E1F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F551032D7A83EE00986E1F /* SettingsView.swift */; };
+		42F551062D7A89EB00986E1F /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F551052D7A89E500986E1F /* NotificationManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		4212952A2C0D515A00E38B54 /* blank.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = blank.png; sourceTree = "<group>"; };
+		42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroMapView.swift; sourceTree = "<group>"; };
+		42302CDE2D81E5EA00B1C06E /* LoadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingView.swift; sourceTree = "<group>"; };
 		423B206A2C0BAE9100EE7FEF /* VisitedStates.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VisitedStates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedStatesApp.swift; sourceTree = "<group>"; };
 		423B206F2C0BAE9100EE7FEF /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
@@ -40,6 +53,15 @@
 		4284837B2C0D301B0021DDAE /* us_states.geojson */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; lineEnding = 0; path = us_states.geojson; sourceTree = "<group>"; };
 		428FB4682C1276D600972D45 /* launchscreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = launchscreen.storyboard; sourceTree = SOURCE_ROOT; };
 		428FB46E2C127F0800972D45 /* white_tile.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = white_tile.png; sourceTree = "<group>"; };
+		42AA801D2D7B4B6F008AF2DE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		42AA801F2D7B94D5008AF2DE /* TestMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestMapView.swift; sourceTree = "<group>"; };
+		42AA80212D7C8DC2008AF2DE /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
+		42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlaskaHawaiiSplitView.swift; sourceTree = "<group>"; };
+		42B9C8042D8000B70012B018 /* USStates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USStates.swift; sourceTree = "<group>"; };
+		42B9C8062D8000CB0012B018 /* EditStatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditStatesView.swift; sourceTree = "<group>"; };
+		42F551012D7A83D600986E1F /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		42F551032D7A83EE00986E1F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		42F551052D7A89E500986E1F /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,6 +96,17 @@
 		423B206C2C0BAE9100EE7FEF /* VisitedStates */ = {
 			isa = PBXGroup;
 			children = (
+				42302CDE2D81E5EA00B1C06E /* LoadingView.swift */,
+				42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */,
+				42B9C8062D8000CB0012B018 /* EditStatesView.swift */,
+				42B9C8042D8000B70012B018 /* USStates.swift */,
+				42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */,
+				42AA80212D7C8DC2008AF2DE /* SplashView.swift */,
+				42AA801F2D7B94D5008AF2DE /* TestMapView.swift */,
+				42AA801D2D7B4B6F008AF2DE /* AppDelegate.swift */,
+				42F551052D7A89E500986E1F /* NotificationManager.swift */,
+				42F551032D7A83EE00986E1F /* SettingsView.swift */,
+				42F551012D7A83D600986E1F /* AppSettings.swift */,
 				428FB4682C1276D600972D45 /* launchscreen.storyboard */,
 				4212952A2C0D515A00E38B54 /* blank.png */,
 				423B20A32C0BB32400EE7FEF /* GeoJSON */,
@@ -202,11 +235,22 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				42AA801E2D7B4E46008AF2DE /* AppDelegate.swift in Sources */,
 				423B206E2C0BAE9100EE7FEF /* VisitedStatesApp.swift in Sources */,
+				42302CDD2D81CB7200B1C06E /* IntroMapView.swift in Sources */,
+				42F551042D7A83F300986E1F /* SettingsView.swift in Sources */,
+				42302CDF2D81E5ED00B1C06E /* LoadingView.swift in Sources */,
 				423B20A22C0BB21C00EE7FEF /* MapView.swift in Sources */,
+				42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */,
+				42F551062D7A89EB00986E1F /* NotificationManager.swift in Sources */,
+				42AA80202D7B94D8008AF2DE /* TestMapView.swift in Sources */,
+				42AA80262D7DF0EF008AF2DE /* AlaskaHawaiiSplitView.swift in Sources */,
+				42F551022D7A83DC00986E1F /* AppSettings.swift in Sources */,
 				423B20702C0BAE9100EE7FEF /* Persistence.swift in Sources */,
+				42AA80222D7C8DC6008AF2DE /* SplashView.swift in Sources */,
 				423B20A02C0BB1E200EE7FEF /* LocationManager.swift in Sources */,
 				423B20752C0BAE9100EE7FEF /* ContentView.swift in Sources */,
+				42B9C8052D8000BB0012B018 /* USStates.swift in Sources */,
 				423B20732C0BAE9100EE7FEF /* VisitedStates.xcdatamodeld in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
