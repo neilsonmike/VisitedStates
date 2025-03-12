@@ -3,7 +3,7 @@ import UserNotifications
 import CloudKit
 import SwiftUI
 
-class NotificationManager: ObservableObject {
+class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
     
     /// This property should be set by the UI (e.g., in ContentView) so that
@@ -23,7 +23,9 @@ class NotificationManager: ObservableObject {
         "Trivia: This state is home to the world's happiest potholes!"
     ]
     
-    private init() {
+    override private init() {
+        super.init() // Ensure superclass is initialized first
+
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
             if granted {
                 print("Notification permission granted.")
@@ -31,6 +33,8 @@ class NotificationManager: ObservableObject {
                 print("Notification permission denied: \(error?.localizedDescription ?? "unknown error")")
             }
         }
+        
+        UNUserNotificationCenter.current().delegate = self // Now it's safe to use 'self'
     }
     
     /// Schedules a notification for the given state if notifications are enabled and the cooldown period has passed.
@@ -133,5 +137,12 @@ class NotificationManager: ObservableObject {
                 print("Notification scheduled for \(state).")
             }
         }
+    }
+    
+    // This ensures notifications appear while the app is open
+    func userNotificationCenter(_ center: UNUserNotificationCenter, 
+                                willPresent notification: UNNotification, 
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound]) // Show banner and play sound
     }
 }
