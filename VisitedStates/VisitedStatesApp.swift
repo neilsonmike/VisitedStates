@@ -10,6 +10,9 @@ struct VisitedStatesApp: App {
             IntroMapView()
                 .environmentObject(settings)
                 .environmentObject(locationManager)
+                .onAppear {
+                    print("🟢 App is launching: VisitedStatesApp.swift")
+                }
         }
     }
 }

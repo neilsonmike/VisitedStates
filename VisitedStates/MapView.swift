@@ -12,13 +12,20 @@ class StateBoundaryManager {
     }
     
     private func loadGeoJSON() {
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
         guard let url = Bundle.main.url(forResource: "us_states", withExtension: "geojson") else {
             print("us_states.geojson file not found in bundle.")
+            print("GeoJSON file loading failed.")
             return
         }
+        
+        print("🔍 Loading GeoJSON file...")
+        
         do {
             let data = try Data(contentsOf: url)
             let geoJSONObjects = try MKGeoJSONDecoder().decode(data)
+            
             for item in geoJSONObjects {
                 if let feature = item as? MKGeoJSONFeature,
                    let propertiesData = feature.properties,
@@ -34,9 +41,12 @@ class StateBoundaryManager {
                     }
                 }
             }
-            print("Loaded states: \(Array(statePolygons.keys))")
+            
+            let elapsedTime = CFAbsoluteTimeGetCurrent() - startTime
+            print("✅ GeoJSON file decoded successfully in \(elapsedTime) seconds.")
+            print("📍 Loaded \(statePolygons.count) states from GeoJSON.")
         } catch {
-            print("Error decoding GeoJSON: \(error)")
+            print("❌ Error decoding GeoJSON: \(error.localizedDescription)")
         }
     }
 }
@@ -105,7 +115,7 @@ struct MapView: View {
     }()
     
     var body: some View {
-        ZStack {
+    ZStack {
             GeometryReader { geometry in
                 
                 // Exclude DC from the count only:
@@ -195,7 +205,6 @@ struct MapView: View {
         }
     }
 }
-
 // MARK: - ContiguousStatesCanvas
 
 struct ContiguousStatesCanvas: View {
@@ -252,6 +261,10 @@ struct ContiguousStatesCanvas: View {
                     }
                 }
             }
+        }
+        .onAppear {
+            // Debug: ContiguousStatesCanvas rendering
+            print("🟢 Rendering ContiguousStatesCanvas")
         }
         .background(settings.backgroundColor)
     }
@@ -389,17 +402,25 @@ struct InsetStateView: View {
     @EnvironmentObject var settings: AppSettings
     
     var body: some View {
-        GeometryReader { geo in
-            Canvas { context, size in
-                if let mapRect = MapView.preferredMapRects[stateName] {
-                    drawState(mapRect: mapRect, size: size, context: &context)
-                }
-                else if let unionRect = computeUnionRect(for: stateName) {
-                    drawState(mapRect: unionRect, size: size, context: &context)
-                }
+    GeometryReader { geo in
+        Canvas { context, size in
+            if let mapRect = MapView.preferredMapRects[stateName] {
+                drawState(mapRect: mapRect, size: size, context: &context)
             }
-            .background(settings.backgroundColor)
+            else if let unionRect = computeUnionRect(for: stateName) {
+                drawState(mapRect: unionRect, size: size, context: &context)
+            }
         }
+        .background(settings.backgroundColor)
+    }
+    .onAppear {
+        // Debug: InsetStateView appearance log
+        if stateName == "Alaska" {
+            print("🟢 Showing InsetStateView for Alaska")
+        } else if stateName == "Hawaii" {
+            print("🟢 Showing InsetStateView for Hawaii")
+        }
+    }
     }
     
     private func computeUnionRect(for state: String) -> MKMapRect? {

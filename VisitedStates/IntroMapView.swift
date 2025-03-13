@@ -28,7 +28,7 @@ struct IntroMapView: View {
             .edgesIgnoringSafeArea(.all)
 
             Text("VisitedStates")
-                .font(.system(size: 36, weight: .bold))
+                .font(.custom("DoHyeon-Regular", size: 48))
                 .foregroundColor(.red)
                 .opacity(fadeOutIntro ? 0 : 1)
                 .animation(.easeOut(duration: 1.5), value: fadeOutIntro)
