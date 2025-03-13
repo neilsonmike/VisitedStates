@@ -58,6 +58,11 @@ struct SettingsView: View {
                         showEditStates.toggle()
                     }
                 }
+                
+                // New section for About
+                Section {
+                    NavigationLink("About VisitedStates", destination: AboutView())
+                }
             }
             .navigationTitle("Settings")
             .sheet(isPresented: $showEditStates) {

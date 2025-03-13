@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		4212952B2C0D515A00E38B54 /* blank.png in Resources */ = {isa = PBXBuildFile; fileRef = 4212952A2C0D515A00E38B54 /* blank.png */; };
 		4221270D2D8274080033E461 /* DoHyeon-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */; };
+		4221270F2D8277080033E461 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4221270E2D8277020033E461 /* AboutView.swift */; };
 		42302CDD2D81CB7200B1C06E /* IntroMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */; };
 		423B206E2C0BAE9100EE7FEF /* VisitedStatesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */; };
 		423B20702C0BAE9100EE7FEF /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B206F2C0BAE9100EE7FEF /* Persistence.swift */; };
@@ -33,6 +34,7 @@
 /* Begin PBXFileReference section */
 		4212952A2C0D515A00E38B54 /* blank.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = blank.png; sourceTree = "<group>"; };
 		4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "DoHyeon-Regular.ttf"; sourceTree = "<group>"; };
+		4221270E2D8277020033E461 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroMapView.swift; sourceTree = "<group>"; };
 		423B206A2C0BAE9100EE7FEF /* VisitedStates.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VisitedStates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedStatesApp.swift; sourceTree = "<group>"; };
@@ -92,6 +94,7 @@
 		423B206C2C0BAE9100EE7FEF /* VisitedStates */ = {
 			isa = PBXGroup;
 			children = (
+				4221270E2D8277020033E461 /* AboutView.swift */,
 				42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */,
 				42B9C8062D8000CB0012B018 /* EditStatesView.swift */,
 				42B9C8042D8000B70012B018 /* USStates.swift */,
@@ -234,6 +237,7 @@
 				423B206E2C0BAE9100EE7FEF /* VisitedStatesApp.swift in Sources */,
 				42302CDD2D81CB7200B1C06E /* IntroMapView.swift in Sources */,
 				42F551042D7A83F300986E1F /* SettingsView.swift in Sources */,
+				4221270F2D8277080033E461 /* AboutView.swift in Sources */,
 				423B20A22C0BB21C00EE7FEF /* MapView.swift in Sources */,
 				42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */,
 				42F551062D7A89EB00986E1F /* NotificationManager.swift in Sources */,
@@ -369,7 +373,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = VisitedStates/VisitedStates.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1.0;
@@ -411,7 +415,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = VisitedStates/VisitedStates.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1.0;
