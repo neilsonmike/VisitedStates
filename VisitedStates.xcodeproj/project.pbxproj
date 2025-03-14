@@ -10,6 +10,7 @@
 		4212952B2C0D515A00E38B54 /* blank.png in Resources */ = {isa = PBXBuildFile; fileRef = 4212952A2C0D515A00E38B54 /* blank.png */; };
 		4221270D2D8274080033E461 /* DoHyeon-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */; };
 		4221270F2D8277080033E461 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4221270E2D8277020033E461 /* AboutView.swift */; };
+		422127112D83B1110033E461 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422127102D83B10F0033E461 /* ShareSheet.swift */; };
 		42302CDD2D81CB7200B1C06E /* IntroMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */; };
 		423B206E2C0BAE9100EE7FEF /* VisitedStatesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */; };
 		423B20702C0BAE9100EE7FEF /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B206F2C0BAE9100EE7FEF /* Persistence.swift */; };
@@ -35,6 +36,7 @@
 		4212952A2C0D515A00E38B54 /* blank.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = blank.png; sourceTree = "<group>"; };
 		4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "DoHyeon-Regular.ttf"; sourceTree = "<group>"; };
 		4221270E2D8277020033E461 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		422127102D83B10F0033E461 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroMapView.swift; sourceTree = "<group>"; };
 		423B206A2C0BAE9100EE7FEF /* VisitedStates.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VisitedStates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedStatesApp.swift; sourceTree = "<group>"; };
@@ -94,6 +96,7 @@
 		423B206C2C0BAE9100EE7FEF /* VisitedStates */ = {
 			isa = PBXGroup;
 			children = (
+				422127102D83B10F0033E461 /* ShareSheet.swift */,
 				4221270E2D8277020033E461 /* AboutView.swift */,
 				42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */,
 				42B9C8062D8000CB0012B018 /* EditStatesView.swift */,
@@ -240,6 +243,7 @@
 				4221270F2D8277080033E461 /* AboutView.swift in Sources */,
 				423B20A22C0BB21C00EE7FEF /* MapView.swift in Sources */,
 				42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */,
+				422127112D83B1110033E461 /* ShareSheet.swift in Sources */,
 				42F551062D7A89EB00986E1F /* NotificationManager.swift in Sources */,
 				42AA80262D7DF0EF008AF2DE /* AlaskaHawaiiSplitView.swift in Sources */,
 				42F551022D7A83DC00986E1F /* AppSettings.swift in Sources */,

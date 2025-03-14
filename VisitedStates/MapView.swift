@@ -204,6 +204,12 @@ struct MapView: View {
             }
         }
     }
+    
+    @MainActor
+    func takeSnapshot(size: CGSize) async -> UIImage? {
+        let renderer = ImageRenderer(content: self.frame(width: size.width, height: size.height))
+        return renderer.uiImage
+    }
 }
 // MARK: - ContiguousStatesCanvas
 
