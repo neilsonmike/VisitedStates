@@ -11,6 +11,7 @@
 		4221270D2D8274080033E461 /* DoHyeon-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */; };
 		4221270F2D8277080033E461 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4221270E2D8277020033E461 /* AboutView.swift */; };
 		422127112D83B1110033E461 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422127102D83B10F0033E461 /* ShareSheet.swift */; };
+		422127132D84B59E0033E461 /* IAPManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422127122D84B59C0033E461 /* IAPManager.swift */; };
 		42302CDD2D81CB7200B1C06E /* IntroMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */; };
 		423B206E2C0BAE9100EE7FEF /* VisitedStatesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */; };
 		423B20702C0BAE9100EE7FEF /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B206F2C0BAE9100EE7FEF /* Persistence.swift */; };
@@ -37,6 +38,7 @@
 		4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "DoHyeon-Regular.ttf"; sourceTree = "<group>"; };
 		4221270E2D8277020033E461 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		422127102D83B10F0033E461 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
+		422127122D84B59C0033E461 /* IAPManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IAPManager.swift; sourceTree = "<group>"; };
 		42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroMapView.swift; sourceTree = "<group>"; };
 		423B206A2C0BAE9100EE7FEF /* VisitedStates.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VisitedStates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedStatesApp.swift; sourceTree = "<group>"; };
@@ -96,6 +98,7 @@
 		423B206C2C0BAE9100EE7FEF /* VisitedStates */ = {
 			isa = PBXGroup;
 			children = (
+				422127122D84B59C0033E461 /* IAPManager.swift */,
 				422127102D83B10F0033E461 /* ShareSheet.swift */,
 				4221270E2D8277020033E461 /* AboutView.swift */,
 				42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */,
@@ -236,6 +239,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				422127132D84B59E0033E461 /* IAPManager.swift in Sources */,
 				42AA801E2D7B4E46008AF2DE /* AppDelegate.swift in Sources */,
 				423B206E2C0BAE9100EE7FEF /* VisitedStatesApp.swift in Sources */,
 				42302CDD2D81CB7200B1C06E /* IntroMapView.swift in Sources */,

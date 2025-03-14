@@ -35,6 +35,10 @@ struct IntroMapView: View {
 
         }
         .onAppear {
+            showStates = []
+            fadeOutIntro = false
+            navigateToMain = false
+
             startAnimation()
         }
         .fullScreenCover(isPresented: $navigateToMain) {

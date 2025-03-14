@@ -31,8 +31,19 @@ struct SettingsView: View {
 
                 // New button to edit states
                 Section {
-                    Button("Edit States") {
-                        showEditStates.toggle()
+                    VStack {
+                        if settings.hasUnlockedStateEditing {
+                            Button("Edit Visited States") {
+                                showEditStates.toggle()
+                            }
+                        } else {
+                            Button("Unlock State Editing") {
+                                Task {
+                                    await AppSettings.shared.purchaseStateEditing()
+                                }
+                            }
+                            .foregroundColor(.blue)
+                        }
                     }
                 }
                 

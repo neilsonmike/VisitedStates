@@ -73,6 +73,11 @@ class AppSettings: ObservableObject {
     @AppStorage("speedThreshold")       var speedThreshold: Double = 44.7
     @AppStorage("altitudeThreshold")    var altitudeThreshold: Double = 3048
     @AppStorage("lastVisitedState")     var lastVisitedState: String = ""
+    @Published var hasPurchasedEditStates: Bool = IAPManager.shared.checkPurchased("me.neils.VisitedStates.EditStates")
+    
+    var hasUnlockedStateEditing: Bool {
+        return true  // TODO: REMOVE BEFORE RELEASE
+    }
 
     // Custom init to avoid "self used before init" errors
     private init() {
@@ -114,6 +119,12 @@ class AppSettings: ObservableObject {
         }
     }
     
+    func updatePurchasedProducts() {
+        DispatchQueue.main.async {
+            self.hasPurchasedEditStates = IAPManager.shared.checkPurchased("me.neils.VisitedStates.EditStates")
+        }
+    }
+    
     func restoreDefaults() {
         stateFillColor    = .red
         stateStrokeColor  = .white
@@ -123,5 +134,19 @@ class AppSettings: ObservableObject {
         speedThreshold       = 44.7
         altitudeThreshold    = 3048
         lastVisitedState     = ""
+    }
+    
+    @MainActor
+    func purchaseStateEditing() async {
+        do {
+            if let product = IAPManager.shared.products.first(where: { $0.id == "me.neils.VisitedStates.EditStates" }) {
+                try await IAPManager.shared.purchase(product)
+                self.hasPurchasedEditStates = true
+            } else {
+                print("Product not found.")
+            }
+        } catch {
+            print("Purchase failed: \(error)")
+        }
     }
 }
