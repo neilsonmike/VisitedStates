@@ -143,28 +143,20 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     
     func handleDetectedState(_ state: String) {
         guard state != lastNotifiedState else {
-            print("Already notified for state \(state). Skipping.")
+            print("Already notified for state \(state). Skipping notification.")
             return
         }
-
-        let now = Date()
-        if let lastNotification = lastNotificationTime[state],
-           now.timeIntervalSince(lastNotification) < notificationCooldown {
-            print("Notification for \(state) is still in cooldown.")
-            return
-        }
-
-        print("Scheduling notification for state: \(state)")
-        fetchFactoid(for: state) { factoid in
-            self.sendNotification(for: state, fact: factoid ?? "Welcome!")        }
 
         lastNotifiedState = state
-        lastNotificationTime[state] = now
+
+        fetchFactoid(for: state) { factoid in
+            let factText = factoid ?? "Welcome!"
+            self.sendNotification(for: state, fact: factText)
+        }
     }
-    
-    func userNotificationCenter(_ center: UNUserNotificationCenter, 
-                                willPresent notification: UNNotification) async 
-        -> UNNotificationPresentationOptions {
-        return [.banner, .sound] 
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Present notifications even when the app is in the foreground
+        completionHandler([.banner, .sound])
     }
 }

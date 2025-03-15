@@ -155,44 +155,22 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         return visitedStates.contains(state)
     }
     
+    
     func updateVisitedStates(location: CLLocation) {
-        let currentTime = Date()
-        if let lastRequestTime = lastGeocodeRequestTime,
-           currentTime.timeIntervalSince(lastRequestTime) < 10 {
-            print("⚠️ Skipped reverse geocoding due to cooldown.")
+        guard let fullStateName = StateBoundaryManager.shared.stateName(for: location.coordinate) else {
+            print("State not found using GeoJSON-based lookup")
             return
         }
-        lastGeocodeRequestTime = currentTime
-
-        let geocoder = CLGeocoder()
-        geocoder.reverseGeocodeLocation(location) { [weak self] placemarks, error in
-            guard let self = self else { return }
-
-            if let error = error {
-                print("Reverse geocoding failed: \(error.localizedDescription)")
-                return
+        
+        // Only trigger notification and CloudKit updates if state has changed
+        if fullStateName != self.lastNotifiedState {
+            if !self.visitedStates.contains(fullStateName) {
+                self.visitedStates.append(fullStateName)
             }
-
-            guard let placemark = placemarks?.first,
-                  let stateAbbrev = placemark.administrativeArea,
-                  let fullStateName = self.stateAbbreviationToFullName(stateAbbrev)
-            else {
-                print("No valid placemark found.")
-                return
-            }
-
-            print("Detected state: \(fullStateName)")
-            
-            // Only trigger notification and CloudKit updates if state has changed
-            if fullStateName != self.lastNotifiedState {
-                if !self.visitedStates.contains(fullStateName) {
-                    self.visitedStates.append(fullStateName)
-                }
-                NotificationManager.shared.handleDetectedState(fullStateName)
-                self.lastNotifiedState = fullStateName
-            } else {
-                print("Already notified for state \(fullStateName). Skipping notification.")
-            }
+            NotificationManager.shared.handleDetectedState(fullStateName)
+            self.lastNotifiedState = fullStateName
+        } else {
+            print("Already notified for state \(fullStateName). Skipping notification.")
         }
     }
     
@@ -382,60 +360,4 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         privateDB.add(operation)
     }
     
-    // Convert abbreviations to full state names
-    func stateAbbreviationToFullName(_ abbreviation: String) -> String? {
-        let map: [String: String] = [
-            "AL": "Alabama",
-            "AK": "Alaska",
-            "AZ": "Arizona",
-            "AR": "Arkansas",
-            "CA": "California",
-            "CO": "Colorado",
-            "CT": "Connecticut",
-            "DE": "Delaware",
-            "FL": "Florida",
-            "GA": "Georgia",
-            "HI": "Hawaii",
-            "ID": "Idaho",
-            "IL": "Illinois",
-            "IN": "Indiana",
-            "IA": "Iowa",
-            "KS": "Kansas",
-            "KY": "Kentucky",
-            "LA": "Louisiana",
-            "ME": "Maine",
-            "MD": "Maryland",
-            "MA": "Massachusetts",
-            "MI": "Michigan",
-            "MN": "Minnesota",
-            "MS": "Mississippi",
-            "MO": "Missouri",
-            "MT": "Montana",
-            "NE": "Nebraska",
-            "NV": "Nevada",
-            "NH": "New Hampshire",
-            "NJ": "New Jersey",
-            "NM": "New Mexico",
-            "NY": "New York",
-            "NC": "North Carolina",
-            "ND": "North Dakota",
-            "OH": "Ohio",
-            "OK": "Oklahoma",
-            "OR": "Oregon",
-            "PA": "Pennsylvania",
-            "RI": "Rhode Island",
-            "SC": "South Carolina",
-            "SD": "South Dakota",
-            "TN": "Tennessee",
-            "TX": "Texas",
-            "UT": "Utah",
-            "VT": "Vermont",
-            "VA": "Virginia",
-            "WA": "Washington",
-            "WV": "West Virginia",
-            "WI": "Wisconsin",
-            "WY": "Wyoming"
-        ]
-        return map[abbreviation]
-    }
 }

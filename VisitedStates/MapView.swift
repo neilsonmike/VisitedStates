@@ -11,6 +11,17 @@ class StateBoundaryManager {
         loadGeoJSON()
     }
     
+    func stateName(for coordinate: CLLocationCoordinate2D) -> String? {
+        for (state, polygons) in statePolygons {
+            for polygon in polygons {
+                if polygon.contains(coordinate: coordinate) {
+                    return state
+                }
+            }
+        }
+        return nil
+    }
+
     private func loadGeoJSON() {
         let startTime = CFAbsoluteTimeGetCurrent()
         
@@ -48,6 +59,16 @@ class StateBoundaryManager {
         } catch {
             print("❌ Error decoding GeoJSON: \(error.localizedDescription)")
         }
+    }
+}
+
+extension MKPolygon {
+    func contains(coordinate: CLLocationCoordinate2D) -> Bool {
+        let mapPoint = MKMapPoint(coordinate)
+        let renderer = MKPolygonRenderer(polygon: self)
+        guard let path = renderer.path else { return false }
+        let point = renderer.point(for: mapPoint)
+        return path.contains(point)
     }
 }
 
