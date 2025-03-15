@@ -11,7 +11,7 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     var appSettings: AppSettings?
     
     private let cooldownKeyPrefix = "lastNotified_"
-    private let cooldownInterval: TimeInterval = 1 // 10 minutes
+    private let cooldownInterval: TimeInterval = 600 // 10 minutes
     private let defaultNotificationDelay: TimeInterval = 0.1 // nearly immediate
     
     // Local fallback factoids (used when useFallback is true)

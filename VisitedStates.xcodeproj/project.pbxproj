@@ -39,6 +39,7 @@
 		4221270E2D8277020033E461 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		422127102D83B10F0033E461 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		422127122D84B59C0033E461 /* IAPManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IAPManager.swift; sourceTree = "<group>"; };
+		422127142D850F3B0033E461 /* OH_WV_PA_TestRoute.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = OH_WV_PA_TestRoute.gpx; sourceTree = "<group>"; };
 		42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroMapView.swift; sourceTree = "<group>"; };
 		423B206A2C0BAE9100EE7FEF /* VisitedStates.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VisitedStates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedStatesApp.swift; sourceTree = "<group>"; };
@@ -80,6 +81,7 @@
 		423B20612C0BAE9100EE7FEF = {
 			isa = PBXGroup;
 			children = (
+				422127142D850F3B0033E461 /* OH_WV_PA_TestRoute.gpx */,
 				423B206C2C0BAE9100EE7FEF /* VisitedStates */,
 				423B20832C0BAE9200EE7FEF /* VisitedStatesTests */,
 				423B208D2C0BAE9300EE7FEF /* VisitedStatesUITests */,
@@ -206,7 +208,6 @@
 			);
 			mainGroup = 423B20612C0BAE9100EE7FEF;
 			packageReferences = (
-				429056012C12486300429DD4 /* XCRemoteSwiftPackageReference "mapbox-maps-ios" */,
 			);
 			productRefGroup = 423B206B2C0BAE9100EE7FEF /* Products */;
 			projectDirPath = "";
@@ -482,17 +483,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		429056012C12486300429DD4 /* XCRemoteSwiftPackageReference "mapbox-maps-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/mapbox/mapbox-maps-ios";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCVersionGroup section */
 		423B20712C0BAE9100EE7FEF /* VisitedStates.xcdatamodeld */ = {

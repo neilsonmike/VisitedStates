@@ -47,6 +47,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         loadVisitedStates()
         checkLocationAuthorization()
+        locationManager.allowsBackgroundLocationUpdates = true
+        locationManager.pausesLocationUpdatesAutomatically = false
         
         NotificationCenter.default.addObserver(self,
                                                selector: #selector(appDidEnterBackground),
@@ -110,7 +112,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
+    guard let location = locations.last else { return }
+    print("📍 Location update received at \(Date())")
         
         // Check altitude
         if location.altitude > altitudeThreshold {
@@ -127,9 +130,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let currentTime = Date()
         if let lastUpdateTime = lastLocationUpdateTime,
            currentTime.timeIntervalSince(lastUpdateTime) < 10 {
+            print("⚠️ Ignored location update due to timing restriction.")
             return
+        } else {
+            lastLocationUpdateTime = currentTime
         }
-        lastLocationUpdateTime = currentTime
         
         currentLocation = location
         print("Updated location: \(location)")
@@ -141,7 +146,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func updateVisitedStates(location: CLLocation) {
         let currentTime = Date()
         if let lastRequestTime = lastGeocodeRequestTime,
-           currentTime.timeIntervalSince(lastRequestTime) < 30 {
+           currentTime.timeIntervalSince(lastRequestTime) < 10 {
             return
         }
         lastGeocodeRequestTime = currentTime

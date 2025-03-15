@@ -15,6 +15,19 @@ struct ContentView: View {
                 .environmentObject(settings)
                 .edgesIgnoringSafeArea(.all)
             
+            // Debug indicator for current simulated location
+            GeometryReader { geometry in
+                if let currentLocation = locationManager.currentLocation {
+                    let x = CGFloat(currentLocation.coordinate.longitude) // Adjust this based on your map's coordinate system
+                    let y = CGFloat(currentLocation.coordinate.latitude) // Adjust this based on your map's coordinate system
+                    
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 10, height: 10)
+                        .position(x: x, y: y)
+                }
+            }
+            
             // Settings and share buttons
             VStack {
                 Spacer()
