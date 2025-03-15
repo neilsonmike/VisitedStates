@@ -18,7 +18,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let speedThreshold: CLLocationSpeed = 44.7
     private let altitudeThreshold: CLLocationDistance = 3048
     
-    private var lastNotifiedState: String? = nil
+    private var lastNotifiedState: String? {
+        get {
+            UserDefaults.standard.string(forKey: "lastNotifiedState")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "lastNotifiedState")
+        }
+    }
 
     /// The single source of truth for visited states.
     @Published var visitedStates: [String] = [] {
