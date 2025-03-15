@@ -13,6 +13,9 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     private let cooldownKeyPrefix = "lastNotified_"
     private let cooldownInterval: TimeInterval = 300 // 5 minutes
     private let defaultNotificationDelay: TimeInterval = 0.1 // nearly immediate
+    private var lastNotifiedState: String? = nil
+    private var lastNotificationTime: [String: Date] = [:]
+    private let notificationCooldown: TimeInterval = 300  // 5 minutes cooldown
     
     // Local fallback factoids (used when useFallback is true)
     let fallbackFactoids: [String] = [
@@ -39,10 +42,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     
     /// Schedules a notification for the given state if notifications are enabled and the cooldown period has passed.
     func scheduleNotification(for state: String) {
-        guard !LocationManager.shared.visitedStates.contains(state) else {
-            print("State \(state) already visited. Skipping notification.")
-            return
-        }
         // Check if notifications are enabled from the shared settings.
         if let settings = appSettings, !settings.notificationsEnabled {
             print("Notifications are disabled. Skipping scheduling for \(state).")
@@ -143,10 +142,30 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         }
     }
     
-    // This ensures notifications appear while the app is open
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                willPresent notification: UNNotification,
-                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.banner, .sound]) // Show banner and play sound
+    func handleDetectedState(_ state: String) {
+        guard state != lastNotifiedState else {
+            print("Already notified for state \(state). Skipping.")
+            return
+        }
+
+        let now = Date()
+        if let lastNotification = lastNotificationTime[state],
+           now.timeIntervalSince(lastNotification) < notificationCooldown {
+            print("Notification for \(state) is still in cooldown.")
+            return
+        }
+
+        print("Scheduling notification for state: \(state)")
+        fetchFactoid(for: state) { factoid in
+            self.sendNotification(for: state, fact: factoid ?? "Welcome!")        }
+
+        lastNotifiedState = state
+        lastNotificationTime[state] = now
+    }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, 
+                                willPresent notification: UNNotification) async 
+        -> UNNotificationPresentationOptions {
+        return [.banner, .sound] 
     }
 }

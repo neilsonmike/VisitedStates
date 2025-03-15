@@ -144,45 +144,44 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // MARK: - Reverse Geocode & Visited States
     
+    func hasVisitedState(_ state: String) -> Bool {
+        return visitedStates.contains(state)
+    }
+    
     func updateVisitedStates(location: CLLocation) {
         let currentTime = Date()
         if let lastRequestTime = lastGeocodeRequestTime,
            currentTime.timeIntervalSince(lastRequestTime) < 10 {
+            print("⚠️ Skipped reverse geocoding due to cooldown.")
             return
         }
         lastGeocodeRequestTime = currentTime
-        
+
         let geocoder = CLGeocoder()
         geocoder.reverseGeocodeLocation(location) { [weak self] placemarks, error in
+            guard let self = self else { return }
+
             if let error = error {
                 print("Reverse geocoding failed: \(error.localizedDescription)")
                 return
             }
+
             guard let placemark = placemarks?.first,
                   let stateAbbrev = placemark.administrativeArea,
-                  let fullStateName = self?.stateAbbreviationToFullName(stateAbbrev)
+                  let fullStateName = self.stateAbbreviationToFullName(stateAbbrev)
             else {
                 print("No valid placemark found.")
                 return
             }
-            
+
             print("Detected state: \(fullStateName)")
-            if let strongSelf = self {
-                if !strongSelf.visitedStates.contains(fullStateName) {
-                    strongSelf.visitedStates.append(fullStateName)
-                    print("New state added: \(fullStateName)")
-                } else {
-                    print("\(fullStateName) already visited.")
-                }
-                
-                // Check notifications
-                if let lastNotified = strongSelf.lastNotifiedState,
-                   lastNotified == fullStateName {
-                    print("No new notification for \(fullStateName); same as last notified.")
-                } else {
-                    strongSelf.lastNotifiedState = fullStateName
-                    NotificationManager.shared.scheduleNotification(for: fullStateName)
-                }
+
+            // Only trigger notification and CloudKit updates if state has changed
+            if !self.visitedStates.contains(fullStateName) {
+                self.visitedStates.append(fullStateName)
+                NotificationManager.shared.handleDetectedState(fullStateName)
+            } else {
+                print("State \(fullStateName) already in visitedStates.")
             }
         }
     }
