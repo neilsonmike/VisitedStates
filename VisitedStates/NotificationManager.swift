@@ -11,7 +11,7 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     var appSettings: AppSettings?
     
     private let cooldownKeyPrefix = "lastNotified_"
-    private let cooldownInterval: TimeInterval = 600 // 10 minutes
+    private let cooldownInterval: TimeInterval = 300 // 5 minutes
     private let defaultNotificationDelay: TimeInterval = 0.1 // nearly immediate
     
     // Local fallback factoids (used when useFallback is true)
@@ -39,6 +39,10 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     
     /// Schedules a notification for the given state if notifications are enabled and the cooldown period has passed.
     func scheduleNotification(for state: String) {
+        guard !LocationManager.shared.visitedStates.contains(state) else {
+            print("State \(state) already visited. Skipping notification.")
+            return
+        }
         // Check if notifications are enabled from the shared settings.
         if let settings = appSettings, !settings.notificationsEnabled {
             print("Notifications are disabled. Skipping scheduling for \(state).")
@@ -140,8 +144,8 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     }
     
     // This ensures notifications appear while the app is open
-    func userNotificationCenter(_ center: UNUserNotificationCenter, 
-                                willPresent notification: UNNotification, 
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound]) // Show banner and play sound
     }

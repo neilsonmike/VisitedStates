@@ -5,6 +5,7 @@ import UIKit
 import SwiftUI
 
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+    static let shared = LocationManager()
     private let locationManager = CLLocationManager()
     private var lastGeocodeRequestTime: Date?
     private var lastLocationUpdateTime: Date?
