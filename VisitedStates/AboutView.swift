@@ -41,7 +41,7 @@ struct AboutView: View {
             }
             .foregroundColor(.gray)
 
-            Text("This app was designed and developed entirely through collaboration with AI, demonstrating what’s possible for non-coding product owners and business analysts. No code in this app is human written.")
+            Text("This app was designed and developed entirely through collaboration with AI, demonstrating what’s possible for non-coding product owners and business analysts. No original code in this app is human written.")
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)

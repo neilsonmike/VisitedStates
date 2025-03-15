@@ -175,13 +175,16 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
 
             print("Detected state: \(fullStateName)")
-
+            
             // Only trigger notification and CloudKit updates if state has changed
-            if !self.visitedStates.contains(fullStateName) {
-                self.visitedStates.append(fullStateName)
+            if fullStateName != self.lastNotifiedState {
+                if !self.visitedStates.contains(fullStateName) {
+                    self.visitedStates.append(fullStateName)
+                }
                 NotificationManager.shared.handleDetectedState(fullStateName)
+                self.lastNotifiedState = fullStateName
             } else {
-                print("State \(fullStateName) already in visitedStates.")
+                print("Already notified for state \(fullStateName). Skipping notification.")
             }
         }
     }

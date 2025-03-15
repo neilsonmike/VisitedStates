@@ -51,9 +51,8 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         let key = cooldownKeyPrefix + state
         
         // Check if we already notified for this exact state
-        if let lastState = UserDefaults.standard.string(forKey: "lastNotifiedState"),
-           lastState == state {
-            print("Already notified for state \(state). Skipping.")
+        if state == lastNotifiedState {
+            print("\(state) was the last notified state, skipping notification.")
             return
         }
         
