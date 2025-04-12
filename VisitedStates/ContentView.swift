@@ -18,9 +18,8 @@ struct ContentView: View {
             // Debug indicator for current simulated location
             GeometryReader { geometry in
                 if let currentLocation = locationManager.currentLocation {
-                    let x = CGFloat(currentLocation.coordinate.longitude) // Adjust this based on your map's coordinate system
-                    let y = CGFloat(currentLocation.coordinate.latitude) // Adjust this based on your map's coordinate system
-                    
+                    let x = CGFloat(currentLocation.coordinate.longitude)
+                    let y = CGFloat(currentLocation.coordinate.latitude)
                     Circle()
                         .fill(Color.red)
                         .frame(width: 10, height: 10)
@@ -43,7 +42,10 @@ struct ContentView: View {
                             renderer.scale = UIScreen.main.scale
 
                             if let uiImage = renderer.uiImage {
-                                shareItems = [uiImage, "Check out my visited states!"]
+                                let count = locationManager.visitedStates.count
+                                let plural = count == 1 ? "" : "s"
+                                let message = "I have been to \(count) state\(plural)! Track yours with the VisitedStates app!"
+                                shareItems = [uiImage, message]
                                 showShareSheet = true
                             }
                         }) {
@@ -80,6 +82,7 @@ struct ContentView: View {
                 .environmentObject(settings)
                 .environmentObject(locationManager)
         }
+        // Present the share sheet
         .sheet(isPresented: Binding(
             get: { showShareSheet },
             set: { showShareSheet = $0 }
@@ -87,11 +90,12 @@ struct ContentView: View {
             ShareSheet(activityItems: shareItems)
         }
     }
-    
 }
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
+            .environmentObject(AppSettings.shared)
+            .environmentObject(LocationManager())
     }
 }
