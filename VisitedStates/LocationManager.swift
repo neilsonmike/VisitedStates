@@ -18,6 +18,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let speedThreshold: CLLocationSpeed = 44.7
     private let altitudeThreshold: CLLocationDistance = 3048
     
+    // We use lastNotifiedState to hold the state for which a notification was most recently sent.
     private var lastNotifiedState: String? {
         get {
             UserDefaults.standard.string(forKey: "lastNotifiedState")
@@ -27,6 +28,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    // We add a new property to track which state was last detected.
+    private var previousDetectedState: String? = nil
+
     /// The single source of truth for visited states.
     @Published var visitedStates: [String] = [] {
         didSet {
@@ -103,20 +107,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     // MARK: - CLLocationManagerDelegate
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        let clError = CLError(_nsError: error as NSError)
-        switch clError.code {
-        case .locationUnknown:
-            print("Location unknown.")
-        case .denied:
-            print("Access to location services denied.")
-        case .network:
-            print("Network error.")
-        default:
-            print("Location Manager error: \(error.localizedDescription)")
-        }
-    }
-    
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
         print("📍 Location update received at \(Date())")
@@ -142,9 +132,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             lastLocationUpdateTime = currentTime
         }
         
+        // Set current location. Since didSet on currentLocation calls updateVisitedStates, no need to call it here.
         currentLocation = location
         print("Updated location: \(location)")
-        updateVisitedStates(location: location)
     }
     
     // MARK: - Reverse Geocode & Visited States
@@ -153,23 +143,35 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func updateVisitedStates(location: CLLocation) {
-        // Get the state name using the StateBoundaryManager's lookup (GeoJSON based)
+        // Get the state name using StateBoundaryManager's lookup (GeoJSON based)
         guard let fullStateName = StateBoundaryManager.shared.stateName(for: location.coordinate) else {
             print("State not found using GeoJSON-based lookup")
             return
         }
         print("Polygon lookup returned state: \(fullStateName)")
         
-        // If the state is not already in our visited states, add it and trigger notification.
-        if !self.visitedStates.contains(fullStateName) {
-            self.visitedStates.append(fullStateName)
-            NotificationManager.shared.handleDetectedState(fullStateName)
-            self.lastNotifiedState = fullStateName
-            print("New state \(fullStateName) added; notification triggered.")
-        } else {
-            // Even if the state is a duplicate, we force a UI refresh to update bindings
-            print("Already notified for state \(fullStateName). Forcing UI update without duplicate notification.")
-            self.visitedStates = Array(self.visitedStates)
+        // Process updates on the main thread to update published properties safely.
+        DispatchQueue.main.async {
+            // If the newly detected state is different from the previous one, we reset lastNotifiedState.
+            if self.previousDetectedState != fullStateName {
+                print("State change detected: from \(self.previousDetectedState ?? "nil") to \(fullStateName)")
+                self.previousDetectedState = fullStateName
+                self.lastNotifiedState = nil
+            }
+            
+            // If no notification has been sent yet (or if we were reset), trigger one.
+            if self.lastNotifiedState == nil {
+                if !self.visitedStates.contains(fullStateName) {
+                    self.visitedStates.append(fullStateName)
+                }
+                NotificationManager.shared.handleDetectedState(fullStateName)
+                self.lastNotifiedState = fullStateName
+                print("State \(fullStateName) (new or re-entered) detected; notification triggered.")
+            } else {
+                // The new state is the same as the last notified state.
+                print("Already notified for state \(fullStateName). Forcing UI update without duplicate notification.")
+                self.visitedStates = Array(self.visitedStates)
+            }
         }
     }
     
@@ -189,7 +191,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             visitedStates = []
             print("No visited states found in local storage.")
         }
-        // Then do an initial sync from cloud
+        // Then do an initial sync from cloud.
         syncWithCloudKit()
     }
     
