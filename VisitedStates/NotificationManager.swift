@@ -13,9 +13,8 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
     private let cooldownKeyPrefix = "lastNotified_"
     private let cooldownInterval: TimeInterval = 300 // 5 minutes
     private let defaultNotificationDelay: TimeInterval = 0.1 // nearly immediate
-    private var lastNotifiedState: String? = nil
-    private var lastNotificationTime: [String: Date] = [:]
-    private let notificationCooldown: TimeInterval = 300  // 5 minutes cooldown
+    // We no longer rely solely on lastNotifiedState as stored in UserDefaults; we add an in-memory guard.
+    private var notificationInProgress: Set<String> = []
     
     // Local fallback factoids (used when useFallback is true)
     let fallbackFactoids: [String] = [
@@ -51,7 +50,7 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         let key = cooldownKeyPrefix + state
         
         // Check if we already notified for this exact state
-        if state == lastNotifiedState {
+        if state == UserDefaults.standard.string(forKey: "lastNotifiedState") {
             print("\(state) was the last notified state, skipping notification.")
             return
         }
@@ -71,8 +70,6 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
             print("Fetched factoid: \(factText)")
             self.sendNotification(for: state, fact: factText)
             UserDefaults.standard.set(Date(), forKey: key)
-            
-            // Also record the last notified state
             UserDefaults.standard.set(state, forKey: "lastNotifiedState")
         }
     }
@@ -141,21 +138,33 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         }
     }
     
+    /// This method is called when a new state is detected.
+    /// We add a guard here to ensure that if a notification for this state is already in progress,
+    /// we do not trigger it again.
     func handleDetectedState(_ state: String) {
-        guard state != lastNotifiedState else {
-            print("Already notified for state \(state). Skipping notification.")
-            return
+        DispatchQueue.main.async {
+            if self.notificationInProgress.contains(state) {
+                print("Notification for \(state) is already in progress; skipping duplicate call.")
+                return
+            }
+            self.notificationInProgress.insert(state)
         }
-
-        lastNotifiedState = state
-
+        
+        // Always send a notification when this function is called.
         fetchFactoid(for: state) { factoid in
             let factText = factoid ?? "Welcome!"
             self.sendNotification(for: state, fact: factText)
+            // Clear the in-progress flag once finished
+            DispatchQueue.main.async {
+                self.notificationInProgress.remove(state)
+            }
         }
     }
-
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+    
+    // MARK: - UNUserNotificationCenterDelegate
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         // Present notifications even when the app is in the foreground
         completionHandler([.banner, .sound])
     }

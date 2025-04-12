@@ -14,7 +14,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var isSavingLocally = false
     private var syncTimer: Timer?
     private var syncInterval: TimeInterval = 300  // 5 minutes
-
+    
     private let speedThreshold: CLLocationSpeed = 44.7
     private let altitudeThreshold: CLLocationDistance = 3048
     
@@ -26,7 +26,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             UserDefaults.standard.set(newValue, forKey: "lastNotifiedState")
         }
     }
-
+    
     /// The single source of truth for visited states.
     @Published var visitedStates: [String] = [] {
         didSet {
@@ -38,7 +38,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
     }
-
+    
     @Published var currentLocation: CLLocation? {
         didSet {
             if let location = currentLocation {
@@ -46,7 +46,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             }
         }
     }
-
+    
     override init() {
         super.init()
         locationManager.delegate = self
@@ -73,7 +73,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     // MARK: - Authorization & App State
-    
     func checkLocationAuthorization() {
         switch locationManager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
@@ -104,7 +103,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     // MARK: - CLLocationManagerDelegate
-    
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         let clError = CLError(_nsError: error as NSError)
         switch clError.code {
@@ -120,8 +118,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-    guard let location = locations.last else { return }
-    print("📍 Location update received at \(Date())")
+        guard let location = locations.last else { return }
+        print("📍 Location update received at \(Date())")
         
         // Check altitude
         if location.altitude > altitudeThreshold {
@@ -150,32 +148,32 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     // MARK: - Reverse Geocode & Visited States
-    
     func hasVisitedState(_ state: String) -> Bool {
         return visitedStates.contains(state)
     }
     
-    
     func updateVisitedStates(location: CLLocation) {
+        // Get the state name using the StateBoundaryManager's lookup (GeoJSON based)
         guard let fullStateName = StateBoundaryManager.shared.stateName(for: location.coordinate) else {
             print("State not found using GeoJSON-based lookup")
             return
         }
+        print("Polygon lookup returned state: \(fullStateName)")
         
-        // Only trigger notification and CloudKit updates if state has changed
-        if fullStateName != self.lastNotifiedState {
-            if !self.visitedStates.contains(fullStateName) {
-                self.visitedStates.append(fullStateName)
-            }
+        // If the state is not already in our visited states, add it and trigger notification.
+        if !self.visitedStates.contains(fullStateName) {
+            self.visitedStates.append(fullStateName)
             NotificationManager.shared.handleDetectedState(fullStateName)
             self.lastNotifiedState = fullStateName
+            print("New state \(fullStateName) added; notification triggered.")
         } else {
-            print("Already notified for state \(fullStateName). Skipping notification.")
+            // Even if the state is a duplicate, we force a UI refresh to update bindings
+            print("Already notified for state \(fullStateName). Forcing UI update without duplicate notification.")
+            self.visitedStates = Array(self.visitedStates)
         }
     }
     
     // MARK: - Local Storage
-    
     func saveVisitedStates() {
         isSavingLocally = true
         UserDefaults.standard.set(visitedStates, forKey: userDefaultsKey)
@@ -196,7 +194,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     // MARK: - CloudKit Sync
-    
     func scheduleSyncWithCloudKit() {
         syncTimer?.invalidate()
         syncTimer = Timer.scheduledTimer(withTimeInterval: syncInterval, repeats: false) { [weak self] _ in
@@ -240,32 +237,21 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         privateDB.add(operation)
     }
     
-    /// Local is final: We do NOT do a union. Instead, if local has removed states, we remove them from the cloud too.
-    /// So if the user un-checked a state, that state won't re-appear from the cloud.
     func mergeCloudStates(_ cloudStates: [String]) {
-        // If local is empty and cloud has data, let's adopt the cloud on first load
-        // (only if user hasn't visited states at all). Otherwise, local overrides.
         if visitedStates.isEmpty, !cloudStates.isEmpty {
             visitedStates = cloudStates
             print("Local was empty; adopting cloud states: \(cloudStates)")
         } else {
-            // local overrides, so do nothing to visitedStates here
             print("Local states override cloud. Local = \(visitedStates)")
         }
-        
-        // Now overwrite the cloud record with local states
         syncLocalStatesToCloudKit(localStates: visitedStates, cloudStates: cloudStates)
     }
     
-    /// We overwrite the CloudKit record's "states" with local states
     func syncLocalStatesToCloudKit(localStates: [String], cloudStates: [String]) {
         let privateDB = CKContainer(identifier: "iCloud.me.neils.VisitedStates").privateCloudDatabase
-        
-        // We'll always create/update a single record named "VisitedStates"
         let recordID = CKRecord.ID(recordName: "VisitedStates")
         let record = CKRecord(recordType: "VisitedStates", recordID: recordID)
         
-        // Overwrite states with local
         record["states"] = localStates as CKRecordValue
         record["lastUpdated"] = Date()
         
@@ -291,7 +277,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 return
             }
             if let serverRecord = fetchedRecord {
-                // In the old logic, we appended. Now we treat local as final:
                 serverRecord["states"] = self.visitedStates as CKRecordValue
                 serverRecord["lastUpdated"] = Date()
                 self.saveRecordToCloudKit(serverRecord)
@@ -311,7 +296,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     // MARK: - Clear data
-    
     func clearLocalData() {
         visitedStates = []
         saveVisitedStates()
@@ -343,8 +327,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         operation.queryResultBlock = { result in
             switch result {
             case .success:
-                let deleteOp = CKModifyRecordsOperation(recordsToSave: nil,
-                                                        recordIDsToDelete: recordIDsToDelete)
+                let deleteOp = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDsToDelete)
                 deleteOp.modifyRecordsCompletionBlock = { saved, deleted, error in
                     if let error = error {
                         print("Error deleting from CloudKit: \(error)")
@@ -359,5 +342,4 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         privateDB.add(operation)
     }
-    
 }
