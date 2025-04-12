@@ -150,26 +150,43 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         print("Polygon lookup returned state: \(fullStateName)")
         
-        // Process updates on the main thread to update published properties safely.
+        // All changes that update published properties should be executed on the main thread.
         DispatchQueue.main.async {
-            // If the newly detected state is different from the previous one, we reset lastNotifiedState.
+            // Check current app state: if the app is not active, we only update persistence.
+            if UIApplication.shared.applicationState != .active {
+                // In background: add the state (if not already present) and persist it
+                if !self.visitedStates.contains(fullStateName) {
+                    self.visitedStates.append(fullStateName)
+                    print("App in background: Added \(fullStateName) to visitedStates")
+                    self.saveVisitedStates()
+                } else {
+                    print("App in background: \(fullStateName) is already in visitedStates")
+                }
+                // Still send a notification if needed (if you want background notification)
+                NotificationManager.shared.handleDetectedState(fullStateName)
+                self.lastNotifiedState = fullStateName
+                return
+            }
+            
+            // For active state:
+            // When app is active, check if a state change has occurred.
             if self.previousDetectedState != fullStateName {
                 print("State change detected: from \(self.previousDetectedState ?? "nil") to \(fullStateName)")
                 self.previousDetectedState = fullStateName
                 self.lastNotifiedState = nil
             }
             
-            // If no notification has been sent yet (or if we were reset), trigger one.
             if self.lastNotifiedState == nil {
                 if !self.visitedStates.contains(fullStateName) {
                     self.visitedStates.append(fullStateName)
                 }
+                // Trigger notification and update lastNotifiedState
                 NotificationManager.shared.handleDetectedState(fullStateName)
                 self.lastNotifiedState = fullStateName
                 print("State \(fullStateName) (new or re-entered) detected; notification triggered.")
             } else {
-                // The new state is the same as the last notified state.
                 print("Already notified for state \(fullStateName). Forcing UI update without duplicate notification.")
+                // Force a UI update by assigning a new array (this might be optional).
                 self.visitedStates = Array(self.visitedStates)
             }
         }
