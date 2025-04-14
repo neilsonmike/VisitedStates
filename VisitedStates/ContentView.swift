@@ -1,16 +1,17 @@
 import SwiftUI
 import UIKit
+import CoreLocation
 
 struct ContentView: View {
-    @StateObject var locationManager = LocationManager()
+    @StateObject var locationManager = LocationManager.shared
     @StateObject var settings = AppSettings.shared
     @State private var showingSettings = false
     @State private var showShareSheet = false
     @State private var shareItems: [Any] = []
     
-    // Change this URL once your app is live if needed.
-    let appStoreLink = "https://apps.apple.com/us/app/visitedstates/id6504059000"
-
+    // New state variable for always authorization alert
+    @State private var showAlwaysAlert = false
+    
     var body: some View {
         ZStack {
             // Display the MapView with environment object
@@ -21,7 +22,7 @@ struct ContentView: View {
             // Debug indicator for current simulated location
             GeometryReader { geometry in
                 if let currentLocation = locationManager.currentLocation {
-                    // Adjust your coordinate transformation as needed.
+                    // Adjust coordinate transformation as needed.
                     let x = CGFloat(currentLocation.coordinate.longitude)
                     let y = CGFloat(currentLocation.coordinate.latitude)
                     
@@ -39,7 +40,6 @@ struct ContentView: View {
                     Spacer()
                     VStack(spacing: 12) {
                         Button(action: {
-                            // Render a snapshot of MapView
                             let renderer = ImageRenderer(content:
                                 MapView(visitedStates: $locationManager.visitedStates)
                                     .environmentObject(settings)
@@ -51,8 +51,8 @@ struct ContentView: View {
                                 // Calculate the state count, excluding "District of Columbia"
                                 let stateCount = locationManager.visitedStates.filter { $0 != "District of Columbia" }.count
                                 let stateText = stateCount == 1 ? "state" : "states"
-                                // Append the URL to the share text
-                                let shareText = "I have been to \(stateCount) \(stateText)! Track yours with the VisitedStates app! \(appStoreLink)"
+                                // Append the App Store link
+                                let shareText = "I have been to \(stateCount) \(stateText)! Track yours with the VisitedStates app! https://apps.apple.com/us/app/visitedstates/id6504059000"
                                 shareItems = [uiImage, shareText]
                                 showShareSheet = true
                             }
@@ -81,9 +81,8 @@ struct ContentView: View {
                 }
             }
         }
-        .onAppear {
-            NotificationManager.shared.appSettings = settings
-        }
+
+ 
         // Present the settings sheet
         .sheet(isPresented: $showingSettings) {
             SettingsView()
@@ -96,6 +95,16 @@ struct ContentView: View {
             set: { showShareSheet = $0 }
         )) {
             ShareSheet(activityItems: shareItems)
+        }
+    }
+    
+    private func checkAlwaysAuthorization() {
+        let status = CLLocationManager.authorizationStatus()
+        if status == .authorizedWhenInUse {
+            // Delay a little if needed so that the splash screen is finished
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showAlwaysAlert = true
+            }
         }
     }
 }

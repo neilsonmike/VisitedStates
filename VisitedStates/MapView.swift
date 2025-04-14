@@ -77,7 +77,8 @@ extension MKPolygon {
 struct MapView: View {
     @Binding var visitedStates: [String]
     @EnvironmentObject var settings: AppSettings
-    
+    @State private var showAlwaysAlert = false   // Alert state for "Always Allow" prompt
+
     // A constant border thickness for all states
     static let borderLineWidth: CGFloat = 0.5
 
@@ -108,7 +109,7 @@ struct MapView: View {
         return MKMapRect(origin: origin,
                          size: MKMapSize(width: widthMeters, height: heightMeters))
     }
-
+    
     static let preferredMapRects: [String: MKMapRect] = {
         func regionToMapRect(center: CLLocationCoordinate2D, span: MKCoordinateSpan) -> MKMapRect {
             let centerPoint = MKMapPoint(center)
@@ -136,35 +137,29 @@ struct MapView: View {
     }()
     
     var body: some View {
-    ZStack {
+        ZStack {
             GeometryReader { geometry in
-                
-                // Exclude DC from the count only:
+                // Exclude D.C. from count for share stats.
                 let visitedStatesExcludingDC = visitedStates.filter { $0 != "District of Columbia" }
                 let visitedCount = visitedStatesExcludingDC.count
                 
                 let showAlaska = visitedStates.contains("Alaska")
                 let showHawaii = visitedStates.contains("Hawaii")
                 
-                // For actual drawing, we still use "visitedStates"
-                // so DC is drawn if visited
+                // For drawing, use all visitedStates (so D.C. is drawn if visited)
                 let contiguousStates = visitedStates.filter { $0 != "Alaska" && $0 != "Hawaii" }
                 let noContiguousStates = contiguousStates.isEmpty
                 
                 if visitedCount == 2 && showAlaska && showHawaii && noContiguousStates {
-                    // 2 visited states are AK + HI, no contiguous
                     VStack(spacing: 0) {
                         InsetStateView(stateName: "Alaska")
                             .environmentObject(settings)
                             .frame(width: geometry.size.width, height: geometry.size.height / 2)
-                        
                         InsetStateView(stateName: "Hawaii")
                             .environmentObject(settings)
                             .frame(width: geometry.size.width, height: geometry.size.height / 2)
                     }
-                }
-                else if visitedCount == 1 && (showAlaska || showHawaii) && noContiguousStates {
-                    // 1 visited, AK or HI only
+                } else if visitedCount == 1 && (showAlaska || showHawaii) && noContiguousStates {
                     if showAlaska {
                         FullScreenStateView(state: "Alaska")
                             .environmentObject(settings)
@@ -172,14 +167,11 @@ struct MapView: View {
                         FullScreenStateView(state: "Hawaii")
                             .environmentObject(settings)
                     }
-                }
-                else {
-                    // Might have contiguous states plus possibly AK or HI
+                } else {
                     let insetsCount = (showAlaska ? 1 : 0) + (showHawaii ? 1 : 0)
                     let boxSize: CGFloat = geometry.size.width * 0.375
                     
                     ZStack(alignment: .bottomLeading) {
-                        // Use "contiguousStates" to draw the lower 48, but DC is included here if it’s in visited
                         ContiguousStatesCanvas(
                             visitedStates: contiguousStates,
                             totalSize: CGSize(width: geometry.size.width, height: geometry.size.height)
@@ -193,20 +185,17 @@ struct MapView: View {
                                     InsetStateView(stateName: "Alaska")
                                         .environmentObject(settings)
                                         .frame(width: boxSize, height: boxSize)
-                                    
                                     InsetStateView(stateName: "Hawaii")
                                         .environmentObject(settings)
                                         .frame(width: boxSize, height: boxSize)
                                 }
                                 .padding([.leading, .bottom], 8)
-                            }
-                            else if showAlaska {
+                            } else if showAlaska {
                                 InsetStateView(stateName: "Alaska")
                                     .environmentObject(settings)
                                     .frame(width: boxSize, height: boxSize)
                                     .padding([.leading, .bottom], 8)
-                            }
-                            else if showHawaii {
+                            } else if showHawaii {
                                 InsetStateView(stateName: "Hawaii")
                                     .environmentObject(settings)
                                     .frame(width: boxSize, height: boxSize)
@@ -216,12 +205,39 @@ struct MapView: View {
                     }
                 }
                 
-                // Display stats label "XX/50 States Visited"
                 let labelText = "\(visitedCount)/50 States Visited"
                 Text(labelText)
                     .foregroundColor(.gray)
                     .font(.custom("DoHyeon-Regular", size: 20))
                     .position(x: geometry.size.width / 2, y: geometry.size.height * 0.2)
+            }
+        }
+        // When MapView appears, check for Always authorization.
+        .onAppear {
+            checkAlwaysAuthorization()
+        }
+        .alert(isPresented: $showAlwaysAlert) {
+            Alert(
+                title: Text("Location Permission Required"),
+                message: Text("For full app functionality, please change your location setting to ‘Always Allow’."),
+                primaryButton: .default(Text("Settings"), action: {
+                    // Open the app's Settings page.
+                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(settingsURL, options: [:], completionHandler: nil)
+                    }
+                }),
+                secondaryButton: .cancel(Text("Not Now"))
+            )
+        }
+    }
+    
+    // Check authorization; if only 'WhenInUse' is granted, prompt the user.
+    private func checkAlwaysAuthorization() {
+        let status = CLLocationManager.authorizationStatus()
+        if status == .authorizedWhenInUse {
+            // Delay briefly if needed
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showAlwaysAlert = true
             }
         }
     }
@@ -232,6 +248,7 @@ struct MapView: View {
         return renderer.uiImage
     }
 }
+
 // MARK: - ContiguousStatesCanvas
 
 struct ContiguousStatesCanvas: View {
@@ -256,7 +273,7 @@ struct ContiguousStatesCanvas: View {
                 let offsetX = (size.width - (paddedUnionRect.size.width * scale)) / 2
                 let offsetY = (size.height - (paddedUnionRect.size.height * scale)) / 2
                 
-                let fillColor   = settings.stateFillColor
+                let fillColor = settings.stateFillColor
                 let strokeColor = settings.stateStrokeColor
                 
                 for state in visitedStates {
@@ -290,7 +307,6 @@ struct ContiguousStatesCanvas: View {
             }
         }
         .onAppear {
-            // Debug: ContiguousStatesCanvas rendering
             print("🟢 Rendering ContiguousStatesCanvas")
         }
         .background(settings.backgroundColor)
@@ -368,10 +384,10 @@ struct FullScreenStateView: View {
                     let scaleY = size.height / CGFloat(paddedUnionRect.size.height)
                     let scale = min(scaleX, scaleY)
                     
-                    let drawnWidth  = CGFloat(paddedUnionRect.size.width)  * scale
+                    let drawnWidth  = CGFloat(paddedUnionRect.size.width) * scale
                     let drawnHeight = CGFloat(paddedUnionRect.size.height) * scale
                     
-                    let offsetX = (size.width  - drawnWidth)  / 2
+                    let offsetX = (size.width - drawnWidth) / 2
                     let offsetY = (size.height - drawnHeight) / 2
                     
                     func transformedX(_ p: MKMapPoint) -> CGFloat {
@@ -384,15 +400,15 @@ struct FullScreenStateView: View {
                     if let polygons = StateBoundaryManager.shared.statePolygons[state] {
                         for polygon in polygons {
                             var path = Path()
-                            let pointCount = polygon.pointCount
-                            guard pointCount > 0 else { continue }
-                            let points = polygon.points()
-                            let firstPoint = points[0]
+                            let count = polygon.pointCount
+                            guard count > 0 else { continue }
+                            let pts = polygon.points()
+                            let firstPoint = pts[0]
                             
                             path.move(to: CGPoint(x: transformedX(firstPoint),
                                                   y: transformedY(firstPoint)))
-                            for i in 1..<pointCount {
-                                let mp = points[i]
+                            for i in 1..<count {
+                                let mp = pts[i]
                                 path.addLine(to: CGPoint(x: transformedX(mp), y: transformedY(mp)))
                             }
                             path.closeSubpath()
@@ -411,11 +427,7 @@ struct FullScreenStateView: View {
         var unionRect: MKMapRect?
         if let polygons = StateBoundaryManager.shared.statePolygons[state] {
             for poly in polygons {
-                if unionRect == nil {
-                    unionRect = poly.boundingMapRect
-                } else {
-                    unionRect = unionRect?.union(poly.boundingMapRect)
-                }
+                unionRect = unionRect?.union(poly.boundingMapRect) ?? poly.boundingMapRect
             }
         }
         return unionRect
@@ -429,25 +441,25 @@ struct InsetStateView: View {
     @EnvironmentObject var settings: AppSettings
     
     var body: some View {
-    GeometryReader { geo in
-        Canvas { context, size in
-            if let mapRect = MapView.preferredMapRects[stateName] {
-                drawState(mapRect: mapRect, size: size, context: &context)
+        GeometryReader { geo in
+            Canvas { context, size in
+                if let mapRect = MapView.preferredMapRects[stateName] {
+                    drawState(mapRect: mapRect, size: size, context: &context)
+                }
+                else if let unionRect = computeUnionRect(for: stateName) {
+                    drawState(mapRect: unionRect, size: size, context: &context)
+                }
             }
-            else if let unionRect = computeUnionRect(for: stateName) {
-                drawState(mapRect: unionRect, size: size, context: &context)
+            .background(settings.backgroundColor)
+        }
+        .onAppear {
+            // Debug: Log inset view appearance
+            if stateName == "Alaska" {
+                print("🟢 Showing InsetStateView for Alaska")
+            } else if stateName == "Hawaii" {
+                print("🟢 Showing InsetStateView for Hawaii")
             }
         }
-        .background(settings.backgroundColor)
-    }
-    .onAppear {
-        // Debug: InsetStateView appearance log
-        if stateName == "Alaska" {
-            print("🟢 Showing InsetStateView for Alaska")
-        } else if stateName == "Hawaii" {
-            print("🟢 Showing InsetStateView for Hawaii")
-        }
-    }
     }
     
     private func computeUnionRect(for state: String) -> MKMapRect? {
@@ -494,11 +506,8 @@ struct InsetStateView: View {
                 }
                 path.closeSubpath()
                 
-                let fillColor   = settings.stateFillColor
-                let strokeColor = settings.stateStrokeColor
-                context.fill(path, with: .color(fillColor))
-                
-                context.stroke(path, with: .color(strokeColor), lineWidth: MapView.borderLineWidth)
+                context.fill(path, with: .color(settings.stateFillColor))
+                context.stroke(path, with: .color(settings.stateStrokeColor), lineWidth: MapView.borderLineWidth)
             }
         }
     }

@@ -1,30 +1,55 @@
 import SwiftUI
 
 struct SettingsView: View {
-    // Keep references for color, notifications, etc. in your existing AppSettings
+    // References for app settings and the LocationManager
     @EnvironmentObject var settings: AppSettings
-    
-    // Also read locationManager as an environment object
     @EnvironmentObject var locationManager: LocationManager
     
     @Environment(\.presentationMode) var presentationMode
     
     @State private var showingSchemaAlert: Bool = false
     @State private var showEditStates = false
-    @State private var showRestoreAlert = false  // For the "Restore Defaults" alert
+    @State private var showRestoreAlert = false  // For restore defaults confirmation
     
     var body: some View {
         NavigationView {
             Form {
-                // MARK: - Preferences
-                Section(header: Text("PREFERENCES")) {
+                // Preferences Section
+                Section(header: Text("Preferences")) {
                     Toggle("Enable Notifications", isOn: $settings.notificationsEnabled)
                     ColorPicker("State Fill Color", selection: $settings.stateFillColor)
                     ColorPicker("State Stroke Color", selection: $settings.stateStrokeColor)
                     ColorPicker("Background Color", selection: $settings.backgroundColor)
                 }
                 
-                // MARK: - Restore Defaults
+                // State Editing and Purchases Section
+                Section(header: Text("State Editing")) {
+                    if settings.hasUnlockedStateEditing {
+                        // If the feature is unlocked, only show the edit button.
+                        Button("Edit Visited States") {
+                            showEditStates.toggle()
+                        }
+                    } else {
+                        // If not unlocked, show both the Unlock button and a Restore Purchase option.
+                        Button("Unlock State Editing") {
+                            Task {
+                                await settings.purchaseStateEditing()
+                            }
+                        }
+                        .foregroundColor(.blue)
+                        
+                        Button("Restore Purchase") {
+                            Task {
+                                await IAPManager.shared.restorePurchases()
+                                // Update your settings once restored.
+                                settings.updatePurchasedProducts()
+                            }
+                        }
+                        .foregroundColor(.blue)
+                    }
+                }
+                
+                // Restore Defaults Section (affects only colors)
                 Section {
                     Button("Restore Defaults") {
                         showRestoreAlert = true
@@ -40,40 +65,16 @@ struct SettingsView: View {
                     }
                 }
                 
-                // MARK: - State Editing
-                Section {
-                    if settings.hasUnlockedStateEditing {
-                        // The user already has editing unlocked
-                        Button("Edit Visited States") {
-                            showEditStates.toggle()
-                        }
-                    } else {
-                        // The user has not purchased yet
-                        Button("Unlock State Editing") {
-                            Task {
-                                await AppSettings.shared.purchaseStateEditing()
-                            }
-                        }
-                        Button("Restore Purchase") {
-                            Task {
-                                // Attempt to restore purchases
-                                await IAPManager.shared.restorePurchases()
-                                // Then update the local purchased state
-                                settings.updatePurchasedProducts()
-                            }
-                        }
-                    }
-                }
-                
-                // MARK: - About
+                // About Section
                 Section {
                     NavigationLink("About VisitedStates", destination: AboutView())
                 }
             }
             .navigationTitle("Settings")
             .sheet(isPresented: $showEditStates) {
-                // We pass locationManager's visitedStates to EditStatesView
                 EditStatesView(visitedStates: $locationManager.visitedStates)
+                    .environmentObject(settings)
+                    .environmentObject(locationManager)
             }
         }
     }
@@ -82,7 +83,7 @@ struct SettingsView: View {
 struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
         SettingsView()
-            .environmentObject(AppSettings.shared) // For color pickers, etc.
-            .environmentObject(LocationManager())   // For visited states
+            .environmentObject(AppSettings.shared)
+            .environmentObject(LocationManager())
     }
 }

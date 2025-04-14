@@ -14,30 +14,22 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var isSavingLocally = false
     private var syncTimer: Timer?
     private var syncInterval: TimeInterval = 300  // 5 minutes
-    
+
     private let speedThreshold: CLLocationSpeed = 44.7
     private let altitudeThreshold: CLLocationDistance = 3048
-    
+
     // Persist the last notified state in UserDefaults.
     private var lastNotifiedState: String? {
-        get {
-            UserDefaults.standard.string(forKey: "lastNotifiedState")
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: "lastNotifiedState")
-        }
+        get { UserDefaults.standard.string(forKey: "lastNotifiedState") }
+        set { UserDefaults.standard.set(newValue, forKey: "lastNotifiedState") }
     }
     
     // Persist the previous detected state in UserDefaults so it survives force quit.
     private var previousDetectedState: String? {
-        get {
-            UserDefaults.standard.string(forKey: "previousDetectedState")
-        }
-        set {
-            UserDefaults.standard.set(newValue, forKey: "previousDetectedState")
-        }
+        get { UserDefaults.standard.string(forKey: "previousDetectedState") }
+        set { UserDefaults.standard.set(newValue, forKey: "previousDetectedState") }
     }
-    
+
     /// The single source of truth for visited states.
     @Published var visitedStates: [String] = [] {
         didSet {
@@ -89,7 +81,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         case .authorizedWhenInUse, .authorizedAlways:
             startStandardLocationUpdates()
         case .notDetermined:
-            locationManager.requestWhenInUseAuthorization()
+            // Request Always Authorization if possible
+            locationManager.requestAlwaysAuthorization()
         case .restricted, .denied:
             print("Location services are restricted or denied")
         @unknown default:
@@ -112,6 +105,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func startStandardLocationUpdates() {
         locationManager.startUpdatingLocation()
     }
+    
+    
+
+
     
     // MARK: - CLLocationManagerDelegate
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -157,9 +154,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         print("Polygon lookup returned state: \(fullStateName)")
         
-        // Execute updates on main thread.
         DispatchQueue.main.async {
-            // If the app is not active (in the background)…
+            // If not active (background), update persistence and notify if needed.
             if UIApplication.shared.applicationState != .active {
                 if !self.visitedStates.contains(fullStateName) {
                     self.visitedStates.append(fullStateName)
@@ -168,7 +164,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 } else {
                     print("App in background: \(fullStateName) is already in visitedStates")
                 }
-                // Only send a notification if this state is not already the last notified one.
                 if self.lastNotifiedState != fullStateName {
                     NotificationManager.shared.handleDetectedState(fullStateName)
                     self.lastNotifiedState = fullStateName
@@ -178,8 +173,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 return
             }
             
-            // For active app state:
-            // Check if a new state change has occurred compared to the persisted previousDetectedState.
+            // For active state:
             if self.previousDetectedState != fullStateName {
                 print("State change detected: from \(self.previousDetectedState ?? "nil") to \(fullStateName)")
                 self.previousDetectedState = fullStateName
@@ -195,7 +189,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 print("State \(fullStateName) (new or re-entered) detected; notification triggered.")
             } else {
                 print("Already notified for state \(fullStateName). Forcing UI update without duplicate notification.")
-                // Force a UI update (optional).
                 self.visitedStates = Array(self.visitedStates)
             }
         }
@@ -217,7 +210,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             visitedStates = []
             print("No visited states found in local storage.")
         }
-        // Then do an initial sync from CloudKit.
         syncWithCloudKit()
     }
     
