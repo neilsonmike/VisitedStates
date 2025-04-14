@@ -8,6 +8,9 @@ struct ContentView: View {
     @State private var showShareSheet = false
     @State private var shareItems: [Any] = []
     
+    // Change this URL once your app is live if needed.
+    let appStoreLink = "https://apps.apple.com/us/app/visitedstates/id6504059000"
+
     var body: some View {
         ZStack {
             // Display the MapView with environment object
@@ -48,7 +51,8 @@ struct ContentView: View {
                                 // Calculate the state count, excluding "District of Columbia"
                                 let stateCount = locationManager.visitedStates.filter { $0 != "District of Columbia" }.count
                                 let stateText = stateCount == 1 ? "state" : "states"
-                                let shareText = "I have been to \(stateCount) \(stateText)! Track yours with the VisitedStates app!"
+                                // Append the URL to the share text
+                                let shareText = "I have been to \(stateCount) \(stateText)! Track yours with the VisitedStates app! \(appStoreLink)"
                                 shareItems = [uiImage, shareText]
                                 showShareSheet = true
                             }
