@@ -29,6 +29,7 @@
 		42AA80262D7DF0EF008AF2DE /* AlaskaHawaiiSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */; };
 		42B9C8052D8000BB0012B018 /* USStates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B9C8042D8000B70012B018 /* USStates.swift */; };
 		42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B9C8062D8000CB0012B018 /* EditStatesView.swift */; };
+		42F0FE932DAC995D00D9963B /* StoreKitConfig.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */; };
 		42F551022D7A83DC00986E1F /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F551012D7A83D600986E1F /* AppSettings.swift */; };
 		42F551042D7A83F300986E1F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F551032D7A83EE00986E1F /* SettingsView.swift */; };
 		42F551062D7A89EB00986E1F /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F551052D7A89E500986E1F /* NotificationManager.swift */; };
@@ -64,6 +65,7 @@
 		42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlaskaHawaiiSplitView.swift; sourceTree = "<group>"; };
 		42B9C8042D8000B70012B018 /* USStates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USStates.swift; sourceTree = "<group>"; };
 		42B9C8062D8000CB0012B018 /* EditStatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditStatesView.swift; sourceTree = "<group>"; };
+		42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = StoreKitConfig.storekit; sourceTree = "<group>"; };
 		42F551012D7A83D600986E1F /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		42F551032D7A83EE00986E1F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		42F551052D7A89E500986E1F /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
@@ -115,6 +117,7 @@
 				42F551012D7A83D600986E1F /* AppSettings.swift */,
 				428FB4682C1276D600972D45 /* launchscreen.storyboard */,
 				4212952A2C0D515A00E38B54 /* blank.png */,
+				42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */,
 				423B20A32C0BB32400EE7FEF /* GeoJSON */,
 				423B209D2C0BAFCC00EE7FEF /* Info.plist */,
 				428FB46E2C127F0800972D45 /* white_tile.png */,
@@ -226,6 +229,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				42F0FE932DAC995D00D9963B /* StoreKitConfig.storekit in Resources */,
 				4212952B2C0D515A00E38B54 /* blank.png in Resources */,
 				4221270D2D8274080033E461 /* DoHyeon-Regular.ttf in Resources */,
 				422127162D852B210033E461 /* Ohio_WV_PA_Test.gpx in Resources */,

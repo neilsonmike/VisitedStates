@@ -36,13 +36,13 @@ class AppSettings: ObservableObject {
     static let shared = AppSettings()
     
     // Private stored properties for reading/writing from UserDefaults
-    @UserDefaultColor(key: "stateFillColor",   defaultValue: .red)
+    @UserDefaultColor(key: "stateFillColor", defaultValue: .red)
     private var storedFillColor: Color
     
     @UserDefaultColor(key: "stateStrokeColor", defaultValue: .white)
     private var storedStrokeColor: Color
     
-    @UserDefaultColor(key: "backgroundColor",  defaultValue: .white)
+    @UserDefaultColor(key: "backgroundColor", defaultValue: .white)
     private var storedBackgroundColor: Color
     
     // Published backing properties for SwiftUI
@@ -70,20 +70,21 @@ class AppSettings: ObservableObject {
 
     // Example of other stored properties
     @AppStorage("notificationsEnabled") var notificationsEnabled: Bool = true
-    @AppStorage("speedThreshold")       var speedThreshold: Double = 44.7
-    @AppStorage("altitudeThreshold")    var altitudeThreshold: Double = 3048
-    @AppStorage("lastVisitedState")     var lastVisitedState: String = ""
-    @Published var hasPurchasedEditStates: Bool = IAPManager.shared.checkPurchased("me.neils.VisitedStates.EditStates")
+    @AppStorage("speedThreshold") var speedThreshold: Double = 44.7
+    @AppStorage("altitudeThreshold") var altitudeThreshold: Double = 3048
+    @AppStorage("lastVisitedState") var lastVisitedState: String = ""
+    @Published var hasPurchasedEditStates: Bool = IAPManager.shared.checkPurchased("neils.me.VisitedStates.editStates")
     
+    // Computed property to determine if state editing is unlocked.
     var hasUnlockedStateEditing: Bool {
-        return true  // TODO: REMOVE BEFORE RELEASE
+        return hasPurchasedEditStates
     }
 
     // Custom init to avoid "self used before init" errors
     private init() {
-        fillColorBacking       = UserDefaultColor.readColor(forKey: "stateFillColor",   defaultValue: .red)
-        strokeColorBacking     = UserDefaultColor.readColor(forKey: "stateStrokeColor", defaultValue: .white)
-        backgroundColorBacking = UserDefaultColor.readColor(forKey: "backgroundColor",  defaultValue: .white)
+        fillColorBacking = UserDefaultColor.readColor(forKey: "stateFillColor", defaultValue: .red)
+        strokeColorBacking = UserDefaultColor.readColor(forKey: "stateStrokeColor", defaultValue: .white)
+        backgroundColorBacking = UserDefaultColor.readColor(forKey: "backgroundColor", defaultValue: .white)
 
         // Load from JSON on startup
         if let data = storedVisitedStatesJSON.data(using: .utf8),
@@ -94,12 +95,12 @@ class AppSettings: ObservableObject {
         }
     }
     
-    // Computed bridging properties: SwiftUI sees these changes, user defaults get updated too
+    // Computed bridging properties: SwiftUI sees these changes.
     var stateFillColor: Color {
         get { fillColorBacking }
         set {
             fillColorBacking = newValue
-            storedFillColor  = newValue
+            storedFillColor = newValue
         }
     }
     
@@ -107,7 +108,7 @@ class AppSettings: ObservableObject {
         get { strokeColorBacking }
         set {
             strokeColorBacking = newValue
-            storedStrokeColor  = newValue
+            storedStrokeColor = newValue
         }
     }
     
@@ -115,35 +116,46 @@ class AppSettings: ObservableObject {
         get { backgroundColorBacking }
         set {
             backgroundColorBacking = newValue
-            storedBackgroundColor  = newValue
+            storedBackgroundColor = newValue
         }
     }
     
     func updatePurchasedProducts() {
         DispatchQueue.main.async {
-            self.hasPurchasedEditStates = IAPManager.shared.checkPurchased("me.neils.VisitedStates.EditStates")
+            self.hasPurchasedEditStates = IAPManager.shared.checkPurchased("neils.me.VisitedStates.editStates")
         }
     }
     
     func restoreDefaults() {
-        stateFillColor    = .red
-        stateStrokeColor  = .white
-        backgroundColor   = .white
+        stateFillColor = .red
+        stateStrokeColor = .white
+        backgroundColor = .white
         
         notificationsEnabled = true
-        speedThreshold       = 44.7
-        altitudeThreshold    = 3048
-        lastVisitedState     = ""
+        speedThreshold = 44.7
+        altitudeThreshold = 3048
+        lastVisitedState = ""
     }
     
     @MainActor
     func purchaseStateEditing() async {
+        // If no products have been fetched yet, try fetching them again.
+        if IAPManager.shared.products.isEmpty {
+            print("Products list empty, refetching products...")
+            await IAPManager.shared.fetchProducts()
+        }
+        
+        // Now log available product IDs for debugging.
+        let availableProducts = IAPManager.shared.products.map { $0.id }
+        print("Attempting to purchase state editing. Available products: \(availableProducts)")
+        
         do {
-            if let product = IAPManager.shared.products.first(where: { $0.id == "me.neils.VisitedStates.EditStates" }) {
+            // Use the corrected product identifier with a lowercase "editStates".
+            if let product = IAPManager.shared.products.first(where: { $0.id == "neils.me.VisitedStates.editStates" }) {
                 try await IAPManager.shared.purchase(product)
                 self.hasPurchasedEditStates = true
             } else {
-                print("Product not found.")
+                print("Product not found. Please check your product ID and configuration in App Store Connect.")
             }
         } catch {
             print("Purchase failed: \(error)")

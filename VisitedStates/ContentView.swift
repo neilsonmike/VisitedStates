@@ -18,8 +18,10 @@ struct ContentView: View {
             // Debug indicator for current simulated location
             GeometryReader { geometry in
                 if let currentLocation = locationManager.currentLocation {
+                    // Adjust your coordinate transformation as needed.
                     let x = CGFloat(currentLocation.coordinate.longitude)
                     let y = CGFloat(currentLocation.coordinate.latitude)
+                    
                     Circle()
                         .fill(Color.red)
                         .frame(width: 10, height: 10)
@@ -34,6 +36,7 @@ struct ContentView: View {
                     Spacer()
                     VStack(spacing: 12) {
                         Button(action: {
+                            // Render a snapshot of MapView
                             let renderer = ImageRenderer(content:
                                 MapView(visitedStates: $locationManager.visitedStates)
                                     .environmentObject(settings)
@@ -42,10 +45,11 @@ struct ContentView: View {
                             renderer.scale = UIScreen.main.scale
 
                             if let uiImage = renderer.uiImage {
-                                let count = locationManager.visitedStates.count
-                                let plural = count == 1 ? "" : "s"
-                                let message = "I have been to \(count) state\(plural)! Track yours with the VisitedStates app!"
-                                shareItems = [uiImage, message]
+                                // Calculate the state count, excluding "District of Columbia"
+                                let stateCount = locationManager.visitedStates.filter { $0 != "District of Columbia" }.count
+                                let stateText = stateCount == 1 ? "state" : "states"
+                                let shareText = "I have been to \(stateCount) \(stateText)! Track yours with the VisitedStates app!"
+                                shareItems = [uiImage, shareText]
                                 showShareSheet = true
                             }
                         }) {
@@ -56,7 +60,7 @@ struct ContentView: View {
                                 .foregroundColor(.white)
                                 .clipShape(Circle())
                         }
-
+                        
                         Button(action: {
                             showingSettings.toggle()
                         }) {
@@ -95,7 +99,5 @@ struct ContentView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
-            .environmentObject(AppSettings.shared)
-            .environmentObject(LocationManager())
     }
 }

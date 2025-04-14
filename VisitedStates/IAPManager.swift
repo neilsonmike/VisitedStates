@@ -7,7 +7,7 @@ class IAPManager: NSObject, ObservableObject {
     @Published var products: [Product] = []
     @Published var purchasedProductIDs: Set<String> = []
     
-    private let productIDs = ["me.neils.VisitedStates.EditStates"]
+    private let productIDs = ["neils.me.VisitedStates.editStates"]
     
     override private init() {
         super.init()
@@ -21,6 +21,7 @@ class IAPManager: NSObject, ObservableObject {
     func fetchProducts() async {
         do {
             self.products = try await Product.products(for: productIDs)
+            print("Fetched products: \(products.map { $0.id })")
         } catch {
             print("Failed to fetch products: \(error)")
         }
@@ -42,21 +43,24 @@ class IAPManager: NSObject, ObservableObject {
     }
     
     func checkPurchased(_ productID: String) -> Bool {
-        purchasedProductIDs.contains(productID)
+        return purchasedProductIDs.contains(productID)
     }
     
     @MainActor
     func checkPurchasedProducts() async {
+        purchasedProductIDs.removeAll()
         for await result in Transaction.currentEntitlements {
             if case .verified(let transaction) = result {
                 purchasedProductIDs.insert(transaction.productID)
             }
         }
+        print("Purchased product IDs after restore: \(purchasedProductIDs)")
     }
-}//
-//  IAPManager.swift
-//  VisitedStates
-//
-//  Created by Mike Neilson on 3/14/25.
-//
-
+    
+    /// Refreshes purchased products by reloading current entitlements.
+    @MainActor
+    func restorePurchases() async {
+        print("Restoring purchases...")
+        await checkPurchasedProducts()
+    }
+}

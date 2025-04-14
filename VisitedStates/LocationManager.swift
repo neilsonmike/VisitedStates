@@ -18,7 +18,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let speedThreshold: CLLocationSpeed = 44.7
     private let altitudeThreshold: CLLocationDistance = 3048
     
-    // We use lastNotifiedState to hold the state for which a notification was most recently sent.
+    // Persist the last notified state in UserDefaults.
     private var lastNotifiedState: String? {
         get {
             UserDefaults.standard.string(forKey: "lastNotifiedState")
@@ -28,9 +28,16 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
-    // We add a new property to track which state was last detected.
-    private var previousDetectedState: String? = nil
-
+    // Persist the previous detected state in UserDefaults so it survives force quit.
+    private var previousDetectedState: String? {
+        get {
+            UserDefaults.standard.string(forKey: "previousDetectedState")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "previousDetectedState")
+        }
+    }
+    
     /// The single source of truth for visited states.
     @Published var visitedStates: [String] = [] {
         didSet {
@@ -150,11 +157,10 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         print("Polygon lookup returned state: \(fullStateName)")
         
-        // All changes that update published properties should be executed on the main thread.
+        // Execute updates on main thread.
         DispatchQueue.main.async {
-            // Check current app state: if the app is not active, we only update persistence.
+            // If the app is not active (in the background)…
             if UIApplication.shared.applicationState != .active {
-                // In background: add the state (if not already present) and persist it
                 if !self.visitedStates.contains(fullStateName) {
                     self.visitedStates.append(fullStateName)
                     print("App in background: Added \(fullStateName) to visitedStates")
@@ -162,14 +168,18 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 } else {
                     print("App in background: \(fullStateName) is already in visitedStates")
                 }
-                // Still send a notification if needed (if you want background notification)
-                NotificationManager.shared.handleDetectedState(fullStateName)
-                self.lastNotifiedState = fullStateName
+                // Only send a notification if this state is not already the last notified one.
+                if self.lastNotifiedState != fullStateName {
+                    NotificationManager.shared.handleDetectedState(fullStateName)
+                    self.lastNotifiedState = fullStateName
+                } else {
+                    print("App in background: Already notified for \(fullStateName); skipping notification.")
+                }
                 return
             }
             
-            // For active state:
-            // When app is active, check if a state change has occurred.
+            // For active app state:
+            // Check if a new state change has occurred compared to the persisted previousDetectedState.
             if self.previousDetectedState != fullStateName {
                 print("State change detected: from \(self.previousDetectedState ?? "nil") to \(fullStateName)")
                 self.previousDetectedState = fullStateName
@@ -180,13 +190,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 if !self.visitedStates.contains(fullStateName) {
                     self.visitedStates.append(fullStateName)
                 }
-                // Trigger notification and update lastNotifiedState
                 NotificationManager.shared.handleDetectedState(fullStateName)
                 self.lastNotifiedState = fullStateName
                 print("State \(fullStateName) (new or re-entered) detected; notification triggered.")
             } else {
                 print("Already notified for state \(fullStateName). Forcing UI update without duplicate notification.")
-                // Force a UI update by assigning a new array (this might be optional).
+                // Force a UI update (optional).
                 self.visitedStates = Array(self.visitedStates)
             }
         }
@@ -208,7 +217,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             visitedStates = []
             print("No visited states found in local storage.")
         }
-        // Then do an initial sync from cloud.
+        // Then do an initial sync from CloudKit.
         syncWithCloudKit()
     }
     

@@ -220,7 +220,7 @@ struct MapView: View {
                 let labelText = "\(visitedCount)/50 States Visited"
                 Text(labelText)
                     .foregroundColor(.gray)
-                    .font(.custom("DoHyeon-Regular", size: 16))
+                    .font(.custom("DoHyeon-Regular", size: 20))
                     .position(x: geometry.size.width / 2, y: geometry.size.height * 0.2)
             }
         }
