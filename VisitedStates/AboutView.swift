@@ -10,7 +10,7 @@ struct AboutView: View {
 
 
             Text("VisitedStates")
-                .font(.custom("DoHyeon-Regular", size: 28))
+                .font(.custom("DoHyeon-Regular", size: 44))
                 .foregroundColor(.red)
 
             Text("Version \(appVersion)")
@@ -41,7 +41,7 @@ struct AboutView: View {
             }
             .foregroundColor(.gray)
 
-            Text("This app was designed and developed entirely through collaboration with AI, demonstrating what’s possible for non-coding product owners and business analysts. No original code in this app is human written.")
+            Text("This app was designed and developed entirely through collaboration with AI as a test of the possibilies of pairing a product owner with an AI developer. No original code in this app is human written.")
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)
