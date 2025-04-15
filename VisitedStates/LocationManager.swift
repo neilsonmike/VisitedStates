@@ -58,7 +58,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         loadVisitedStates()
         checkLocationAuthorization()
-        locationManager.allowsBackgroundLocationUpdates = true
+        // Removed: locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
         
         NotificationCenter.default.addObserver(self,
@@ -92,6 +92,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     @objc private func appDidEnterBackground() {
         locationManager.stopUpdatingLocation()
+        // Use significant location changes in background; no need for standard updates.
         locationManager.startMonitoringSignificantLocationChanges()
         print("Switched to significant location updates (background)")
     }
@@ -105,10 +106,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func startStandardLocationUpdates() {
         locationManager.startUpdatingLocation()
     }
-    
-    
-
-
     
     // MARK: - CLLocationManagerDelegate
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -136,7 +133,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             lastLocationUpdateTime = currentTime
         }
         
-        // Set current location. Since didSet on currentLocation calls updateVisitedStates, no need to call it here.
+        // Set current location. (The didSet on currentLocation calls updateVisitedStates.)
         currentLocation = location
         print("Updated location: \(location)")
     }
