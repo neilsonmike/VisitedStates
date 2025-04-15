@@ -7,6 +7,7 @@ class IAPManager: NSObject, ObservableObject {
     @Published var products: [Product] = []
     @Published var purchasedProductIDs: Set<String> = []
     
+    // Use the same product identifier as in AppSettings.
     private let productIDs = ["neils.me.VisitedStates.editStates"]
     
     override private init() {
@@ -35,6 +36,8 @@ class IAPManager: NSObject, ObservableObject {
             await transaction.finish()
             DispatchQueue.main.async {
                 self.purchasedProductIDs.insert(product.id)
+                // Persist the purchase flag so that future launches know the user bought it.
+                UserDefaults.standard.set(true, forKey: "hasPurchasedEditStates")
             }
             return true
         default:
@@ -43,7 +46,8 @@ class IAPManager: NSObject, ObservableObject {
     }
     
     func checkPurchased(_ productID: String) -> Bool {
-        return purchasedProductIDs.contains(productID)
+        // Return true if either the persistent flag is set or the ephemeral set contains the product ID.
+        return UserDefaults.standard.bool(forKey: "hasPurchasedEditStates") || purchasedProductIDs.contains(productID)
     }
     
     @MainActor
@@ -53,6 +57,9 @@ class IAPManager: NSObject, ObservableObject {
             if case .verified(let transaction) = result {
                 purchasedProductIDs.insert(transaction.productID)
             }
+        }
+        if !purchasedProductIDs.isEmpty {
+            UserDefaults.standard.set(true, forKey: "hasPurchasedEditStates")
         }
         print("Purchased product IDs after restore: \(purchasedProductIDs)")
     }

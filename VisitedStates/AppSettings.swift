@@ -53,9 +53,7 @@ class AppSettings: ObservableObject {
     @Published private var visitedStatesBacking: [String] = []
 
     var visitedStates: [String] {
-        get {
-            visitedStatesBacking
-        }
+        get { visitedStatesBacking }
         set {
             visitedStatesBacking = newValue
             // Save to JSON
@@ -73,11 +71,13 @@ class AppSettings: ObservableObject {
     @AppStorage("speedThreshold") var speedThreshold: Double = 44.7
     @AppStorage("altitudeThreshold") var altitudeThreshold: Double = 3048
     @AppStorage("lastVisitedState") var lastVisitedState: String = ""
-    @Published var hasPurchasedEditStates: Bool = IAPManager.shared.checkPurchased("neils.me.VisitedStates.editStates")
     
+    // Persist the purchased state flag using AppStorage.
+    @AppStorage("hasPurchasedEditStates") var persistentPurchasedEditStates: Bool = false
+
     // Computed property to determine if state editing is unlocked.
     var hasUnlockedStateEditing: Bool {
-        return hasPurchasedEditStates
+        return persistentPurchasedEditStates
     }
 
     // Custom init to avoid "self used before init" errors
@@ -122,7 +122,7 @@ class AppSettings: ObservableObject {
     
     func updatePurchasedProducts() {
         DispatchQueue.main.async {
-            self.hasPurchasedEditStates = IAPManager.shared.checkPurchased("neils.me.VisitedStates.editStates")
+            self.persistentPurchasedEditStates = IAPManager.shared.checkPurchased("neils.me.VisitedStates.editStates")
         }
     }
     
@@ -145,15 +145,16 @@ class AppSettings: ObservableObject {
             await IAPManager.shared.fetchProducts()
         }
         
-        // Now log available product IDs for debugging.
+        // Log available product IDs for debugging.
         let availableProducts = IAPManager.shared.products.map { $0.id }
         print("Attempting to purchase state editing. Available products: \(availableProducts)")
         
         do {
-            // Use the corrected product identifier with a lowercase "editStates".
             if let product = IAPManager.shared.products.first(where: { $0.id == "neils.me.VisitedStates.editStates" }) {
-                try await IAPManager.shared.purchase(product)
-                self.hasPurchasedEditStates = true
+                let success = try await IAPManager.shared.purchase(product)
+                if success {
+                    self.persistentPurchasedEditStates = true
+                }
             } else {
                 print("Product not found. Please check your product ID and configuration in App Store Connect.")
             }
