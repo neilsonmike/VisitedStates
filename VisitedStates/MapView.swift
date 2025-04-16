@@ -75,7 +75,7 @@ extension MKPolygon {
 // MARK: - MapView
 
 struct MapView: View {
-    @Binding var visitedStates: [String]
+    // Removed local binding; using settings.visitedStates from environment
     @EnvironmentObject var settings: AppSettings
     @State private var showAlwaysAlert = false   // Alert state for "Always Allow" prompt
 
@@ -110,6 +110,7 @@ struct MapView: View {
                          size: MKMapSize(width: widthMeters, height: heightMeters))
     }
     
+    // Preferred map rectangles for special state handling (e.g., Alaska, Hawaii).
     static let preferredMapRects: [String: MKMapRect] = {
         func regionToMapRect(center: CLLocationCoordinate2D, span: MKCoordinateSpan) -> MKMapRect {
             let centerPoint = MKMapPoint(center)
@@ -137,18 +138,26 @@ struct MapView: View {
     }()
     
     var body: some View {
-        ZStack {
+    ZStack {
+        Color.clear
+            .onAppear {
+                let states = settings.visitedStates
+                let visitedCount = states.filter { $0 != "District of Columbia" }.count
+                print("📌 MapView rendering visitedStates: \(states)")
+                print("📌 MapView deciding layout for visitedCount: \(visitedCount), visitedStates: \(states)")
+            }
             GeometryReader { geometry in
                 // Exclude D.C. from count for share stats.
-                let visitedStatesExcludingDC = visitedStates.filter { $0 != "District of Columbia" }
+                let visitedStatesExcludingDC = settings.visitedStates.filter { $0 != "District of Columbia" }
                 let visitedCount = visitedStatesExcludingDC.count
-                
-                let showAlaska = visitedStates.contains("Alaska")
-                let showHawaii = visitedStates.contains("Hawaii")
-                
+
+                let showAlaska = settings.visitedStates.contains("Alaska")
+                let showHawaii = settings.visitedStates.contains("Hawaii")
+
                 // For drawing, use all visitedStates (so D.C. is drawn if visited)
-                let contiguousStates = visitedStates.filter { $0 != "Alaska" && $0 != "Hawaii" }
+                let contiguousStates = settings.visitedStates.filter { $0 != "Alaska" && $0 != "Hawaii" }
                 let noContiguousStates = contiguousStates.isEmpty
+                // Debug print removed; handled in Color.clear onAppear above
                 
                 if visitedCount == 2 && showAlaska && showHawaii && noContiguousStates {
                     VStack(spacing: 0) {
@@ -213,8 +222,13 @@ struct MapView: View {
             }
         }
         // When MapView appears, check for Always authorization.
+        // This prompts the user to adjust location permissions if only 'WhenInUse' is granted.
         .onAppear {
             checkAlwaysAuthorization()
+            print("MapView appeared with visited states: \(settings.visitedStates)")
+        }
+        .onReceive(settings.$visitedStatesBacking) { states in
+            print("MapView sees visited states updated: \(states)")
         }
         .alert(isPresented: $showAlwaysAlert) {
             Alert(

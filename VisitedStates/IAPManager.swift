@@ -8,7 +8,7 @@ class IAPManager: NSObject, ObservableObject {
     @Published var purchasedProductIDs: Set<String> = []
     
     // Use the same product identifier as in AppSettings.
-    private let productIDs = ["neils.me.VisitedStates.editStates"]
+    private let productIDs = [Constants.editStatesProductID]
     
     override private init() {
         super.init()
@@ -24,7 +24,7 @@ class IAPManager: NSObject, ObservableObject {
             self.products = try await Product.products(for: productIDs)
             print("Fetched products: \(products.map { $0.id })")
         } catch {
-            print("Failed to fetch products: \(error)")
+            print("Failed to fetch IAP products with error: \(error.localizedDescription)")
         }
     }
     
@@ -41,6 +41,7 @@ class IAPManager: NSObject, ObservableObject {
             }
             return true
         default:
+            print("Purchase failed or was cancelled for product ID: \(product.id)")
             return false
         }
     }

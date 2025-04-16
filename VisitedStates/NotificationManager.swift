@@ -89,8 +89,8 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         print("Predicate used: \(predicate)")
         let query = CKQuery(recordType: "StateFactoids", predicate: predicate)
         
-        // Explicitly specify the container identifier.
-        let container = CKContainer(identifier: "iCloud.me.neils.VisitedStates")
+        // Accessing CloudKit container using defined constant
+        let container = CKContainer(identifier: Constants.cloudContainerID)
         let database = container.publicCloudDatabase
         
         print("Performing query on container: \(container)")

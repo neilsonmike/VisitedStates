@@ -13,6 +13,10 @@ struct IntroMapView: View {
         "Maryland", "Virginia", "Kentucky", "Tennessee",
         "North Carolina", "South Carolina", "Georgia", "Indiana"
     ]
+    
+    private let stateFadeInterval: TimeInterval = 0.15
+    private let fadeOutDelay: TimeInterval = 0.5
+    private let navigateDelay: TimeInterval = 1.0
 
     var body: some View {
         ZStack {
@@ -42,22 +46,27 @@ struct IntroMapView: View {
             startAnimation()
         }
         .fullScreenCover(isPresented: $navigateToMain) {
-            ContentView()
+            ContentView().environmentObject(settings).environmentObject(LocationManager.shared)
         }
     }
 
     private func startAnimation() {
+        // Animate the appearance of each state in sequence
         for (index, state) in stateSequence.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + (0.15 * Double(index))) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + (stateFadeInterval * Double(index))) {
                 withAnimation {
                     showStates.append(state)
                 }
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + (0.15 * Double(stateSequence.count)) + 0.5) {
+        
+        // Delay before fading out the intro text
+        DispatchQueue.main.asyncAfter(deadline: .now() + (stateFadeInterval * Double(stateSequence.count)) + fadeOutDelay) {
             withAnimation { fadeOutIntro = true }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + (0.1 * Double(stateSequence.count)) + 1.0) {
+        
+        // Delay before navigating to the main view
+        DispatchQueue.main.asyncAfter(deadline: .now() + (stateFadeInterval * Double(stateSequence.count)) + navigateDelay) {
             navigateToMain = true
         }
     }

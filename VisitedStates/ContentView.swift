@@ -15,8 +15,9 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             // Display the MapView with environment object
-            MapView(visitedStates: $locationManager.visitedStates)
+            MapView()
                 .environmentObject(settings)
+                .environmentObject(locationManager)
                 .edgesIgnoringSafeArea(.all)
             
             // Debug indicator for current simulated location
@@ -41,7 +42,7 @@ struct ContentView: View {
                     VStack(spacing: 12) {
                         Button(action: {
                             let renderer = ImageRenderer(content:
-                                MapView(visitedStates: $locationManager.visitedStates)
+                                MapView()
                                     .environmentObject(settings)
                                     .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
                             )
@@ -81,8 +82,10 @@ struct ContentView: View {
                 }
             }
         }
+        .onAppear {
+            checkAlwaysAuthorization()
+        }
 
- 
         // Present the settings sheet
         .sheet(isPresented: $showingSettings) {
             SettingsView()
@@ -95,6 +98,11 @@ struct ContentView: View {
             set: { showShareSheet = $0 }
         )) {
             ShareSheet(activityItems: shareItems)
+        }
+        .alert(isPresented: $showAlwaysAlert) {
+            Alert(title: Text("Location Permission Required"),
+                  message: Text("Please change the location permission to 'Always Allow' in the Settings app."),
+                  dismissButton: .default(Text("OK")))
         }
     }
     

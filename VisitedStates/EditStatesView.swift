@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct EditStatesView: View {
-    @Binding var visitedStates: [String]
+    @EnvironmentObject var settings: AppSettings
     
     // The user’s LocationManager for final sync
     @EnvironmentObject var locationManager: LocationManager
@@ -29,7 +29,7 @@ struct EditStatesView: View {
                     HStack {
                         Text(state)
                         Spacer()
-                        if visitedStates.contains(state) {
+                        if settings.visitedStates.contains(state) {
                             // Show a simple checkmark if visited
                             Image(systemName: "checkmark")
                                 .foregroundColor(.accentColor)
@@ -47,12 +47,12 @@ struct EditStatesView: View {
                 // Provide a Done button
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") {
-                        // Just close the view
                         presentationMode.wrappedValue.dismiss()
                     }
                 }
             }
             // The key change: upon dismiss (swipe down or Done), do one CloudKit sync
+            // This triggers a CloudKit sync after edits are made
             .onDisappear {
                 locationManager.syncWithCloudKit()
             }
@@ -61,10 +61,10 @@ struct EditStatesView: View {
     
     // Toggle local visitedStates only (no cloud sync here)
     private func toggleState(_ state: String) {
-        if let idx = visitedStates.firstIndex(of: state) {
-            visitedStates.remove(at: idx)
-        } else {
-            visitedStates.append(state)
-        }
+                        if let idx = settings.visitedStates.firstIndex(of: state) {
+                            settings.visitedStates.remove(at: idx)
+                        } else {
+                            settings.visitedStates.append(state)
+                        }
     }
 }

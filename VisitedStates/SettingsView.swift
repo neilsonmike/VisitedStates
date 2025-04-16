@@ -18,7 +18,7 @@ struct SettingsView: View {
                 Section(header: Text("Preferences")) {
                     Toggle("Enable Notifications", isOn: $settings.notificationsEnabled)
                     ColorPicker("State Fill Color", selection: $settings.stateFillColor)
-                    ColorPicker("State Stroke Color", selection: $settings.stateStrokeColor)
+                    ColorPicker("State Border Color", selection: $settings.stateStrokeColor)
                     ColorPicker("Background Color", selection: $settings.backgroundColor)
                 }
                 
@@ -72,7 +72,7 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .sheet(isPresented: $showEditStates) {
-                EditStatesView(visitedStates: $locationManager.visitedStates)
+                EditStatesView()
                     .environmentObject(settings)
                     .environmentObject(locationManager)
             }

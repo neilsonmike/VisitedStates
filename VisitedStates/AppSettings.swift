@@ -50,11 +50,12 @@ class AppSettings: ObservableObject {
     @Published private var strokeColorBacking: Color
     @Published private var backgroundColorBacking: Color
     @AppStorage("visitedStatesString") private var storedVisitedStatesJSON: String = ""
-    @Published private var visitedStatesBacking: [String] = []
+    @Published private(set) var visitedStatesBacking: [String] = []
 
     var visitedStates: [String] {
         get { visitedStatesBacking }
         set {
+            print("🔄 visitedStates updated via setter: \(newValue)")
             visitedStatesBacking = newValue
             // Save to JSON
             if let data = try? JSONEncoder().encode(newValue),
@@ -90,6 +91,7 @@ class AppSettings: ObservableObject {
         if let data = storedVisitedStatesJSON.data(using: .utf8),
            let decoded = try? JSONDecoder().decode([String].self, from: data) {
             visitedStatesBacking = decoded
+            print("🚩 Initial visitedStates loaded from JSON: \(visitedStatesBacking)")
         } else {
             visitedStatesBacking = []
         }
@@ -120,12 +122,14 @@ class AppSettings: ObservableObject {
         }
     }
     
+    // Checks and updates the purchase status for state editing.
     func updatePurchasedProducts() {
         DispatchQueue.main.async {
-            self.persistentPurchasedEditStates = IAPManager.shared.checkPurchased("neils.me.VisitedStates.editStates")
+            self.persistentPurchasedEditStates = IAPManager.shared.checkPurchased(Constants.editStatesProductID)
         }
     }
     
+    // Restores the default settings for colors and thresholds.
     func restoreDefaults() {
         stateFillColor = .red
         stateStrokeColor = .white
@@ -137,6 +141,7 @@ class AppSettings: ObservableObject {
         lastVisitedState = ""
     }
     
+    // Initiates the in-app purchase for enabling state editing.
     @MainActor
     func purchaseStateEditing() async {
         // If no products have been fetched yet, try fetching them again.
@@ -150,7 +155,7 @@ class AppSettings: ObservableObject {
         print("Attempting to purchase state editing. Available products: \(availableProducts)")
         
         do {
-            if let product = IAPManager.shared.products.first(where: { $0.id == "neils.me.VisitedStates.editStates" }) {
+            if let product = IAPManager.shared.products.first(where: { $0.id == Constants.editStatesProductID }) {
                 let success = try await IAPManager.shared.purchase(product)
                 if success {
                     self.persistentPurchasedEditStates = true

@@ -14,12 +14,11 @@ struct AlaskaHawaiiSplitView: View {
     @EnvironmentObject var settings: AppSettings
     
     var body: some View {
+        // View to display Alaska and Hawaii insets clearly separated by a divider
         HStack(spacing: 0) {
             AHInsetStateView(stateName: "Alaska")
-                .environmentObject(settings)
             Divider()
             AHInsetStateView(stateName: "Hawaii")
-                .environmentObject(settings)
         }
     }
 }

@@ -12,10 +12,8 @@
 		4221270F2D8277080033E461 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4221270E2D8277020033E461 /* AboutView.swift */; };
 		422127112D83B1110033E461 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422127102D83B10F0033E461 /* ShareSheet.swift */; };
 		422127132D84B59E0033E461 /* IAPManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422127122D84B59C0033E461 /* IAPManager.swift */; };
-		422127162D852B210033E461 /* Ohio_WV_PA_Test.gpx in Resources */ = {isa = PBXBuildFile; fileRef = 422127152D852B210033E461 /* Ohio_WV_PA_Test.gpx */; };
 		42302CDD2D81CB7200B1C06E /* IntroMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */; };
 		423B206E2C0BAE9100EE7FEF /* VisitedStatesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */; };
-		423B20702C0BAE9100EE7FEF /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B206F2C0BAE9100EE7FEF /* Persistence.swift */; };
 		423B20732C0BAE9100EE7FEF /* VisitedStates.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 423B20712C0BAE9100EE7FEF /* VisitedStates.xcdatamodeld */; };
 		423B20752C0BAE9100EE7FEF /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B20742C0BAE9100EE7FEF /* ContentView.swift */; };
 		423B20772C0BAE9200EE7FEF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 423B20762C0BAE9200EE7FEF /* Assets.xcassets */; };
@@ -25,11 +23,11 @@
 		4284837C2C0D301B0021DDAE /* us_states.geojson in Resources */ = {isa = PBXBuildFile; fileRef = 4284837B2C0D301B0021DDAE /* us_states.geojson */; };
 		428FB4692C1276D600972D45 /* launchscreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 428FB4682C1276D600972D45 /* launchscreen.storyboard */; };
 		428FB46F2C127F0900972D45 /* white_tile.png in Resources */ = {isa = PBXBuildFile; fileRef = 428FB46E2C127F0800972D45 /* white_tile.png */; };
-		42AA801E2D7B4E46008AF2DE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AA801D2D7B4B6F008AF2DE /* AppDelegate.swift */; };
 		42AA80262D7DF0EF008AF2DE /* AlaskaHawaiiSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */; };
 		42B9C8052D8000BB0012B018 /* USStates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B9C8042D8000B70012B018 /* USStates.swift */; };
 		42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B9C8062D8000CB0012B018 /* EditStatesView.swift */; };
 		42F0FE932DAC995D00D9963B /* StoreKitConfig.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */; };
+		42F0FE952DAF0A0400D9963B /* Constraints.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F0FE942DAF0A0000D9963B /* Constraints.swift */; };
 		42F551022D7A83DC00986E1F /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F551012D7A83D600986E1F /* AppSettings.swift */; };
 		42F551042D7A83F300986E1F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F551032D7A83EE00986E1F /* SettingsView.swift */; };
 		42F551062D7A89EB00986E1F /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F551052D7A89E500986E1F /* NotificationManager.swift */; };
@@ -41,12 +39,9 @@
 		4221270E2D8277020033E461 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		422127102D83B10F0033E461 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		422127122D84B59C0033E461 /* IAPManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IAPManager.swift; sourceTree = "<group>"; };
-		422127142D850F3B0033E461 /* OH_WV_PA_TestRoute.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = OH_WV_PA_TestRoute.gpx; sourceTree = "<group>"; };
-		422127152D852B210033E461 /* Ohio_WV_PA_Test.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Ohio_WV_PA_Test.gpx; sourceTree = "<group>"; };
 		42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroMapView.swift; sourceTree = "<group>"; };
 		423B206A2C0BAE9100EE7FEF /* VisitedStates.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VisitedStates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedStatesApp.swift; sourceTree = "<group>"; };
-		423B206F2C0BAE9100EE7FEF /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		423B20722C0BAE9100EE7FEF /* VisitedStates.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = VisitedStates.xcdatamodel; sourceTree = "<group>"; };
 		423B20742C0BAE9100EE7FEF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		423B20762C0BAE9200EE7FEF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -61,11 +56,13 @@
 		4284837B2C0D301B0021DDAE /* us_states.geojson */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; lineEnding = 0; path = us_states.geojson; sourceTree = "<group>"; };
 		428FB4682C1276D600972D45 /* launchscreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = launchscreen.storyboard; sourceTree = SOURCE_ROOT; };
 		428FB46E2C127F0800972D45 /* white_tile.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = white_tile.png; sourceTree = "<group>"; };
-		42AA801D2D7B4B6F008AF2DE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlaskaHawaiiSplitView.swift; sourceTree = "<group>"; };
 		42B9C8042D8000B70012B018 /* USStates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USStates.swift; sourceTree = "<group>"; };
 		42B9C8062D8000CB0012B018 /* EditStatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditStatesView.swift; sourceTree = "<group>"; };
 		42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = StoreKitConfig.storekit; sourceTree = "<group>"; };
+		42F0FE942DAF0A0000D9963B /* Constraints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constraints.swift; sourceTree = "<group>"; };
+		42F0FEA22DAF3DF700D9963B /* Ohio_WV_PA_Test.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Ohio_WV_PA_Test.gpx; sourceTree = "<group>"; };
+		42F0FEA32DAF3DF800D9963B /* OH_WV_PA_TestRoute.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = OH_WV_PA_TestRoute.gpx; sourceTree = "<group>"; };
 		42F551012D7A83D600986E1F /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		42F551032D7A83EE00986E1F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		42F551052D7A89E500986E1F /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
@@ -85,7 +82,8 @@
 		423B20612C0BAE9100EE7FEF = {
 			isa = PBXGroup;
 			children = (
-				422127142D850F3B0033E461 /* OH_WV_PA_TestRoute.gpx */,
+				42F0FEA32DAF3DF800D9963B /* OH_WV_PA_TestRoute.gpx */,
+				42F0FEA22DAF3DF700D9963B /* Ohio_WV_PA_Test.gpx */,
 				423B206C2C0BAE9100EE7FEF /* VisitedStates */,
 				423B20832C0BAE9200EE7FEF /* VisitedStatesTests */,
 				423B208D2C0BAE9300EE7FEF /* VisitedStatesUITests */,
@@ -104,6 +102,7 @@
 		423B206C2C0BAE9100EE7FEF /* VisitedStates */ = {
 			isa = PBXGroup;
 			children = (
+				42F0FE942DAF0A0000D9963B /* Constraints.swift */,
 				422127122D84B59C0033E461 /* IAPManager.swift */,
 				422127102D83B10F0033E461 /* ShareSheet.swift */,
 				4221270E2D8277020033E461 /* AboutView.swift */,
@@ -111,7 +110,6 @@
 				42B9C8062D8000CB0012B018 /* EditStatesView.swift */,
 				42B9C8042D8000B70012B018 /* USStates.swift */,
 				42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */,
-				42AA801D2D7B4B6F008AF2DE /* AppDelegate.swift */,
 				42F551052D7A89E500986E1F /* NotificationManager.swift */,
 				42F551032D7A83EE00986E1F /* SettingsView.swift */,
 				42F551012D7A83D600986E1F /* AppSettings.swift */,
@@ -122,14 +120,12 @@
 				423B209D2C0BAFCC00EE7FEF /* Info.plist */,
 				428FB46E2C127F0800972D45 /* white_tile.png */,
 				423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */,
-				423B206F2C0BAE9100EE7FEF /* Persistence.swift */,
 				423B20742C0BAE9100EE7FEF /* ContentView.swift */,
 				423B20762C0BAE9200EE7FEF /* Assets.xcassets */,
 				423B20782C0BAE9200EE7FEF /* VisitedStates.entitlements */,
 				423B20712C0BAE9100EE7FEF /* VisitedStates.xcdatamodeld */,
 				423B20792C0BAE9200EE7FEF /* Preview Content */,
 				423B209F2C0BB1E200EE7FEF /* LocationManager.swift */,
-				422127152D852B210033E461 /* Ohio_WV_PA_Test.gpx */,
 				423B20A12C0BB21C00EE7FEF /* MapView.swift */,
 				4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */,
 			);
@@ -232,7 +228,6 @@
 				42F0FE932DAC995D00D9963B /* StoreKitConfig.storekit in Resources */,
 				4212952B2C0D515A00E38B54 /* blank.png in Resources */,
 				4221270D2D8274080033E461 /* DoHyeon-Regular.ttf in Resources */,
-				422127162D852B210033E461 /* Ohio_WV_PA_Test.gpx in Resources */,
 				4284837C2C0D301B0021DDAE /* us_states.geojson in Resources */,
 				423B207B2C0BAE9200EE7FEF /* Preview Assets.xcassets in Resources */,
 				428FB46F2C127F0900972D45 /* white_tile.png in Resources */,
@@ -249,10 +244,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				422127132D84B59E0033E461 /* IAPManager.swift in Sources */,
-				42AA801E2D7B4E46008AF2DE /* AppDelegate.swift in Sources */,
 				423B206E2C0BAE9100EE7FEF /* VisitedStatesApp.swift in Sources */,
 				42302CDD2D81CB7200B1C06E /* IntroMapView.swift in Sources */,
 				42F551042D7A83F300986E1F /* SettingsView.swift in Sources */,
+				42F0FE952DAF0A0400D9963B /* Constraints.swift in Sources */,
 				4221270F2D8277080033E461 /* AboutView.swift in Sources */,
 				423B20A22C0BB21C00EE7FEF /* MapView.swift in Sources */,
 				42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */,
@@ -260,7 +255,6 @@
 				42F551062D7A89EB00986E1F /* NotificationManager.swift in Sources */,
 				42AA80262D7DF0EF008AF2DE /* AlaskaHawaiiSplitView.swift in Sources */,
 				42F551022D7A83DC00986E1F /* AppSettings.swift in Sources */,
-				423B20702C0BAE9100EE7FEF /* Persistence.swift in Sources */,
 				423B20A02C0BB1E200EE7FEF /* LocationManager.swift in Sources */,
 				423B20752C0BAE9100EE7FEF /* ContentView.swift in Sources */,
 				42B9C8052D8000BB0012B018 /* USStates.swift in Sources */,
