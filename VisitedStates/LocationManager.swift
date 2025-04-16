@@ -93,31 +93,41 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     var bgTask: UIBackgroundTaskIdentifier = .invalid
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-    bgTask = UIApplication.shared.beginBackgroundTask(withName: "CloudKitSync") {
-        print("⚠️ Background task expired. Ending task explicitly.")
-        UIApplication.shared.endBackgroundTask(self.bgTask)
-        self.bgTask = .invalid
-    }
-    
-    DispatchQueue.main.asyncAfter(deadline: .now() + 25) {
-        if self.bgTask != .invalid {
-            print("⚠️ Background task timeout explicitly reached, ending task.")
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "CloudKitSync") {
+            print("⚠️ Background task expired. Ending task explicitly.")
             UIApplication.shared.endBackgroundTask(self.bgTask)
             self.bgTask = .invalid
         }
-    }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 25) {
+            if self.bgTask != .invalid {
+                print("⚠️ Background task timeout explicitly reached, ending task.")
+                UIApplication.shared.endBackgroundTask(self.bgTask)
+                self.bgTask = .invalid
+            }
+        }
 
         guard let location = locations.last else {
-        UIApplication.shared.endBackgroundTask(self.bgTask)
+            UIApplication.shared.endBackgroundTask(self.bgTask)
             return
         }
 
-    updateVisitedStates(location: location) {
-        if self.bgTask != .invalid {
+        let speedMph = location.speed * 2.23694
+        let altitudeFeet = location.altitude * 3.28084
+
+        if location.speed < 0 || speedMph > 125 || altitudeFeet > 10000 {
+            print("Ignoring data explicitly (likely airplane travel or unreliable GPS).")
             UIApplication.shared.endBackgroundTask(self.bgTask)
             self.bgTask = .invalid
+            return
         }
-    }
+
+        updateVisitedStates(location: location) {
+            if self.bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(self.bgTask)
+                self.bgTask = .invalid
+            }
+        }
     }
 
     func hasVisitedState(_ state: String) -> Bool {
