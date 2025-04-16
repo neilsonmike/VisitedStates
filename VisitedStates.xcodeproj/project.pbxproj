@@ -60,7 +60,6 @@
 		42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = StoreKitConfig.storekit; sourceTree = "<group>"; };
 		42F0FE942DAF0A0000D9963B /* Constraints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constraints.swift; sourceTree = "<group>"; };
 		42F0FEA22DAF3DF700D9963B /* Ohio_WV_PA_Test.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Ohio_WV_PA_Test.gpx; sourceTree = "<group>"; };
-		42F0FEA32DAF3DF800D9963B /* OH_WV_PA_TestRoute.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = OH_WV_PA_TestRoute.gpx; sourceTree = "<group>"; };
 		42F551012D7A83D600986E1F /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		42F551032D7A83EE00986E1F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		42F551052D7A89E500986E1F /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
@@ -80,7 +79,6 @@
 		423B20612C0BAE9100EE7FEF = {
 			isa = PBXGroup;
 			children = (
-				42F0FEA32DAF3DF800D9963B /* OH_WV_PA_TestRoute.gpx */,
 				42F0FEA22DAF3DF700D9963B /* Ohio_WV_PA_Test.gpx */,
 				423B206C2C0BAE9100EE7FEF /* VisitedStates */,
 				423B20832C0BAE9200EE7FEF /* VisitedStatesTests */,
