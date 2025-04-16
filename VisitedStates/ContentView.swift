@@ -113,7 +113,7 @@ struct ContentView: View {
     }
     
     private func checkAlwaysAuthorization() {
-        let status = CLLocationManager.authorizationStatus()
+        let status = CLLocationManager().authorizationStatus
         if status == .authorizedWhenInUse && !hasShownAlwaysAlert {
             // Delay a little if needed so that the splash screen is finished
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

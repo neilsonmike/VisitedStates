@@ -94,32 +94,29 @@ class NotificationManager: NSObject, ObservableObject, UNUserNotificationCenterD
         let database = container.publicCloudDatabase
         
         print("Performing query on container: \(container)")
-        database.perform(query, inZoneWith: nil) { records, error in
-            if let error = error {
-                print("Error fetching factoids: \(error)")
-                completion(nil)
-                return
-            }
-            if let records = records {
-                print("Fetched \(records.count) record(s) from CloudKit.")
-            } else {
-                print("No records fetched from CloudKit.")
-            }
-            
-            guard let records = records, !records.isEmpty else {
-                print("No factoid records found.")
-                completion(nil)
-                return
-            }
-            let factoids = records.compactMap { $0["fact"] as? String }
-            if let chosen = factoids.randomElement() {
-                print("Randomly selected factoid: \(chosen)")
-                completion(chosen)
-            } else {
-                print("No fact string found in the records.")
-                completion(useFallback ? self.fallbackFactoids.randomElement() : nil)
+        let queryOperation = CKQueryOperation(query: query)
+        var fetchedRecords = [CKRecord]()
+
+        queryOperation.recordMatchedBlock = { _, result in
+            switch result {
+            case .success(let record):
+                fetchedRecords.append(record)
+            case .failure(let error):
+                print("Record fetch failed: \(error)")
             }
         }
+
+        queryOperation.queryResultBlock = { result in
+            switch result {
+            case .success:
+                completion(fetchedRecords.compactMap { $0["fact"] as? String }.randomElement() ?? (useFallback ? self.fallbackFactoids.randomElement() : nil))
+            case .failure(let error):
+                print("Error fetching factoids: \(error)")
+                completion(nil)
+            }
+        }
+
+        database.add(queryOperation)
     }
     
     private func sendNotification(for state: String, fact: String) {

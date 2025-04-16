@@ -5,18 +5,19 @@ struct IntroMapView: View {
     @State private var showStates: [String] = []
     @State private var fadeOutIntro = false
     @State private var navigateToMain = false
+    @State private var fadeIn = false
 
     @EnvironmentObject var settings: AppSettings
 
     private let stateSequence: [String] = [
         "Pennsylvania", "New York", "Ohio", "West Virginia",
         "Maryland", "Virginia", "Kentucky", "Tennessee",
-        "North Carolina", "South Carolina", "Georgia", "Indiana"
+        "North Carolina", "South Carolina", "Georgia", "Indiana",
     ]
     
     private let stateFadeInterval: TimeInterval = 0.15
-    private let fadeOutDelay: TimeInterval = 0.5
-    private let navigateDelay: TimeInterval = 1.0
+    private let fadeOutDelay: TimeInterval = 0.3
+    private let navigateDelay: TimeInterval = 0
 
     var body: some View {
         ZStack {
@@ -38,7 +39,10 @@ struct IntroMapView: View {
                 .animation(.easeOut(duration: 1.5), value: fadeOutIntro)
 
         }
+        .opacity(fadeIn ? 1 : 0)
+        .animation(.easeIn(duration: 0.6), value: fadeIn)
         .onAppear {
+            fadeIn = true
             showStates = []
             fadeOutIntro = false
             navigateToMain = false
