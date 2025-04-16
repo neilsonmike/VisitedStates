@@ -22,30 +22,10 @@ struct SettingsView: View {
                     ColorPicker("Background Color", selection: $settings.backgroundColor)
                 }
                 
-                // State Editing and Purchases Section
+                // State Editing Section
                 Section(header: Text("State Editing")) {
-                    if settings.hasUnlockedStateEditing {
-                        // If the feature is unlocked, only show the edit button.
-                        Button("Edit Visited States") {
-                            showEditStates.toggle()
-                        }
-                    } else {
-                        // If not unlocked, show both the Unlock button and a Restore Purchase option.
-                        Button("Unlock State Editing") {
-                            Task {
-                                await settings.purchaseStateEditing()
-                            }
-                        }
-                        .foregroundColor(.blue)
-                        
-                        Button("Restore Purchase") {
-                            Task {
-                                await IAPManager.shared.restorePurchases()
-                                // Update your settings once restored.
-                                settings.updatePurchasedProducts()
-                            }
-                        }
-                        .foregroundColor(.blue)
+                    Button("Edit Visited States") {
+                        showEditStates.toggle()
                     }
                 }
                 

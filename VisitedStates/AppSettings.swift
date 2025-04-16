@@ -72,14 +72,6 @@ class AppSettings: ObservableObject {
     @AppStorage("speedThreshold") var speedThreshold: Double = 44.7
     @AppStorage("altitudeThreshold") var altitudeThreshold: Double = 3048
     @AppStorage("lastVisitedState") var lastVisitedState: String = ""
-    
-    // Persist the purchased state flag using AppStorage.
-    @AppStorage("hasPurchasedEditStates") var persistentPurchasedEditStates: Bool = false
-
-    // Computed property to determine if state editing is unlocked.
-    var hasUnlockedStateEditing: Bool {
-        return persistentPurchasedEditStates
-    }
 
     // Custom init to avoid "self used before init" errors
     private init() {
@@ -122,13 +114,6 @@ class AppSettings: ObservableObject {
         }
     }
     
-    // Checks and updates the purchase status for state editing.
-    func updatePurchasedProducts() {
-        DispatchQueue.main.async {
-            self.persistentPurchasedEditStates = IAPManager.shared.checkPurchased(Constants.editStatesProductID)
-        }
-    }
-    
     // Restores the default settings for colors and thresholds.
     func restoreDefaults() {
         stateFillColor = .red
@@ -139,32 +124,5 @@ class AppSettings: ObservableObject {
         speedThreshold = 44.7
         altitudeThreshold = 3048
         lastVisitedState = ""
-    }
-    
-    // Initiates the in-app purchase for enabling state editing.
-    @MainActor
-    func purchaseStateEditing() async {
-        // If no products have been fetched yet, try fetching them again.
-        if IAPManager.shared.products.isEmpty {
-            print("Products list empty, refetching products...")
-            await IAPManager.shared.fetchProducts()
-        }
-        
-        // Log available product IDs for debugging.
-        let availableProducts = IAPManager.shared.products.map { $0.id }
-        print("Attempting to purchase state editing. Available products: \(availableProducts)")
-        
-        do {
-            if let product = IAPManager.shared.products.first(where: { $0.id == Constants.editStatesProductID }) {
-                let success = try await IAPManager.shared.purchase(product)
-                if success {
-                    self.persistentPurchasedEditStates = true
-                }
-            } else {
-                print("Product not found. Please check your product ID and configuration in App Store Connect.")
-            }
-        } catch {
-            print("Purchase failed: \(error)")
-        }
     }
 }

@@ -112,15 +112,15 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             return
         }
 
-        let speedMph = location.speed * 2.23694
-        let altitudeFeet = location.altitude * 3.28084
+        // let speedMph = location.speed * 2.23694
+        // let altitudeFeet = location.altitude * 3.28084
 
-        if location.speed < 0 || speedMph > 125 || altitudeFeet > 10000 {
-            print("Ignoring data explicitly (likely airplane travel or unreliable GPS).")
-            UIApplication.shared.endBackgroundTask(self.bgTask)
-            self.bgTask = .invalid
-            return
-        }
+        // if location.speed < 0 || speedMph > 125 || altitudeFeet > 10000 {
+        //     print("Ignoring data explicitly: speed = \(speedMph) mph, altitude = \(altitudeFeet) ft")
+        //     UIApplication.shared.endBackgroundTask(self.bgTask)
+        //     self.bgTask = .invalid
+        //     return
+        // }
 
         updateVisitedStates(location: location) {
             if self.bgTask != .invalid {

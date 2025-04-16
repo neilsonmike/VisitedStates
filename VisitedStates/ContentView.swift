@@ -11,6 +11,7 @@ struct ContentView: View {
     
     // New state variable for always authorization alert
     @State private var showAlwaysAlert = false
+    @AppStorage("hasShownAlwaysAlert") private var hasShownAlwaysAlert = false
     
     var body: some View {
         ZStack {
@@ -101,7 +102,7 @@ struct ContentView: View {
         }
         .alert(isPresented: $showAlwaysAlert) {
             Alert(title: Text("Location Permission Required"),
-                  message: Text("Please change the location permission to 'Always Allow' in the Settings app."),
+                  message: Text("For automatic tracking of states you've visited, please consider setting location permission to 'Always Allow' in the Settings app. You can also manually select states without enabling location."),
                   primaryButton: .default(Text("Open Settings"), action: {
                       if let settingsUrl = URL(string: UIApplication.openSettingsURLString), UIApplication.shared.canOpenURL(settingsUrl) {
                           UIApplication.shared.open(settingsUrl)
@@ -113,10 +114,11 @@ struct ContentView: View {
     
     private func checkAlwaysAuthorization() {
         let status = CLLocationManager.authorizationStatus()
-        if status == .authorizedWhenInUse {
+        if status == .authorizedWhenInUse && !hasShownAlwaysAlert {
             // Delay a little if needed so that the splash screen is finished
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 showAlwaysAlert = true
+                hasShownAlwaysAlert = true
             }
         }
     }
