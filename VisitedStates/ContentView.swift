@@ -50,7 +50,7 @@ struct ContentView: View {
 
                             if let uiImage = renderer.uiImage {
                                 // Calculate the state count, excluding "District of Columbia"
-                                let stateCount = locationManager.visitedStates.filter { $0 != "District of Columbia" }.count
+                                let stateCount = settings.visitedStates.filter { $0 != "District of Columbia" }.count
                                 let stateText = stateCount == 1 ? "state" : "states"
                                 // Append the App Store link
                                 let shareText = "I have been to \(stateCount) \(stateText)! Track yours with the VisitedStates app! https://apps.apple.com/us/app/visitedstates/id6504059000"
@@ -102,7 +102,12 @@ struct ContentView: View {
         .alert(isPresented: $showAlwaysAlert) {
             Alert(title: Text("Location Permission Required"),
                   message: Text("Please change the location permission to 'Always Allow' in the Settings app."),
-                  dismissButton: .default(Text("OK")))
+                  primaryButton: .default(Text("Open Settings"), action: {
+                      if let settingsUrl = URL(string: UIApplication.openSettingsURLString), UIApplication.shared.canOpenURL(settingsUrl) {
+                          UIApplication.shared.open(settingsUrl)
+                      }
+                  }),
+                  secondaryButton: .cancel(Text("Cancel")))
         }
     }
     
