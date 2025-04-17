@@ -247,7 +247,7 @@ struct MapView: View {
     
     // Check authorization; if only 'WhenInUse' is granted, prompt the user.
     private func checkAlwaysAuthorization() {
-        let status = CLLocationManager.authorizationStatus()
+    let status = CLLocationManager().authorizationStatus
         if status == .authorizedWhenInUse {
             // Delay briefly if needed
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
