@@ -1,14 +1,16 @@
 import SwiftUI
 import MapKit
+import Combine
 
 struct IntroMapView: View {
     @State private var showStates: [String] = []
     @State private var fadeOutIntro = false
     @State private var navigateToMain = false
     @State private var fadeIn = false
-
-    @EnvironmentObject var settings: AppSettings
-
+    
+    // Access the app dependencies
+    @EnvironmentObject var dependencies: AppDependencies
+    
     private let stateSequence: [String] = [
         "Pennsylvania", "New York", "Ohio", "West Virginia",
         "Maryland", "Virginia", "Kentucky", "Tennessee",
@@ -37,7 +39,6 @@ struct IntroMapView: View {
                 .foregroundColor(.red)
                 .opacity(fadeOutIntro ? 0 : 1)
                 .animation(.easeOut(duration: 1.5), value: fadeOutIntro)
-
         }
         .opacity(fadeIn ? 1 : 0)
         .animation(.easeIn(duration: 0.6), value: fadeIn)
@@ -50,7 +51,8 @@ struct IntroMapView: View {
             startAnimation()
         }
         .fullScreenCover(isPresented: $navigateToMain) {
-            ContentView().environmentObject(settings).environmentObject(LocationManager.shared)
+            ContentView()
+                .environmentObject(dependencies)
         }
     }
 
@@ -76,7 +78,8 @@ struct IntroMapView: View {
     }
 
     private func drawState(context: inout GraphicsContext, stateName: String, size: CGSize) {
-        guard let polygons = StateBoundaryManager.shared.statePolygons[stateName] else { return }
+        // Access the boundary service to get state polygons
+        guard let polygons = dependencies.stateBoundaryService.statePolygons[stateName] else { return }
 
         let boundingBox = computeBoundingBox(for: stateSequence)
 
@@ -94,6 +97,10 @@ struct IntroMapView: View {
             )
         }
 
+        // Explicitly use gray for the intro animation, not from settings
+        let fillColor = Color.gray
+        let strokeColor = Color.white
+
         for polygon in polygons {
             var path = Path()
             let count = polygon.pointCount
@@ -108,15 +115,15 @@ struct IntroMapView: View {
             }
             path.closeSubpath()
 
-            context.fill(path, with: .color(.gray))
-            context.stroke(path, with: .color(settings.stateStrokeColor), lineWidth: MapView.borderLineWidth)
+            context.fill(path, with: .color(fillColor))
+            context.stroke(path, with: .color(strokeColor), lineWidth: 0.5)
         }
     }
     
     private func computeBoundingBox(for states: [String]) -> MKMapRect {
         var boundingBox: MKMapRect?
         for state in states {
-            if let polygons = StateBoundaryManager.shared.statePolygons[state] {
+            if let polygons = dependencies.stateBoundaryService.statePolygons[state] {
                 for polygon in polygons {
                     if boundingBox == nil {
                         boundingBox = polygon.boundingMapRect

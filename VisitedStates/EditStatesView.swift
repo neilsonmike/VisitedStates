@@ -1,11 +1,14 @@
 import SwiftUI
+import Combine
 
 struct EditStatesView: View {
-    @EnvironmentObject var settings: AppSettings
-    
-    // The user’s LocationManager for final sync
-    @EnvironmentObject var locationManager: LocationManager
+    // Dependencies
+    @EnvironmentObject var dependencies: AppDependencies
     @Environment(\.presentationMode) var presentationMode
+    
+    // Local state
+    @State private var visitedStates: [String] = []
+    @State private var cancellables = Set<AnyCancellable>()
     
     // For example, your 51 states (including DC)
     private let allStates = [
@@ -29,7 +32,7 @@ struct EditStatesView: View {
                     HStack {
                         Text(state)
                         Spacer()
-                        if settings.visitedStates.contains(state) {
+                        if visitedStates.contains(state) {
                             // Show a simple checkmark if visited
                             Image(systemName: "checkmark")
                                 .foregroundColor(.accentColor)
@@ -52,19 +55,60 @@ struct EditStatesView: View {
                 }
             }
             // The key change: upon dismiss (swipe down or Done), do one CloudKit sync
-            // This triggers a CloudKit sync after edits are made
             .onDisappear {
-                locationManager.syncWithCloudKit()
+                syncWithCloudKit()
+            }
+            .onAppear {
+                // Important: Setup subscription to get the current state list
+                setupSubscriptions()
             }
         }
     }
     
+    private func setupSubscriptions() {
+        // Subscribe to visited states changes from the settings service
+        dependencies.settingsService.visitedStates
+            .sink { states in
+                self.visitedStates = states
+                print("EditStatesView received states: \(states)")
+            }
+            .store(in: &cancellables)
+    }
+    
     // Toggle local visitedStates only (no cloud sync here)
     private func toggleState(_ state: String) {
-                        if let idx = settings.visitedStates.firstIndex(of: state) {
-                            settings.visitedStates.remove(at: idx)
-                        } else {
-                            settings.visitedStates.append(state)
-                        }
+        if visitedStates.contains(state) {
+            // Remove if already visited
+            var updatedStates = visitedStates
+            if let index = updatedStates.firstIndex(of: state) {
+                updatedStates.remove(at: index)
+                dependencies.settingsService.setVisitedStates(updatedStates)
+            }
+        } else {
+            // Add if not visited
+            var updatedStates = visitedStates
+            updatedStates.append(state)
+            dependencies.settingsService.setVisitedStates(updatedStates)
+        }
+    }
+    
+    // Sync with CloudKit
+    private func syncWithCloudKit() {
+        dependencies.cloudSyncService.syncToCloud(
+            states: dependencies.settingsService.visitedStates.value) { result in
+                switch result {
+                case .success:
+                    print("Successfully synced states to CloudKit after editing")
+                case .failure(let error):
+                    print("Failed to sync states to CloudKit: \(error.localizedDescription)")
+                }
+            }
+    }
+}
+
+struct EditStatesView_Previews: PreviewProvider {
+    static var previews: some View {
+        EditStatesView()
+            .environmentObject(AppDependencies.mock())
     }
 }

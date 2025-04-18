@@ -1,14 +1,14 @@
 import SwiftUI
 
 struct AboutView: View {
+    // No dependency needed for this view
+    
     var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
 
     var body: some View {
         VStack(spacing: 20) {
-
-
             Text("VisitedStates")
                 .font(.custom("DoHyeon-Regular", size: 44))
                 .foregroundColor(.red)
@@ -41,7 +41,7 @@ struct AboutView: View {
             }
             .foregroundColor(.gray)
 
-            Text("This app was designed and developed entirely through collaboration with AI as a test of the possibilies of pairing a product owner with an AI developer. No original code in this app is human written.")
+            Text("This app was designed and developed entirely through collaboration with AI as a test of the possibilities of pairing a product owner with an AI developer. No original code in this app is human written.")
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 20)

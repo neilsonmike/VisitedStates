@@ -2,16 +2,16 @@ import SwiftUI
 
 struct AHInsetStateView: View {
     let stateName: String
-    @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var dependencies: AppDependencies
 
     var body: some View {
         Text("AHInsetStateView for \(stateName)")
-            .environmentObject(settings)
+            .environmentObject(dependencies)
     }
 }
 
 struct AlaskaHawaiiSplitView: View {
-    @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var dependencies: AppDependencies
     
     var body: some View {
         // View to display Alaska and Hawaii insets clearly separated by a divider

@@ -2,14 +2,14 @@ import SwiftUI
 
 @main
 struct VisitedStatesApp: App {
-    @StateObject var settings = AppSettings.shared
-    @StateObject var locationManager = LocationManager()
-
+    // Create a single AppDependencies instance to manage all services
+    @StateObject private var dependencies = AppDependencies.live()
+    
     var body: some Scene {
         WindowGroup {
             IntroMapView()
-                .environmentObject(settings)
-                .environmentObject(locationManager)
+                // Inject the dependencies through the environment
+                .environmentObject(dependencies)
                 .onAppear {
                     print("🟢 App is launching: VisitedStatesApp.swift")
                 }
