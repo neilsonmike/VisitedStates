@@ -23,6 +23,10 @@ struct IntroMapView: View {
 
     var body: some View {
         ZStack {
+            // Background
+            Color.white.edgesIgnoringSafeArea(.all)
+            
+            // State animations
             GeometryReader { geometry in
                 Canvas { context, size in
                     for state in showStates {
@@ -34,15 +38,28 @@ struct IntroMapView: View {
             }
             .edgesIgnoringSafeArea(.all)
 
-            Text("VisitedStates")
-                .font(.custom("DoHyeon-Regular", size: 48))
-                .foregroundColor(.red)
-                .opacity(fadeOutIntro ? 0 : 1)
-                .animation(.easeOut(duration: 1.5), value: fadeOutIntro)
+            // Logo image - explicitly centered
+            VStack {
+                Spacer()
+                
+                // Debugging - add a colored background to see if the image area is visible
+                Image("VisitedStatesLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: UIScreen.main.bounds.width * 0.7) // 70% of screen width
+                    .background(Color.clear) // For debugging - change to a color if needed
+                    .opacity(fadeOutIntro ? 0 : 1)
+                
+                Spacer()
+            }
+            .animation(.easeOut(duration: 1.5), value: fadeOutIntro)
         }
         .opacity(fadeIn ? 1 : 0)
         .animation(.easeIn(duration: 0.6), value: fadeIn)
         .onAppear {
+            // Debug log to ensure this view is loaded
+            print("IntroMapView appeared - animation will start")
+            
             fadeIn = true
             showStates = []
             fadeOutIntro = false
@@ -66,13 +83,17 @@ struct IntroMapView: View {
             }
         }
         
-        // Delay before fading out the intro text
+        // Delay before fading out the intro text/logo
         DispatchQueue.main.asyncAfter(deadline: .now() + (stateFadeInterval * Double(stateSequence.count)) + fadeOutDelay) {
+            // Debug log to ensure this is triggered
+            print("Fading out intro logo")
             withAnimation { fadeOutIntro = true }
         }
         
         // Delay before navigating to the main view
         DispatchQueue.main.asyncAfter(deadline: .now() + (stateFadeInterval * Double(stateSequence.count)) + navigateDelay) {
+            // Debug log to ensure this is triggered
+            print("Navigating to main view")
             navigateToMain = true
         }
     }

@@ -10,11 +10,18 @@ struct VisitedStatesApp: App {
     
     var body: some Scene {
         WindowGroup {
+            // Show the IntroMapView directly
             IntroMapView()
-                // Inject the dependencies through the environment
                 .environmentObject(dependencies)
                 .onAppear {
                     print("🟢 App is launching: VisitedStatesApp.swift")
+                    
+                    // If app was launched by location services, start them
+                    if appDelegate.launchedByLocationServices {
+                        dependencies.locationService.startLocationUpdates()
+                        dependencies.stateDetectionService.startStateDetection()
+                        print("✅ Successfully restarted location services after device reboot")
+                    }
                 }
         }
     }

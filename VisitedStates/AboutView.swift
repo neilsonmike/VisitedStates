@@ -9,9 +9,11 @@ struct AboutView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("VisitedStates")
-                .font(.custom("DoHyeon-Regular", size: 44))
-                .foregroundColor(.red)
+            // Replace text with logo image
+            Image("VisitedStatesLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: UIScreen.main.bounds.width * 0.7) // 70% of screen width
 
             Text("Version \(appVersion)")
                 .font(.subheadline)
