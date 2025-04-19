@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var showShareSheet = false
     @State private var shareItems: [Any] = []
     @AppStorage("hasShownAlwaysAlert") private var hasShownAlwaysAlert = false
+    @State private var showLocationPermissionAlert = false
     @State private var cancellables = Set<AnyCancellable>()
     @State private var visitedStates: [String] = []
     
@@ -97,6 +98,20 @@ struct ContentView: View {
         }) {
             ShareSheet(activityItems: shareItems)
         }
+        // Show location permission alert
+        .alert("Enable 'Always' Location Access", isPresented: $showLocationPermissionAlert) {
+            Button("Open Settings", role: .none) {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Later", role: .cancel) {
+                // Mark as shown so we don't nag the user again
+                hasShownAlwaysAlert = true
+            }
+        } message: {
+            Text("For the best experience, VisitedStates needs 'Always' location access to detect state crossings even when the app is closed or the device is restarted.")
+        }
     }
     
     private func setupSubscriptions() {
@@ -166,16 +181,12 @@ struct ContentView: View {
     
     private func checkLocationPermission() {
         let status = dependencies.locationService.authorizationStatus.value
-        if status == .denied || status == .restricted {
-            // You could show an alert explaining that location is needed
-            // for state detection but not required for manual selection
+        
+        // If this is the first launch and we don't have Always permission,
+        // show the alert requesting it (but only once)
+        if !hasShownAlwaysAlert && status != .authorizedAlways {
+            // Check if we need to show the prompt
+            showLocationPermissionAlert = true
         }
-    }
-}
-
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-            .environmentObject(AppDependencies.mock())
     }
 }

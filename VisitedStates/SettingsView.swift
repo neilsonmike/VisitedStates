@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import CoreLocation
 
 struct SettingsView: View {
     // Access app dependencies
@@ -17,6 +18,7 @@ struct SettingsView: View {
     @State private var stateStrokeColor: Color = .white
     @State private var backgroundColor: Color = .white
     @State private var cancellables = Set<AnyCancellable>()
+    @State private var locationStatus: CLAuthorizationStatus = .notDetermined
     
     var body: some View {
         NavigationView {
@@ -44,13 +46,6 @@ struct SettingsView: View {
                         }
                 }
                 
-                // State Editing Section
-                Section(header: Text("State Editing")) {
-                    Button("Edit Visited States") {
-                        showEditStates.toggle()
-                    }
-                }
-                
                 // Restore Defaults Section (affects only colors)
                 Section {
                     Button("Restore Defaults") {
@@ -67,6 +62,38 @@ struct SettingsView: View {
                     }
                 }
                 
+                // Location Privacy Section
+                Section(header: Text("Location Access")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Current Permission:")
+                            Spacer()
+                            Text(locationStatusText)
+                                .foregroundColor(locationStatus == .authorizedAlways ? .green : .orange)
+                        }
+                        
+                        Text("VisitedStates uses location to detect when you cross state lines, even when the app is closed. For full functionality after device restarts, 'Always' permission is recommended.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.vertical, 4)
+                        
+                        Button("Open Location Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+                
+                // State Editing Section (without header)
+                Section {
+                    Button("Edit Visited States") {
+                        showEditStates.toggle()
+                    }
+                }
+                
                 // About Section
                 Section {
                     NavigationLink("About VisitedStates", destination: AboutView())
@@ -80,6 +107,7 @@ struct SettingsView: View {
         }
         .onAppear {
             setupSubscriptions()
+            updateLocationStatus()
         }
         .onDisappear {
             // When settings view is dismissed, trigger a sync
@@ -88,6 +116,28 @@ struct SettingsView: View {
             
             cancellables.removeAll()
         }
+    }
+    
+    private var locationStatusText: String {
+        switch locationStatus {
+        case .authorizedAlways:
+            return "Always (Optimal)"
+        case .authorizedWhenInUse:
+            return "While Using App"
+        case .denied:
+            return "Denied"
+        case .restricted:
+            return "Restricted"
+        case .notDetermined:
+            return "Not Determined"
+        @unknown default:
+            return "Unknown"
+        }
+    }
+    
+    private func updateLocationStatus() {
+        // Get the current location authorization status
+        locationStatus = dependencies.locationService.authorizationStatus.value
     }
     
     private func setupSubscriptions() {
@@ -113,6 +163,13 @@ struct SettingsView: View {
         dependencies.settingsService.backgroundColor
             .sink { color in
                 self.backgroundColor = color
+            }
+            .store(in: &cancellables)
+        
+        // Subscribe to location authorization changes
+        dependencies.locationService.authorizationStatus
+            .sink { status in
+                self.locationStatus = status
             }
             .store(in: &cancellables)
     }
