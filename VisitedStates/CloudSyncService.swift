@@ -13,8 +13,17 @@ class CloudSyncService: CloudSyncServiceProtocol {
     // Private state
     private let cloudContainer: CKContainer
     private let privateDatabase: CKDatabase
-    private let recordType = "VisitedStates"
-    private let recordID = CKRecord.ID(recordName: "VisitedStates")
+    
+    // Legacy record type for backward compatibility
+    private let legacyRecordType = "VisitedStates"
+    private let legacyRecordID = CKRecord.ID(recordName: "VisitedStates")
+    
+    // Enhanced record types for the new model
+    private let enhancedRecordType = "EnhancedVisitedStates"
+    private let enhancedRecordID = CKRecord.ID(recordName: "EnhancedVisitedStates")
+    private let badgesRecordType = "Badges"
+    private let badgesRecordID = CKRecord.ID(recordName: "UserBadges")
+    
     private let syncQueue = DispatchQueue(label: "com.neils.VisitedStates.cloudSync", qos: .utility)
     private var isSyncing = false
     
@@ -45,20 +54,38 @@ class CloudSyncService: CloudSyncServiceProtocol {
             self.isSyncing = true
             self.syncStatus.send(.syncing)
             
-            self.saveStatesToCloud(states) { result in
-                self.isSyncing = false
-                
-                switch result {
-                case .success:
+            // Get the enhanced model data
+            let visitedStateModels = self.settings.getAllGPSVerifiedStates() +
+                                 self.settings.getActiveGPSVerifiedStates()
+            let badges = self.settings.getEarnedBadges()
+            
+            // First sync the enhanced model
+            self.syncEnhancedModelToCloud(visitedStateModels, badges) { enhancedResult in
+                // Then sync the legacy format for backward compatibility
+                self.syncLegacyFormatToCloud(states) { legacyResult in
+                    self.isSyncing = false
+                    
+                    // If either sync failed, report an error
+                    if case .failure(let enhancedError) = enhancedResult {
+                        self.syncStatus.send(.failed(enhancedError))
+                        DispatchQueue.main.async {
+                            completion?(.failure(enhancedError))
+                        }
+                        return
+                    }
+                    
+                    if case .failure(let legacyError) = legacyResult {
+                        self.syncStatus.send(.failed(legacyError))
+                        DispatchQueue.main.async {
+                            completion?(.failure(legacyError))
+                        }
+                        return
+                    }
+                    
+                    // Both syncs succeeded
                     self.syncStatus.send(.succeeded)
                     DispatchQueue.main.async {
                         completion?(.success(()))
-                    }
-                    
-                case .failure(let error):
-                    self.syncStatus.send(.failed(error))
-                    DispatchQueue.main.async {
-                        completion?(.failure(error))
                     }
                 }
             }
@@ -80,31 +107,517 @@ class CloudSyncService: CloudSyncServiceProtocol {
             self.isSyncing = true
             self.syncStatus.send(.syncing)
             
-            self.fetchStatesFromCloud { result in
-                self.isSyncing = false
+            // First try to fetch the enhanced model
+            self.fetchEnhancedModelFromCloud { [weak self] enhancedResult in
+                guard let self = self else { return }
                 
-                switch result {
-                case .success(let states):
+                switch enhancedResult {
+                case .success(let (visitedStates, badges)):
+                    // Process the fetched enhanced model data
+                    self.processEnhancedModelData(visitedStates, badges)
+                    
+                    // Return just the active state names for backward compatibility
+                    let activeStateNames = visitedStates.filter { $0.isActive }.map { $0.stateName }
+                    self.isSyncing = false
                     self.syncStatus.send(.succeeded)
+                    
                     DispatchQueue.main.async {
-                        completion(.success(states))
+                        completion(.success(activeStateNames))
                     }
                     
-                case .failure(let error):
-                    self.syncStatus.send(.failed(error))
-                    DispatchQueue.main.async {
-                        completion(.failure(error))
+                case .failure(_):
+                    // If enhanced model fetch fails, fall back to legacy format
+                    print("Enhanced model fetch failed, falling back to legacy format")
+                    self.fetchLegacyFormatFromCloud { legacyResult in
+                        self.isSyncing = false
+                        
+                        switch legacyResult {
+                        case .success(let stateNames):
+                            // Create basic VisitedState models from the state names
+                            self.processLegacyStateNames(stateNames)
+                            self.syncStatus.send(.succeeded)
+                            
+                            DispatchQueue.main.async {
+                                completion(.success(stateNames))
+                            }
+                            
+                        case .failure(let error):
+                            self.syncStatus.send(.failed(error))
+                            
+                            DispatchQueue.main.async {
+                                completion(.failure(error))
+                            }
+                        }
                     }
                 }
             }
         }
     }
     
-    // MARK: - Private methods
+    // MARK: - Enhanced Model Sync
     
-    private func saveStatesToCloud(_ states: [String], completion: @escaping (Result<Void, Error>) -> Void) {
+    /// Sync the enhanced model (VisitedState and Badge objects) to CloudKit
+    private func syncEnhancedModelToCloud(_ visitedStates: [VisitedState], _ badges: [Badge],
+                                        completion: @escaping (Result<Void, Error>) -> Void) {
+        // Encode the model data as JSON
+        do {
+            let statesData = try JSONEncoder().encode(visitedStates)
+            let badgesData = try JSONEncoder().encode(badges)
+            
+            guard let statesJSON = String(data: statesData, encoding: .utf8),
+                  let badgesJSON = String(data: badgesData, encoding: .utf8) else {
+                throw NSError(domain: "CloudSyncService", code: 3,
+                              userInfo: [NSLocalizedDescriptionKey: "Failed to encode data as JSON"])
+            }
+            
+            // Use a dispatch group to synchronize multiple operations
+            let group = DispatchGroup()
+            var syncError: Error?
+            
+            // Sync visited states
+            group.enter()
+            saveEnhancedStateDataToCloud(statesJSON) { result in
+                if case .failure(let error) = result {
+                    syncError = error
+                }
+                group.leave()
+            }
+            
+            // Sync badges
+            group.enter()
+            saveBadgeDataToCloud(badgesJSON) { result in
+                if case .failure(let error) = result {
+                    syncError = error
+                }
+                group.leave()
+            }
+            
+            // Wait for both operations to complete
+            group.notify(queue: syncQueue) {
+                if let error = syncError {
+                    completion(.failure(error))
+                } else {
+                    completion(.success(()))
+                }
+            }
+            
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    
+    /// Save the enhanced state data to CloudKit
+    private func saveEnhancedStateDataToCloud(_ statesJSON: String,
+                                            completion: @escaping (Result<Void, Error>) -> Void) {
+        // Fetch or create the record
+        privateDatabase.fetch(withRecordID: enhancedRecordID) { [weak self] record, error in
+            guard let self = self else { return }
+            
+            var recordToSave: CKRecord
+            
+            if let existingRecord = record {
+                recordToSave = existingRecord
+            } else if error != nil && (error as? CKError)?.code != .unknownItem {
+                completion(.failure(error!))
+                return
+            } else {
+                recordToSave = CKRecord(recordType: self.enhancedRecordType, recordID: self.enhancedRecordID)
+            }
+            
+            // Update the record with new data
+            recordToSave["statesJSON"] = statesJSON as CKRecordValue
+            recordToSave["lastUpdated"] = Date() as CKRecordValue
+            
+            // Save the record
+            self.privateDatabase.save(recordToSave) { _, error in
+                if let error = error {
+                    if let ckError = error as? CKError, ckError.code == .serverRecordChanged {
+                        self.handleEnhancedStateRecordChanged(ckError, statesJSON: statesJSON, completion: completion)
+                    } else {
+                        completion(.failure(error))
+                    }
+                } else {
+                    completion(.success(()))
+                }
+            }
+        }
+    }
+    
+    /// Save badge data to CloudKit
+    private func saveBadgeDataToCloud(_ badgesJSON: String,
+                                    completion: @escaping (Result<Void, Error>) -> Void) {
+        // Fetch or create the record
+        privateDatabase.fetch(withRecordID: badgesRecordID) { [weak self] record, error in
+            guard let self = self else { return }
+            
+            var recordToSave: CKRecord
+            
+            if let existingRecord = record {
+                recordToSave = existingRecord
+            } else if error != nil && (error as? CKError)?.code != .unknownItem {
+                completion(.failure(error!))
+                return
+            } else {
+                recordToSave = CKRecord(recordType: self.badgesRecordType, recordID: self.badgesRecordID)
+            }
+            
+            // Update the record with new data
+            recordToSave["badgesJSON"] = badgesJSON as CKRecordValue
+            recordToSave["lastUpdated"] = Date() as CKRecordValue
+            
+            // Save the record
+            self.privateDatabase.save(recordToSave) { _, error in
+                if let error = error {
+                    if let ckError = error as? CKError, ckError.code == .serverRecordChanged {
+                        self.handleBadgeRecordChanged(ckError, badgesJSON: badgesJSON, completion: completion)
+                    } else {
+                        completion(.failure(error))
+                    }
+                } else {
+                    completion(.success(()))
+                }
+            }
+        }
+    }
+    
+    /// Fetch the enhanced model data from CloudKit
+    private func fetchEnhancedModelFromCloud(
+        completion: @escaping (Result<([VisitedState], [Badge]), Error>) -> Void) {
+        
+        // Use a dispatch group to fetch both states and badges
+        let group = DispatchGroup()
+        var visitedStates: [VisitedState]?
+        var badges: [Badge]?
+        var fetchError: Error?
+        
+        // Fetch the enhanced state data
+        group.enter()
+        fetchEnhancedStatesFromCloud { result in
+            switch result {
+            case .success(let states):
+                visitedStates = states
+            case .failure(let error):
+                fetchError = error
+            }
+            group.leave()
+        }
+        
+        // Fetch the badges data
+        group.enter()
+        fetchBadgesFromCloud { result in
+            switch result {
+            case .success(let badgesData):
+                badges = badgesData
+            case .failure(let error):
+                if fetchError == nil {
+                    fetchError = error
+                }
+            }
+            group.leave()
+        }
+        
+        // Wait for both fetches to complete
+        group.notify(queue: syncQueue) {
+            if let error = fetchError {
+                completion(.failure(error))
+            } else if let states = visitedStates, let badges = badges {
+                completion(.success((states, badges)))
+            } else {
+                // This shouldn't happen if both fetches succeed
+                completion(.failure(NSError(domain: "CloudSyncService", code: 4,
+                                          userInfo: [NSLocalizedDescriptionKey: "Failed to fetch data"])))
+            }
+        }
+    }
+    
+    /// Fetch the enhanced state data from CloudKit
+    private func fetchEnhancedStatesFromCloud(completion: @escaping (Result<[VisitedState], Error>) -> Void) {
+        privateDatabase.fetch(withRecordID: enhancedRecordID) { record, error in
+            if let error = error {
+                if (error as? CKError)?.code == .unknownItem {
+                    // No record found - not an error, just return empty array
+                    completion(.success([]))
+                } else {
+                    completion(.failure(error))
+                }
+                return
+            }
+            
+            guard let record = record, let statesJSON = record["statesJSON"] as? String else {
+                completion(.success([]))
+                return
+            }
+            
+            // Decode the JSON data
+            guard let data = statesJSON.data(using: .utf8) else {
+                completion(.failure(NSError(domain: "CloudSyncService", code: 5,
+                                          userInfo: [NSLocalizedDescriptionKey: "Failed to convert JSON to data"])))
+                return
+            }
+            
+            do {
+                let states = try JSONDecoder().decode([VisitedState].self, from: data)
+                completion(.success(states))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    /// Fetch badge data from CloudKit
+    private func fetchBadgesFromCloud(completion: @escaping (Result<[Badge], Error>) -> Void) {
+        privateDatabase.fetch(withRecordID: badgesRecordID) { record, error in
+            if let error = error {
+                if (error as? CKError)?.code == .unknownItem {
+                    // No record found - not an error, just return empty array
+                    completion(.success([]))
+                } else {
+                    completion(.failure(error))
+                }
+                return
+            }
+            
+            guard let record = record, let badgesJSON = record["badgesJSON"] as? String else {
+                completion(.success([]))
+                return
+            }
+            
+            // Decode the JSON data
+            guard let data = badgesJSON.data(using: .utf8) else {
+                completion(.failure(NSError(domain: "CloudSyncService", code: 5,
+                                          userInfo: [NSLocalizedDescriptionKey: "Failed to convert JSON to data"])))
+                return
+            }
+            
+            do {
+                let badges = try JSONDecoder().decode([Badge].self, from: data)
+                completion(.success(badges))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    /// Handle conflicts with server-side changes for enhanced state data
+    private func handleEnhancedStateRecordChanged(_ error: CKError, statesJSON: String,
+                                                completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let serverRecord = error.serverRecord else {
+            completion(.failure(error))
+            return
+        }
+        
+        // Get server data
+        guard let serverStatesJSON = serverRecord["statesJSON"] as? String,
+              let serverData = serverStatesJSON.data(using: .utf8),
+              let localData = statesJSON.data(using: .utf8) else {
+            // If server data can't be parsed, overwrite it with our data
+            saveEnhancedStateDataToCloud(statesJSON, completion: completion)
+            return
+        }
+        
+        // Try to decode server and local data
+        do {
+            let serverStates = try JSONDecoder().decode([VisitedState].self, from: serverData)
+            let localStates = try JSONDecoder().decode([VisitedState].self, from: localData)
+            
+            // Merge server and local data
+            let mergedStates = mergeVisitedStates(local: localStates, cloud: serverStates)
+            
+            // Encode the merged data
+            let mergedData = try JSONEncoder().encode(mergedStates)
+            guard let mergedJSON = String(data: mergedData, encoding: .utf8) else {
+                completion(.failure(NSError(domain: "CloudSyncService", code: 6,
+                                          userInfo: [NSLocalizedDescriptionKey: "Failed to encode merged data"])))
+                return
+            }
+            
+            // Save the merged data
+            saveEnhancedStateDataToCloud(mergedJSON, completion: completion)
+            
+        } catch {
+            // If data can't be decoded, use our local data
+            saveEnhancedStateDataToCloud(statesJSON, completion: completion)
+        }
+    }
+    
+    /// Handle conflicts with server-side changes for badge data
+    private func handleBadgeRecordChanged(_ error: CKError, badgesJSON: String,
+                                        completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let serverRecord = error.serverRecord else {
+            completion(.failure(error))
+            return
+        }
+        
+        // Get server data
+        guard let serverBadgesJSON = serverRecord["badgesJSON"] as? String,
+              let serverData = serverBadgesJSON.data(using: .utf8),
+              let localData = badgesJSON.data(using: .utf8) else {
+            // If server data can't be parsed, overwrite it with our data
+            saveBadgeDataToCloud(badgesJSON, completion: completion)
+            return
+        }
+        
+        // Try to decode server and local data
+        do {
+            let serverBadges = try JSONDecoder().decode([Badge].self, from: serverData)
+            let localBadges = try JSONDecoder().decode([Badge].self, from: localData)
+            
+            // Merge server and local data
+            let mergedBadges = mergeBadges(local: localBadges, cloud: serverBadges)
+            
+            // Encode the merged data
+            let mergedData = try JSONEncoder().encode(mergedBadges)
+            guard let mergedJSON = String(data: mergedData, encoding: .utf8) else {
+                completion(.failure(NSError(domain: "CloudSyncService", code: 6,
+                                          userInfo: [NSLocalizedDescriptionKey: "Failed to encode merged data"])))
+                return
+            }
+            
+            // Save the merged data
+            saveBadgeDataToCloud(mergedJSON, completion: completion)
+            
+        } catch {
+            // If data can't be decoded, use our local data
+            saveBadgeDataToCloud(badgesJSON, completion: completion)
+        }
+    }
+    
+    /// Merge local and cloud VisitedState arrays
+    private func mergeVisitedStates(local: [VisitedState], cloud: [VisitedState]) -> [VisitedState] {
+        var merged: [String: VisitedState] = [:]
+        
+        // Add all local states to the merged dictionary
+        for state in local {
+            merged[state.stateName] = state
+        }
+        
+        // Merge with cloud states
+        for cloudState in cloud {
+            if let localState = merged[cloudState.stateName] {
+                // State exists locally, merge the two
+                merged[cloudState.stateName] = mergeVisitedState(local: localState, cloud: cloudState)
+            } else {
+                // State doesn't exist locally, add the cloud version
+                merged[cloudState.stateName] = cloudState
+            }
+        }
+        
+        // Convert back to array
+        return Array(merged.values)
+    }
+    
+    /// Merge a single VisitedState from local and cloud
+    private func mergeVisitedState(local: VisitedState, cloud: VisitedState) -> VisitedState {
+        var result = local
+        
+        // Prioritize GPS-verification status
+        result.visited = local.visited || cloud.visited
+        result.wasEverVisited = local.wasEverVisited || cloud.wasEverVisited
+        
+        // Prioritize edited status
+        result.edited = local.edited || cloud.edited
+        
+        // Use the earliest first visited date
+        if let localFirst = local.firstVisitedDate,
+           let cloudFirst = cloud.firstVisitedDate {
+            result.firstVisitedDate = localFirst < cloudFirst ? localFirst : cloudFirst
+        } else {
+            result.firstVisitedDate = local.firstVisitedDate ?? cloud.firstVisitedDate
+        }
+        
+        // Use the latest last visited date
+        if let localLast = local.lastVisitedDate,
+           let cloudLast = cloud.lastVisitedDate {
+            result.lastVisitedDate = localLast > cloudLast ? localLast : cloudLast
+        } else {
+            result.lastVisitedDate = local.lastVisitedDate ?? cloud.lastVisitedDate
+        }
+        
+        // Prioritize active status
+        result.isActive = local.isActive || cloud.isActive
+        
+        return result
+    }
+    
+    /// Merge local and cloud Badge arrays
+    private func mergeBadges(local: [Badge], cloud: [Badge]) -> [Badge] {
+        var merged: [String: Badge] = [:]
+        
+        // Add all local badges to the merged dictionary
+        for badge in local {
+            merged[badge.identifier] = badge
+        }
+        
+        // Merge with cloud badges
+        for cloudBadge in cloud {
+            if let localBadge = merged[cloudBadge.identifier] {
+                // Badge exists locally, merge the two
+                merged[cloudBadge.identifier] = mergeBadge(local: localBadge, cloud: cloudBadge)
+            } else {
+                // Badge doesn't exist locally, add the cloud version
+                merged[cloudBadge.identifier] = cloudBadge
+            }
+        }
+        
+        // Convert back to array
+        return Array(merged.values)
+    }
+    
+    /// Merge a single Badge from local and cloud
+    private func mergeBadge(local: Badge, cloud: Badge) -> Badge {
+        // If either the local or cloud version is earned, the merged version is earned
+        let isEarned = local.isEarned || cloud.isEarned
+        
+        // Use the earliest earned date if both are earned
+        var earnedDate: Date? = nil
+        if isEarned {
+            if let localDate = local.earnedDate, let cloudDate = cloud.earnedDate {
+                earnedDate = localDate < cloudDate ? localDate : cloudDate
+            } else {
+                earnedDate = local.earnedDate ?? cloud.earnedDate
+            }
+        }
+        
+        return Badge(identifier: local.identifier, earnedDate: earnedDate, isEarned: isEarned)
+    }
+    
+    /// Process fetched enhanced model data
+    private func processEnhancedModelData(_ visitedStates: [VisitedState], _ badges: [Badge]) {
+        // Update the settings service with the fetched data
+        // Loop through each state and use appropriate setting method
+        for state in visitedStates {
+            if state.wasEverVisited {
+                // If it was ever GPS-verified, use addStateViaGPS
+                self.settings.addStateViaGPS(state.stateName)
+            } else if state.edited {
+                // If it was manually edited, use addVisitedState
+                self.settings.addVisitedState(state.stateName)
+            }
+            
+            // If the state should not be active, remove it
+            if !state.isActive {
+                self.settings.removeVisitedState(state.stateName)
+            }
+        }
+        
+        // TODO: Process badges when badge UI is implemented
+    }
+    
+    /// Process legacy state names by creating basic VisitedState models
+    private func processLegacyStateNames(_ stateNames: [String]) {
+        // Mark all states as active and manually edited
+        for state in stateNames {
+            self.settings.addVisitedState(state)
+        }
+    }
+    
+    // MARK: - Legacy Format Sync
+    
+    /// Sync the legacy format (array of state names) to CloudKit
+    private func syncLegacyFormatToCloud(_ states: [String],
+                                       completion: @escaping (Result<Void, Error>) -> Void) {
         // First fetch existing record if any
-        privateDatabase.fetch(withRecordID: recordID) { [weak self] record, error in
+        privateDatabase.fetch(withRecordID: legacyRecordID) { [weak self] record, error in
             guard let self = self else { return }
             
             // Fixed: Create a local variable for the record
@@ -119,7 +632,7 @@ class CloudSyncService: CloudSyncServiceProtocol {
                 return
             } else {
                 // Create new record if none exists
-                recordToSave = CKRecord(recordType: self.recordType, recordID: self.recordID)
+                recordToSave = CKRecord(recordType: self.legacyRecordType, recordID: self.legacyRecordID)
             }
             
             // Update record with new states
@@ -134,12 +647,12 @@ class CloudSyncService: CloudSyncServiceProtocol {
                         switch ckError.code {
                         case .serverRecordChanged:
                             // Handle conflict with server-side changes
-                            self.handleServerRecordChanged(ckError, states: states, completion: completion)
+                            self.handleLegacyServerRecordChanged(ckError, states: states, completion: completion)
                             return
                         case .networkFailure, .networkUnavailable, .serviceUnavailable:
                             // Retry for network issues after a delay
                             DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
-                                self.saveStatesToCloud(states, completion: completion)
+                                self.syncLegacyFormatToCloud(states, completion: completion)
                             }
                             return
                         default:
@@ -155,8 +668,9 @@ class CloudSyncService: CloudSyncServiceProtocol {
         }
     }
     
-    private func fetchStatesFromCloud(completion: @escaping (Result<[String], Error>) -> Void) {
-        let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
+    /// Fetch the legacy format (array of state names) from CloudKit
+    private func fetchLegacyFormatFromCloud(completion: @escaping (Result<[String], Error>) -> Void) {
+        let query = CKQuery(recordType: legacyRecordType, predicate: NSPredicate(value: true))
         
         // Use API based on iOS version
         if #available(iOS 15.0, *) {
@@ -221,8 +735,9 @@ class CloudSyncService: CloudSyncServiceProtocol {
         }
     }
     
-    private func handleServerRecordChanged(_ error: CKError, states: [String],
-                                         completion: @escaping (Result<Void, Error>) -> Void) {
+    /// Handle conflicts with server-side changes for legacy format
+    private func handleLegacyServerRecordChanged(_ error: CKError, states: [String],
+                                             completion: @escaping (Result<Void, Error>) -> Void) {
         guard let serverRecord = error.serverRecord else {
             completion(.failure(error))
             return
@@ -235,7 +750,7 @@ class CloudSyncService: CloudSyncServiceProtocol {
         let mergedStates = Array(Set(serverStates + states))
         
         // Create a new record with the merged states
-        let newRecord = CKRecord(recordType: recordType, recordID: recordID)
+        let newRecord = CKRecord(recordType: legacyRecordType, recordID: legacyRecordID)
         newRecord["states"] = mergedStates as CKRecordValue
         newRecord["lastUpdated"] = Date() as CKRecordValue
         

@@ -111,16 +111,12 @@ class StateDetectionService: StateDetectionServiceProtocol {
                 // Store detection time for caching
                 self?.stateDetectionCache[stateName] = Date()
                 
-                // Add to visited states if not already there
-                if let selfRef = self, !selfRef.settings.hasVisitedState(stateName) {
-                    print("📝 Adding new state to visited list: \(stateName)")
-                    selfRef.settings.addVisitedState(stateName)
-                    
-                    // Sync with cloud
-                    selfRef.syncToCloud()
-                } else {
-                    print("📝 State already in visited list: \(stateName)")
-                }
+                // Add to visited states using the GPS method
+                // This ensures proper tracking of GPS-verified states
+                self?.settings.addStateViaGPS(stateName)
+                
+                // Sync with cloud
+                self?.syncToCloud()
                 
                 // End the background task
                 Task { @MainActor in
@@ -355,14 +351,9 @@ class StateDetectionService: StateDetectionServiceProtocol {
                 strongSelf.notifyStateChange(state)
             }
             
-            // Add to visited states if needed
-            if !strongSelf.settings.hasVisitedState(state) {
-                print("📝 Adding new state to visited list (fallback): \(state)")
-                strongSelf.settings.addVisitedState(state)
-                strongSelf.syncToCloud()
-            } else {
-                print("📝 State already in visited list: \(state)")
-            }
+            // Add using GPS method since this was detected via location
+            strongSelf.settings.addStateViaGPS(state)
+            strongSelf.syncToCloud()
         }
     }
     
@@ -390,7 +381,7 @@ class StateDetectionService: StateDetectionServiceProtocol {
         let maxRetries = 3
         
         func attemptSync() {
-            // Fixed the 'self' warning by using a local copy of visitedStates
+            // Get the active states to sync (this is compatible with the current CloudSync implementation)
             let statesToSync = self.settings.visitedStates.value
             
             self.cloudSync.syncToCloud(states: statesToSync) { [weak self] result in

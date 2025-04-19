@@ -48,6 +48,10 @@ class SettingsService: SettingsServiceProtocol {
     var altitudeThreshold = CurrentValueSubject<Double, Never>(3048)
     var lastVisitedState = CurrentValueSubject<String?, Never>(nil)
     
+    // New properties for enhanced model
+    private var visitedStateModels: [VisitedState] = []
+    private var badges: [Badge] = []
+    
     // Private storage for colors using the property wrapper
     @SettingsUserDefaultColor(key: "stateFillColor", defaultValue: .red)
     private var storedFillColor: Color
@@ -64,7 +68,11 @@ class SettingsService: SettingsServiceProtocol {
     @AppStorage("speedThreshold") private var storedSpeedThreshold: Double = 44.7
     @AppStorage("altitudeThreshold") private var storedAltitudeThreshold: Double = 3048
     @AppStorage("lastVisitedState") private var storedLastVisitedState: String = ""
-    @AppStorage("visitedStatesString") private var storedVisitedStatesJSON: String = ""
+    @AppStorage("visitedStatesString") private var storedVisitedStatesString: String = ""
+    
+    // New storage for enhanced model
+    @AppStorage("visitedStatesJSON") private var storedVisitedStatesJSON: String = ""
+    @AppStorage("badgesJSON") private var storedBadgesJSON: String = ""
     
     // Private state
     private var cancellables = Set<AnyCancellable>()
@@ -84,8 +92,12 @@ class SettingsService: SettingsServiceProtocol {
         altitudeThreshold.value = storedAltitudeThreshold
         lastVisitedState.value = storedLastVisitedState.isEmpty ? nil : storedLastVisitedState
         
-        // Load visited states from JSON
+        // Load enhanced model states
         loadVisitedStates()
+        loadBadges()
+        
+        // Update the string array for compatibility with existing code
+        updateVisitedStatesArray()
         
         // Set up subscriptions to save changes
         setupSubscriptions()
@@ -94,27 +106,64 @@ class SettingsService: SettingsServiceProtocol {
     // MARK: - SettingsServiceProtocol
     
     func addVisitedState(_ state: String) {
-        var currentStates = visitedStates.value
-        if !currentStates.contains(state) {
-            currentStates.append(state)
-            visitedStates.send(currentStates)
-            lastVisitedState.send(state)
-        }
+        // This is a simple legacy method that adds a state via manual edit
+        addStateWithDetails(state, viaGPS: false)
     }
     
     func removeVisitedState(_ state: String) {
-        var currentStates = visitedStates.value
-        if let index = currentStates.firstIndex(of: state) {
-            currentStates.remove(at: index)
-            visitedStates.send(currentStates)
+        // In the enhanced model, we don't truly remove states, just mark them inactive
+        if let index = visitedStateModels.firstIndex(where: { $0.stateName == state }) {
+            var updatedState = visitedStateModels[index]
+            updatedState.isActive = false
+            visitedStateModels[index] = updatedState
+            
+            // Update the strings array for compatibility
+            updateVisitedStatesArray()
+            
+            // Save changes
+            saveVisitedStates()
+        } else {
+            // For backward compatibility, also check the string array
+            var currentStates = visitedStates.value
+            if let index = currentStates.firstIndex(of: state) {
+                currentStates.remove(at: index)
+                visitedStates.send(currentStates)
+            }
         }
     }
     
     func setVisitedStates(_ states: [String]) {
-        visitedStates.send(states)
+        // Get current active states for comparison
+        let currentActiveStates = visitedStateModels.filter({ $0.isActive }).map({ $0.stateName })
+        
+        // Find states to add (in new list but not in current active states)
+        let statesToAdd = states.filter { !currentActiveStates.contains($0) }
+        
+        // Find states to remove (in current active states but not in new list)
+        let statesToRemove = currentActiveStates.filter { !states.contains($0) }
+        
+        // Process additions (adding via manual edit)
+        for state in statesToAdd {
+            addStateWithDetails(state, viaGPS: false)
+        }
+        
+        // Process removals (marking as inactive)
+        for state in statesToRemove {
+            removeVisitedState(state)
+        }
+        
+        // Update the strings array for compatibility and save
+        updateVisitedStatesArray()
+        saveVisitedStates()
     }
     
     func hasVisitedState(_ state: String) -> Bool {
+        // Check if state is active in the enhanced model
+        if visitedStateModels.contains(where: { $0.stateName == state && $0.isActive }) {
+            return true
+        }
+        
+        // Fall back to string array for backward compatibility
         return visitedStates.value.contains(state)
     }
     
@@ -126,6 +175,35 @@ class SettingsService: SettingsServiceProtocol {
         notifyOnlyNewStates.send(false) // Default to notify for all states
         speedThreshold.send(44.7)
         altitudeThreshold.send(3048)
+    }
+    
+    // MARK: - Enhanced methods for GPS tracking
+    
+    /// Add a state visit detected via GPS
+    func addStateViaGPS(_ state: String) {
+        addStateWithDetails(state, viaGPS: true)
+    }
+    
+    /// Check if a state was ever visited via GPS, regardless of current status
+    func wasStateEverVisitedViaGPS(_ state: String) -> Bool {
+        return visitedStateModels.contains(where: {
+            $0.stateName == state && $0.wasEverVisited
+        })
+    }
+    
+    /// Get all states that were ever GPS verified
+    func getAllGPSVerifiedStates() -> [VisitedState] {
+        return visitedStateModels.filter { $0.wasEverVisited }
+    }
+    
+    /// Get only active GPS verified states
+    func getActiveGPSVerifiedStates() -> [VisitedState] {
+        return visitedStateModels.filter { $0.wasEverVisited && $0.isActive }
+    }
+    
+    /// Get all earned badges
+    func getEarnedBadges() -> [Badge] {
+        return badges.filter { $0.isEarned }
     }
     
     // MARK: - Private methods
@@ -185,32 +263,197 @@ class SettingsService: SettingsServiceProtocol {
         visitedStates
             .sink { [weak self] states in
                 guard let self = self, !self.isSavingLocally else { return }
-                self.saveVisitedStates(states)
+                
+                // Save to legacy format (string array)
+                if let data = try? JSONEncoder().encode(states),
+                   let json = String(data: data, encoding: .utf8) {
+                    storedVisitedStatesString = json
+                }
             }
             .store(in: &cancellables)
     }
     
-    private func loadVisitedStates() {
-        if let data = storedVisitedStatesJSON.data(using: .utf8),
-           let decoded = try? JSONDecoder().decode([String].self, from: data) {
-            visitedStates.send(decoded)
-            print("🚩 Initial visitedStates loaded from JSON: \(decoded)")
+    /// Add a state with detailed information about how it was added
+    private func addStateWithDetails(_ state: String, viaGPS: Bool) {
+        // Check if we already have this state in our data
+        if let index = visitedStateModels.firstIndex(where: { $0.stateName == state }) {
+            // State exists but might be inactive - update it appropriately
+            var updatedState = visitedStateModels[index]
+            
+            if viaGPS {
+                // GPS visit - update both flags and dates
+                updatedState.visited = true
+                updatedState.wasEverVisited = true
+                
+                // Update dates
+                if updatedState.firstVisitedDate == nil {
+                    updatedState.firstVisitedDate = Date()
+                }
+                updatedState.lastVisitedDate = Date()
+            } else {
+                // Manual edit - preserve GPS history if it exists
+                if updatedState.wasEverVisited {
+                    // This implements the specific use case: If a state was ever GPS-verified
+                    // and is manually re-added, it retains its GPS verification status
+                    updatedState.visited = updatedState.wasEverVisited
+                }
+                updatedState.edited = true
+            }
+            
+            // Always make the state active again
+            updatedState.isActive = true
+            
+            // Update the state in the array
+            visitedStateModels[index] = updatedState
         } else {
-            visitedStates.send([])
+            // State doesn't exist, create a new one
+            let newState = VisitedState(
+                stateName: state,
+                visited: viaGPS,
+                edited: !viaGPS,
+                firstVisitedDate: viaGPS ? Date() : nil,
+                lastVisitedDate: viaGPS ? Date() : nil,
+                isActive: true,
+                wasEverVisited: viaGPS
+            )
+            visitedStateModels.append(newState)
+        }
+        
+        // Update the strings array for compatibility with existing code
+        updateVisitedStatesArray()
+        
+        // Save changes
+        saveVisitedStates()
+        
+        // If this was a GPS visit, check for badge awards
+        if viaGPS {
+            checkForBadgeAwards()
         }
     }
     
-    private func saveVisitedStates(_ states: [String]) {
+    /// Update the string array of visited states based on active states in the enhanced model
+    private func updateVisitedStatesArray() {
         isSavingLocally = true
         
-        if let data = try? JSONEncoder().encode(states),
+        // Only include active states in the string array
+        let activeStates = visitedStateModels.filter { $0.isActive }.map { $0.stateName }
+        visitedStates.send(activeStates)
+        
+        isSavingLocally = false
+    }
+    
+    private func loadVisitedStates() {
+        // First try to load the enhanced model
+        if let data = storedVisitedStatesJSON.data(using: .utf8),
+           let decoded = try? JSONDecoder().decode([VisitedState].self, from: data) {
+            visitedStateModels = decoded
+            print("🚩 Enhanced visitedStateModels loaded: \(decoded.count) states")
+        } else {
+            // Fall back to the legacy string array if enhanced model isn't found
+            migrateFromLegacyFormat()
+        }
+    }
+    
+    private func migrateFromLegacyFormat() {
+        print("🔄 Migrating from legacy format to enhanced model")
+        
+        // Try to load the legacy format first
+        if let data = storedVisitedStatesString.data(using: .utf8),
+           let states = try? JSONDecoder().decode([String].self, from: data) {
+            
+            // Create enhanced models from the legacy string array
+            // Since we can't tell which were GPS vs manually added in the legacy format,
+            // we'll mark them all as edited for safety
+            let migrationDate = Date()
+            visitedStateModels = states.map { stateName in
+                VisitedState(
+                    stateName: stateName,
+                    visited: false,
+                    edited: true,
+                    firstVisitedDate: migrationDate,
+                    lastVisitedDate: migrationDate,
+                    isActive: true,
+                    wasEverVisited: false
+                )
+            }
+            
+            // Update the string array
+            visitedStates.send(states)
+            
+            // Save in the enhanced format
+            saveVisitedStates()
+            
+            print("🔄 Migration complete: \(states.count) states migrated")
+        } else {
+            // No data in either format
+            visitedStateModels = []
+            visitedStates.send([])
+            print("🚩 No visited states data found in any format")
+        }
+    }
+    
+    private func saveVisitedStates() {
+        isSavingLocally = true
+        
+        // Save the enhanced model
+        if let data = try? JSONEncoder().encode(visitedStateModels),
            let json = String(data: data, encoding: .utf8) {
             storedVisitedStatesJSON = json
-            print("💾 States saved to UserDefaults: \(states)")
+            print("💾 Enhanced model saved with \(visitedStateModels.count) states")
         } else {
-            print("❌ Failed to encode states to JSON")
+            print("❌ Failed to encode enhanced model")
         }
         
         isSavingLocally = false
+    }
+    
+    private func loadBadges() {
+        // Load badges from storage
+        if let data = storedBadgesJSON.data(using: .utf8),
+           let decoded = try? JSONDecoder().decode([Badge].self, from: data) {
+            badges = decoded
+            print("🏆 Loaded \(badges.count) badges")
+        } else {
+            // Initialize default badges if none exist
+            initializeDefaultBadges()
+        }
+    }
+    
+    private func initializeDefaultBadges() {
+        badges = BadgeType.allCases.map { badgeType in
+            Badge(identifier: badgeType.rawValue, earnedDate: nil, isEarned: false)
+        }
+        saveBadges()
+        print("🏆 Initialized \(badges.count) default badges")
+    }
+    
+    private func saveBadges() {
+        if let data = try? JSONEncoder().encode(badges),
+           let json = String(data: data, encoding: .utf8) {
+            storedBadgesJSON = json
+            print("💾 Saved \(badges.count) badges")
+        } else {
+            print("❌ Failed to encode badges")
+        }
+    }
+    
+    private func checkForBadgeAwards() {
+        // This is a placeholder for future badge award logic
+        // We'll implement the actual rules when badges are fully implemented
+        
+        // For now, just make sure all badge types exist
+        let existingBadgeTypes = badges.map { $0.identifier }
+        for badgeType in BadgeType.allCases {
+            if !existingBadgeTypes.contains(badgeType.rawValue) {
+                badges.append(Badge(
+                    identifier: badgeType.rawValue,
+                    earnedDate: nil,
+                    isEarned: false
+                ))
+            }
+        }
+        
+        // Save any changes to badges
+        saveBadges()
     }
 }

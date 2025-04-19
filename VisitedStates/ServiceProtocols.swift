@@ -97,6 +97,23 @@ protocol SettingsServiceProtocol: AnyObject {
     
     /// Last visited state
     var lastVisitedState: CurrentValueSubject<String?, Never> { get }
+    
+    // Enhanced methods for badge and stats system
+    
+    /// Add a state via GPS detection (different from manual editing)
+    func addStateViaGPS(_ state: String)
+    
+    /// Check if a state was ever visited via GPS, regardless of current status
+    func wasStateEverVisitedViaGPS(_ state: String) -> Bool
+    
+    /// Get all states that were ever GPS verified
+    func getAllGPSVerifiedStates() -> [VisitedState]
+    
+    /// Get only active GPS verified states
+    func getActiveGPSVerifiedStates() -> [VisitedState]
+    
+    /// Get all earned badges
+    func getEarnedBadges() -> [Badge]
 }
 
 // MARK: - Boundary Service Protocol
@@ -110,7 +127,7 @@ protocol StateBoundaryServiceProtocol: AnyObject {
     
     /// Get state borders for proximity checks
     func getStateBorders() -> [StateBorder]
-    
+
     /// Load state boundary data
     func loadBoundaryData()
 }
@@ -191,7 +208,8 @@ class MockStateDetectionService: StateDetectionServiceProtocol {
         let states = ["California", "Nevada", "Oregon"]
         let randomState = states.randomElement()!
         currentDetectedState.send(randomState)
-        settings.addVisitedState(randomState)
+        // Use GPS method instead of standard
+        settings.addStateViaGPS(randomState)
         notificationService.handleDetectedState(randomState)
     }
     
@@ -267,29 +285,47 @@ class MockSettingsService: SettingsServiceProtocol {
     var lastVisitedState = CurrentValueSubject<String?, Never>(nil)
     var notifyOnlyNewStates = CurrentValueSubject<Bool, Never>(false)
     
+    private var visitedStateModels: [VisitedState] = []
+    private var badges: [Badge] = []
+    
     func addVisitedState(_ state: String) {
-        var states = visitedStates.value
-        if !states.contains(state) {
-            states.append(state)
-            visitedStates.send(states)
-            lastVisitedState.send(state)
-        }
+        addStateWithDetails(state, viaGPS: false)
     }
     
     func removeVisitedState(_ state: String) {
-        var states = visitedStates.value
-        if let index = states.firstIndex(of: state) {
-            states.remove(at: index)
-            visitedStates.send(states)
+        if let index = visitedStateModels.firstIndex(where: { $0.stateName == state }) {
+            var updatedState = visitedStateModels[index]
+            updatedState.isActive = false
+            visitedStateModels[index] = updatedState
+            updateVisitedStatesArray()
+        } else {
+            var states = visitedStates.value
+            if let index = states.firstIndex(of: state) {
+                states.remove(at: index)
+                visitedStates.send(states)
+            }
         }
     }
     
     func setVisitedStates(_ states: [String]) {
-        visitedStates.send(states)
+        let currentActiveStates = visitedStateModels.filter({ $0.isActive }).map({ $0.stateName })
+        let statesToAdd = states.filter { !currentActiveStates.contains($0) }
+        let statesToRemove = currentActiveStates.filter { !states.contains($0) }
+        
+        for state in statesToAdd {
+            addStateWithDetails(state, viaGPS: false)
+        }
+        
+        for state in statesToRemove {
+            removeVisitedState(state)
+        }
+        
+        updateVisitedStatesArray()
     }
     
     func hasVisitedState(_ state: String) -> Bool {
-        return visitedStates.value.contains(state)
+        return visitedStateModels.contains(where: { $0.stateName == state && $0.isActive }) ||
+               visitedStates.value.contains(state)
     }
     
     func restoreDefaults() {
@@ -297,8 +333,73 @@ class MockSettingsService: SettingsServiceProtocol {
         stateStrokeColor.send(.white)
         backgroundColor.send(.white)
         notificationsEnabled.send(true)
+        notifyOnlyNewStates.send(false)
         speedThreshold.send(44.7)
         altitudeThreshold.send(3048)
+    }
+    
+    func addStateViaGPS(_ state: String) {
+        addStateWithDetails(state, viaGPS: true)
+    }
+    
+    func wasStateEverVisitedViaGPS(_ state: String) -> Bool {
+        return visitedStateModels.contains(where: { $0.stateName == state && $0.wasEverVisited })
+    }
+    
+    func getAllGPSVerifiedStates() -> [VisitedState] {
+        return visitedStateModels.filter { $0.wasEverVisited }
+    }
+    
+    func getActiveGPSVerifiedStates() -> [VisitedState] {
+        return visitedStateModels.filter { $0.wasEverVisited && $0.isActive }
+    }
+    
+    func getEarnedBadges() -> [Badge] {
+        return badges.filter { $0.isEarned }
+    }
+    
+    // MARK: - Private methods
+    
+    private func addStateWithDetails(_ state: String, viaGPS: Bool) {
+        if let index = visitedStateModels.firstIndex(where: { $0.stateName == state }) {
+            var updatedState = visitedStateModels[index]
+            
+            if viaGPS {
+                updatedState.visited = true
+                updatedState.wasEverVisited = true
+                
+                if updatedState.firstVisitedDate == nil {
+                    updatedState.firstVisitedDate = Date()
+                }
+                updatedState.lastVisitedDate = Date()
+            } else {
+                if updatedState.wasEverVisited {
+                    updatedState.visited = updatedState.wasEverVisited
+                }
+                updatedState.edited = true
+            }
+            
+            updatedState.isActive = true
+            visitedStateModels[index] = updatedState
+        } else {
+            let newState = VisitedState(
+                stateName: state,
+                visited: viaGPS,
+                edited: !viaGPS,
+                firstVisitedDate: viaGPS ? Date() : nil,
+                lastVisitedDate: viaGPS ? Date() : nil,
+                isActive: true,
+                wasEverVisited: viaGPS
+            )
+            visitedStateModels.append(newState)
+        }
+        
+        updateVisitedStatesArray()
+    }
+    
+    private func updateVisitedStatesArray() {
+        let activeStates = visitedStateModels.filter { $0.isActive }.map { $0.stateName }
+        visitedStates.send(activeStates)
     }
 }
 
@@ -324,3 +425,4 @@ class MockNotificationService: NotificationServiceProtocol {
         }
     }
 }
+
