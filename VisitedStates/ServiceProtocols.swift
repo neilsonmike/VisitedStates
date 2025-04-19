@@ -76,6 +76,7 @@ protocol SettingsServiceProtocol: AnyObject {
     
     /// User preferences
     var notificationsEnabled: CurrentValueSubject<Bool, Never> { get }
+    var notifyOnlyNewStates: CurrentValueSubject<Bool, Never> { get }
     var speedThreshold: CurrentValueSubject<Double, Never> { get }
     var altitudeThreshold: CurrentValueSubject<Double, Never> { get }
     
@@ -136,6 +137,7 @@ class MockLocationService: LocationServiceProtocol {
     var currentLocation = CurrentValueSubject<CLLocation?, Never>(nil)
     var authorizationStatus = CurrentValueSubject<CLAuthorizationStatus, Never>(.notDetermined)
     var isLocationServicesEnabled: Bool = true
+    
     
     private let settings: SettingsServiceProtocol
     private let boundaryService: StateBoundaryServiceProtocol
@@ -263,6 +265,7 @@ class MockSettingsService: SettingsServiceProtocol {
     var speedThreshold = CurrentValueSubject<Double, Never>(44.7)
     var altitudeThreshold = CurrentValueSubject<Double, Never>(3048)
     var lastVisitedState = CurrentValueSubject<String?, Never>(nil)
+    var notifyOnlyNewStates = CurrentValueSubject<Bool, Never>(false)
     
     func addVisitedState(_ state: String) {
         var states = visitedStates.value

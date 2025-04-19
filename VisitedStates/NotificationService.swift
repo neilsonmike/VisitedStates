@@ -133,13 +133,27 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         }
     }
     
+
     func handleDetectedState(_ state: String) {
         print("🔔 Handling detection of state: \(state)")
         
         // Always notify for state changes, regardless of whether the state has been visited before
+        // UNLESS the user has set notifyOnlyNewStates to true
         if shouldNotifyForState(state) {
-            print("🔔 Will notify for state: \(state)")
-            scheduleStateEntryNotification(for: state)
+            // Check if we should notify only for new states
+            if settings.notifyOnlyNewStates.value {
+                // Check if this state has been visited before
+                if !settings.hasVisitedState(state) {
+                    print("🔔 Will notify for new state: \(state)")
+                    scheduleStateEntryNotification(for: state)
+                } else {
+                    print("🔔 Skipping notification for already visited state: \(state) (notify only new states is enabled)")
+                }
+            } else {
+                // Notify for all state changes
+                print("🔔 Will notify for state: \(state)")
+                scheduleStateEntryNotification(for: state)
+            }
         } else {
             print("🔔 Skipping notification for \(state) - cooldown or same as last state")
         }

@@ -43,6 +43,7 @@ class SettingsService: SettingsServiceProtocol {
     var stateStrokeColor = CurrentValueSubject<Color, Never>(.white)
     var backgroundColor = CurrentValueSubject<Color, Never>(.white)
     var notificationsEnabled = CurrentValueSubject<Bool, Never>(true)
+    var notifyOnlyNewStates = CurrentValueSubject<Bool, Never>(false) // Default to notify for all states
     var speedThreshold = CurrentValueSubject<Double, Never>(44.7)
     var altitudeThreshold = CurrentValueSubject<Double, Never>(3048)
     var lastVisitedState = CurrentValueSubject<String?, Never>(nil)
@@ -59,6 +60,7 @@ class SettingsService: SettingsServiceProtocol {
     
     // Other user defaults storage
     @AppStorage("notificationsEnabled") private var storedNotificationsEnabled: Bool = true
+    @AppStorage("notifyOnlyNewStates") private var storedNotifyOnlyNewStates: Bool = false
     @AppStorage("speedThreshold") private var storedSpeedThreshold: Double = 44.7
     @AppStorage("altitudeThreshold") private var storedAltitudeThreshold: Double = 3048
     @AppStorage("lastVisitedState") private var storedLastVisitedState: String = ""
@@ -77,6 +79,7 @@ class SettingsService: SettingsServiceProtocol {
         backgroundColor.value = SettingsUserDefaultColor.readColor(forKey: "backgroundColor", defaultValue: .white)
         
         notificationsEnabled.value = storedNotificationsEnabled
+        notifyOnlyNewStates.value = storedNotifyOnlyNewStates
         speedThreshold.value = storedSpeedThreshold
         altitudeThreshold.value = storedAltitudeThreshold
         lastVisitedState.value = storedLastVisitedState.isEmpty ? nil : storedLastVisitedState
@@ -120,6 +123,7 @@ class SettingsService: SettingsServiceProtocol {
         stateStrokeColor.send(.white)
         backgroundColor.send(.white)
         notificationsEnabled.send(true)
+        notifyOnlyNewStates.send(false) // Default to notify for all states
         speedThreshold.send(44.7)
         altitudeThreshold.send(3048)
     }
@@ -150,6 +154,12 @@ class SettingsService: SettingsServiceProtocol {
         notificationsEnabled
             .sink { [weak self] enabled in
                 self?.storedNotificationsEnabled = enabled
+            }
+            .store(in: &cancellables)
+        
+        notifyOnlyNewStates
+            .sink { [weak self] value in
+                self?.storedNotifyOnlyNewStates = value
             }
             .store(in: &cancellables)
         

@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var showEditStates = false
     @State private var showRestoreAlert = false  // For restore defaults confirmation
     @State private var notificationsEnabled = true
+    @State private var notifyOnlyNewStates = false
     @State private var stateFillColor: Color = .red
     @State private var stateStrokeColor: Color = .white
     @State private var backgroundColor: Color = .white
@@ -29,6 +30,24 @@ struct SettingsView: View {
                         .onChange(of: notificationsEnabled) { _, newValue in
                             dependencies.settingsService.notificationsEnabled.send(newValue)
                         }
+                    
+                    if notificationsEnabled {
+                        VStack(alignment: .leading) {
+                            Toggle("Notify Only for New States", isOn: $notifyOnlyNewStates)
+                                .onChange(of: notifyOnlyNewStates) { _, newValue in
+                                    dependencies.settingsService.notifyOnlyNewStates.send(newValue)
+                                }
+                            
+                            // Conditional explainer text
+                            Text(notifyOnlyNewStates ?
+                                 "You will only be notified if you enter a state you have not visited before" :
+                                 "You will get a notification whenever you enter any state")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.top, 2)
+                                .padding(.leading, 4)
+                        }
+                    }
                     
                     ColorPicker("State Fill Color", selection: $stateFillColor)
                         .onChange(of: stateFillColor) { _, newValue in
@@ -69,7 +88,7 @@ struct SettingsView: View {
                             Text("Current Permission:")
                             Spacer()
                             Text(locationStatusText)
-                                .foregroundColor(locationStatus == .authorizedAlways ? .green : .orange)
+                                .foregroundColor(locationStatusColor)
                         }
                         
                         Text("VisitedStates uses location to detect when you cross state lines, even when the app is closed. For full functionality after device restarts, 'Always' permission is recommended.")
@@ -135,6 +154,21 @@ struct SettingsView: View {
         }
     }
     
+    private var locationStatusColor: Color {
+        switch locationStatus {
+        case .authorizedAlways:
+            return .green
+        case .authorizedWhenInUse:
+            return .orange
+        case .denied, .restricted:
+            return .red
+        case .notDetermined:
+            return .red
+        @unknown default:
+            return .red
+        }
+    }
+    
     private func updateLocationStatus() {
         // Get the current location authorization status
         locationStatus = dependencies.locationService.authorizationStatus.value
@@ -145,6 +179,12 @@ struct SettingsView: View {
         dependencies.settingsService.notificationsEnabled
             .sink { value in
                 self.notificationsEnabled = value
+            }
+            .store(in: &cancellables)
+            
+        dependencies.settingsService.notifyOnlyNewStates
+            .sink { value in
+                self.notifyOnlyNewStates = value
             }
             .store(in: &cancellables)
         
