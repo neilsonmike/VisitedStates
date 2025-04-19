@@ -8,6 +8,7 @@ struct EditStatesView: View {
     
     // Local state
     @State private var visitedStates: [String] = []
+    @State private var gpsVisitedStates: [String] = []
     @State private var cancellables = Set<AnyCancellable>()
     
     // For example, your 51 states (including DC)
@@ -27,21 +28,39 @@ struct EditStatesView: View {
 
     var body: some View {
         NavigationView {
-            List {
-                ForEach(allStates, id: \.self) { state in
-                    HStack {
-                        Text(state)
-                        Spacer()
-                        if visitedStates.contains(state) {
-                            // Show a simple checkmark if visited
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.accentColor)
+            VStack {
+                // Explanation text at the top
+                Text("States in bold were detected by GPS.")
+                    .font(.footnote)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                
+                List {
+                    ForEach(allStates, id: \.self) { state in
+                        HStack {
+                            // Make text bold if it was GPS-visited
+                            if gpsVisitedStates.contains(state) {
+                                Text(state)
+                                    .fontWeight(.bold)
+                            } else {
+                                Text(state)
+                                    .fontWeight(.regular)
+                            }
+                            
+                            Spacer()
+                            
+                            if visitedStates.contains(state) {
+                                // Show a simple checkmark if visited
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.accentColor)
+                            }
                         }
-                    }
-                    // Make row tappable
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        toggleState(state)
+                        // Make row tappable
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            toggleState(state)
+                        }
                     }
                 }
             }
@@ -61,6 +80,9 @@ struct EditStatesView: View {
             .onAppear {
                 // Important: Setup subscription to get the current state list
                 setupSubscriptions()
+                
+                // Get states that were visited via GPS
+                loadGPSVisitedStates()
             }
         }
     }
@@ -73,6 +95,18 @@ struct EditStatesView: View {
                 print("EditStatesView received states: \(states)")
             }
             .store(in: &cancellables)
+    }
+    
+    private func loadGPSVisitedStates() {
+        // Get all GPS-verified states from the service
+        let allGPSStates = dependencies.settingsService.getAllGPSVerifiedStates()
+        
+        // Extract just the state names for states that were GPS verified
+        gpsVisitedStates = allGPSStates
+            .filter { $0.wasEverVisited }
+            .map { $0.stateName }
+        
+        print("GPS-visited states: \(gpsVisitedStates)")
     }
     
     // Toggle local visitedStates only (no cloud sync here)
