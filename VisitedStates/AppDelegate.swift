@@ -9,11 +9,19 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             
             // Start location services after a short delay to ensure app is fully initialized
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                AppDependencies.live().locationService.startLocationUpdates()
-                AppDependencies.live().stateDetectionService.startStateDetection()
+                // Access dependencies via the static live method
+                let dependencies = AppDependencies.live()
+                
+                // Start location tracking and state detection
+                dependencies.locationService.startLocationUpdates()
+                dependencies.stateDetectionService.startStateDetection()
+                
+                print("✅ Successfully restarted location services after device reboot")
             }
         }
         
         return true
     }
+    
+    // Other application delegate methods can be added as needed
 }

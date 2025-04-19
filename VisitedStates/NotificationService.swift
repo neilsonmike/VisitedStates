@@ -573,7 +573,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         }
         
         // Check container configuration
-        print("☁️ CloudKit container ID: \(cloudContainer.containerIdentifier)")
+        print("☁️ CloudKit container ID: \(String(describing: cloudContainer.containerIdentifier))")
         print("☁️ Using public database: \(publicDatabase)")
     }
     
@@ -665,7 +665,8 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 for record in fetchedRecords {
                     if let state = record["state"] as? String,
                        let fact = record["fact"] as? String {
-                        print("☁️ CloudKit record details - State: \(state), Fact: \"\(fact)\"")
+                        // Fixed the optional string interpolation warning
+                        print("☁️ CloudKit record details - State: \(String(describing: state)), Fact: \"\(String(describing: fact))\"")
                         
                         if stateFactoids[state] == nil {
                             stateFactoids[state] = []
@@ -673,7 +674,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                         stateFactoids[state]?.append(fact)
                     } else {
                         print("⚠️ CloudKit record missing state or fact fields: \(record)")
-                        print("⚠️ Record keys: \(record.allKeys())")
+                        print("⚠️ Record keys: \(record.allKeys().map { String(describing: $0) })")
                     }
                 }
                 

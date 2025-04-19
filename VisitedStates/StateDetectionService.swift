@@ -85,43 +85,47 @@ class StateDetectionService: StateDetectionServiceProtocol {
             
             // Update the current detected state (on main thread)
             DispatchQueue.main.async { [weak self] in
-                guard let self = self else {
+                guard self != nil else {
                     // End the background task if self no longer exists
-                    UIApplication.shared.endBackgroundTask(bgTask)
+                    Task { @MainActor in
+                        UIApplication.shared.endBackgroundTask(bgTask)
+                    }
                     return
                 }
                 
                 // Get current state before updating
-                let previousState = self.currentDetectedState.value
+                let previousState = self?.currentDetectedState.value
                 
                 // Only send if the state has changed
                 if previousState != stateName {
                     print("✨ NEW STATE DETECTED: \(stateName) (previous: \(previousState ?? "none"))")
-                    self.currentDetectedState.send(stateName)
+                    self?.currentDetectedState.send(stateName)
                     
                     // Only notify on state change
-                    self.notifyStateChange(stateName)
+                    self?.notifyStateChange(stateName)
                 }
                 
                 // Keep track of last known location in this state
-                self.lastLocationByState[stateName] = location
+                self?.lastLocationByState[stateName] = location
                 
                 // Store detection time for caching
-                self.stateDetectionCache[stateName] = Date()
+                self?.stateDetectionCache[stateName] = Date()
                 
                 // Add to visited states if not already there
-                if !self.settings.hasVisitedState(stateName) {
+                if let selfRef = self, !selfRef.settings.hasVisitedState(stateName) {
                     print("📝 Adding new state to visited list: \(stateName)")
-                    self.settings.addVisitedState(stateName)
+                    selfRef.settings.addVisitedState(stateName)
                     
                     // Sync with cloud
-                    self.syncToCloud()
+                    selfRef.syncToCloud()
                 } else {
                     print("📝 State already in visited list: \(stateName)")
                 }
                 
                 // End the background task
-                UIApplication.shared.endBackgroundTask(bgTask)
+                Task { @MainActor in
+                    UIApplication.shared.endBackgroundTask(bgTask)
+                }
             }
         } else {
             // Increment failed detection counter
@@ -340,22 +344,22 @@ class StateDetectionService: StateDetectionServiceProtocol {
     
     private func updateDetectedState(_ state: String) {
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+            guard let strongSelf = self else { return }
             
             // Only update if state has changed
-            if self.currentDetectedState.value != state {
-                print("✨ NEW STATE DETECTED (fallback): \(state) (previous: \(self.currentDetectedState.value ?? "none"))")
-                self.currentDetectedState.send(state)
+            if strongSelf.currentDetectedState.value != state {
+                print("✨ NEW STATE DETECTED (fallback): \(state) (previous: \(strongSelf.currentDetectedState.value ?? "none"))")
+                strongSelf.currentDetectedState.send(state)
                 
                 // Always notify about state detection if state changed
-                self.notifyStateChange(state)
+                strongSelf.notifyStateChange(state)
             }
             
             // Add to visited states if needed
-            if !self.settings.hasVisitedState(state) {
+            if !strongSelf.settings.hasVisitedState(state) {
                 print("📝 Adding new state to visited list (fallback): \(state)")
-                self.settings.addVisitedState(state)
-                self.syncToCloud()
+                strongSelf.settings.addVisitedState(state)
+                strongSelf.syncToCloud()
             } else {
                 print("📝 State already in visited list: \(state)")
             }
@@ -366,10 +370,10 @@ class StateDetectionService: StateDetectionServiceProtocol {
         // Always notify about state changes, even for previously visited states
         // This is the single control point for notifications
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+            guard let strongSelf = self else { return }
             
             print("🗺️ Notifying about state entry: \(state)")
-            self.notificationService.handleDetectedState(state)
+            strongSelf.notificationService.handleDetectedState(state)
         }
     }
     
@@ -386,16 +390,23 @@ class StateDetectionService: StateDetectionServiceProtocol {
         let maxRetries = 3
         
         func attemptSync() {
-            self.cloudSync.syncToCloud(states: self.settings.visitedStates.value) { [weak self] result in
-                guard let self = self else {
-                    UIApplication.shared.endBackgroundTask(syncTask)
+            // Fixed the 'self' warning by using a local copy of visitedStates
+            let statesToSync = self.settings.visitedStates.value
+            
+            self.cloudSync.syncToCloud(states: statesToSync) { [weak self] result in
+                guard self != nil else {
+                    Task { @MainActor in
+                        UIApplication.shared.endBackgroundTask(syncTask)
+                    }
                     return
                 }
                 
                 switch result {
                 case .success:
                     print("✅ Successfully synced states to cloud")
-                    UIApplication.shared.endBackgroundTask(syncTask)
+                    Task { @MainActor in
+                        UIApplication.shared.endBackgroundTask(syncTask)
+                    }
                     
                 case .failure(let error):
                     retryCount += 1
@@ -409,7 +420,9 @@ class StateDetectionService: StateDetectionServiceProtocol {
                             attemptSync()
                         }
                     } else {
-                        UIApplication.shared.endBackgroundTask(syncTask)
+                        Task { @MainActor in
+                            UIApplication.shared.endBackgroundTask(syncTask)
+                        }
                     }
                 }
             }
@@ -421,13 +434,17 @@ class StateDetectionService: StateDetectionServiceProtocol {
     
     private func endProcessingBgTask(_ taskID: UIBackgroundTaskIdentifier? = nil) {
         if let taskID = taskID, taskID != .invalid {
-            UIApplication.shared.endBackgroundTask(taskID)
+            Task { @MainActor in
+                UIApplication.shared.endBackgroundTask(taskID)
+            }
         }
     }
     
     private func endCloudSyncTask(_ taskID: UIBackgroundTaskIdentifier? = nil) {
         if let taskID = taskID, taskID != .invalid {
-            UIApplication.shared.endBackgroundTask(taskID)
+            Task { @MainActor in
+                UIApplication.shared.endBackgroundTask(taskID)
+            }
         }
     }
 }

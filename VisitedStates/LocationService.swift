@@ -82,7 +82,10 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
                 print("🔍 Started significant location changes")
             }
         case .notDetermined:
-            locationManager.requestWhenInUseAuthorization()
+            // Use dispatch queue to avoid blocking UI
+            DispatchQueue.global().async { [weak self] in
+                self?.locationManager.requestWhenInUseAuthorization()
+            }
         case .restricted, .denied:
             print("🔍 Location services are restricted or denied")
         @unknown default:
@@ -97,7 +100,10 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     }
     
     func requestWhenInUseAuthorization() {
-        locationManager.requestWhenInUseAuthorization()
+        // Use dispatch queue to avoid potential UI freeze
+        DispatchQueue.global().async { [weak self] in
+            self?.locationManager.requestWhenInUseAuthorization()
+        }
     }
     
     // MARK: - Private methods
@@ -108,7 +114,7 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
         locationManager.distanceFilter = standardDistanceFilter
         locationManager.pausesLocationUpdatesAutomatically = true
         locationManager.activityType = .other
-        // Add this to the end of configureLocationManager() in LocationService.swift
+        
         // This tells iOS to restart your app for location updates after reboot
         locationManager.startMonitoringSignificantLocationChanges()
         

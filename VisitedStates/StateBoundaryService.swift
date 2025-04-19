@@ -140,7 +140,7 @@ class StateBoundaryService: StateBoundaryServiceProtocol {
                                     stateName: stateName,
                                     polygon: polygon
                                 )
-                                quadTree.insert(item)
+                                _ = quadTree.insert(item)
                             }
                             
                             // Process border for this polygon
@@ -156,7 +156,7 @@ class StateBoundaryService: StateBoundaryServiceProtocol {
                                         stateName: stateName,
                                         polygon: polygon
                                     )
-                                    quadTree.insert(item)
+                                    _ = quadTree.insert(item)
                                 }
                             }
                         }

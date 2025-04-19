@@ -24,22 +24,22 @@ struct SettingsView: View {
                 // Preferences Section
                 Section(header: Text("Preferences")) {
                     Toggle("Enable Notifications", isOn: $notificationsEnabled)
-                        .onChange(of: notificationsEnabled) { newValue in
+                        .onChange(of: notificationsEnabled) { _, newValue in
                             dependencies.settingsService.notificationsEnabled.send(newValue)
                         }
                     
                     ColorPicker("State Fill Color", selection: $stateFillColor)
-                        .onChange(of: stateFillColor) { newValue in
+                        .onChange(of: stateFillColor) { _, newValue in
                             dependencies.settingsService.stateFillColor.send(newValue)
                         }
                     
                     ColorPicker("State Border Color", selection: $stateStrokeColor)
-                        .onChange(of: stateStrokeColor) { newValue in
+                        .onChange(of: stateStrokeColor) { _, newValue in
                             dependencies.settingsService.stateStrokeColor.send(newValue)
                         }
                     
                     ColorPicker("Background Color", selection: $backgroundColor)
-                        .onChange(of: backgroundColor) { newValue in
+                        .onChange(of: backgroundColor) { _, newValue in
                             dependencies.settingsService.backgroundColor.send(newValue)
                         }
                 }
@@ -115,12 +115,5 @@ struct SettingsView: View {
                 self.backgroundColor = color
             }
             .store(in: &cancellables)
-    }
-}
-
-struct SettingsView_Previews: PreviewProvider {
-    static var previews: some View {
-        SettingsView()
-            .environmentObject(AppDependencies.mock())
     }
 }
