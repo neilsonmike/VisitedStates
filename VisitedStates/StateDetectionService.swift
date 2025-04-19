@@ -73,17 +73,8 @@ class StateDetectionService: StateDetectionServiceProtocol {
             self?.endProcessingBgTask()
         }
         
-        // Skip if this is a duplicate or very close to previously processed location
-        // Uncomment for production - useful during testing to process all locations
-        /*
-        if let lastLocation = self.lastProcessedLocation,
-           location.distance(from: lastLocation) < self.minimumDistanceForNewDetection {
-            // Only process locations that are at least 50m apart to reduce processing load
-            print("⏭️ Skipping location - too close to previous (\(location.distance(from: lastLocation))m)")
-            endProcessingBgTask(bgTask)
-            return
-        }
-        */
+        // For significant location changes in background, we want to process all of them
+        // So we'll skip the distance check that was previously used
         
         // Update last processed location
         self.lastProcessedLocation = location
@@ -108,8 +99,7 @@ class StateDetectionService: StateDetectionServiceProtocol {
                     print("✨ NEW STATE DETECTED: \(stateName) (previous: \(previousState ?? "none"))")
                     self.currentDetectedState.send(stateName)
                     
-                    // *** MOVED THIS SECTION UP - Only notify on state change ***
-                    // Always notify about state detection when the state changes
+                    // Only notify on state change
                     self.notifyStateChange(stateName)
                 }
                 

@@ -7,7 +7,6 @@ struct MapView: View {
     @EnvironmentObject var dependencies: AppDependencies
     
     // Local state
-    @State private var showAlwaysAlert = false
     @State private var visitedStates: [String] = []
     @State private var stateFillColor: Color = .red
     @State private var stateStrokeColor: Color = .white
@@ -139,22 +138,9 @@ struct MapView: View {
         }
         .onAppear {
             setupSubscriptions()
-            checkAlwaysAuthorization()
         }
         .onDisappear {
             cancellables.removeAll()
-        }
-        .alert(isPresented: $showAlwaysAlert) {
-            Alert(
-                title: Text("Location Permission Required"),
-                message: Text("For full app functionality, please change your location setting to 'Always Allow'."),
-                primaryButton: .default(Text("Settings"), action: {
-                    if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(settingsURL, options: [:], completionHandler: nil)
-                    }
-                }),
-                secondaryButton: .cancel(Text("Not Now"))
-            )
         }
     }
     
@@ -184,16 +170,6 @@ struct MapView: View {
                 self.backgroundColor = color
             }
             .store(in: &cancellables)
-    }
-    
-    private func checkAlwaysAuthorization() {
-        let status = dependencies.locationService.authorizationStatus.value
-        if status == .authorizedWhenInUse {
-            // Delay briefly if needed
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                showAlwaysAlert = true
-            }
-        }
     }
     
     @MainActor

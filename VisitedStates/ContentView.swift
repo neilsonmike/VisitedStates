@@ -11,7 +11,6 @@ struct ContentView: View {
     @State private var showingSettings = false
     @State private var showShareSheet = false
     @State private var shareItems: [Any] = []
-    @State private var showAlwaysAlert = false
     @AppStorage("hasShownAlwaysAlert") private var hasShownAlwaysAlert = false
     @State private var cancellables = Set<AnyCancellable>()
     @State private var visitedStates: [String] = []
@@ -78,7 +77,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            checkAlwaysAuthorization()
+            checkLocationPermission()
             setupSubscriptions()
             // Start location tracking and state detection
             dependencies.stateDetectionService.startStateDetection()
@@ -97,19 +96,6 @@ struct ContentView: View {
             shareImageReady = false
         }) {
             ShareSheet(activityItems: shareItems)
-        }
-        .alert(isPresented: $showAlwaysAlert) {
-            Alert(
-                title: Text("Location Permission Required"),
-                message: Text("For automatic tracking of states you've visited, please consider setting location permission to 'Always Allow' in the Settings app. You can also manually select states without enabling location."),
-                primaryButton: .default(Text("Open Settings"), action: {
-                    if let settingsUrl = URL(string: UIApplication.openSettingsURLString),
-                       UIApplication.shared.canOpenURL(settingsUrl) {
-                        UIApplication.shared.open(settingsUrl)
-                    }
-                }),
-                secondaryButton: .cancel(Text("Cancel"))
-            )
         }
     }
     
@@ -146,12 +132,6 @@ struct ContentView: View {
         
         // Render the map view first, then show the share sheet when ready
         DispatchQueue.main.async {
-            // Get the current UIWindow
-            guard let window = UIApplication.shared.windows.first else {
-                self.isSharePreparing = false
-                return
-            }
-            
             // Create renderer for MapView
             let renderer = ImageRenderer(content:
                 MapView()
@@ -184,44 +164,12 @@ struct ContentView: View {
         }
     }
     
-    private func renderMapForSharing(shareText: String) {
-        guard showShareSheet else { return }  // If sheet was dismissed, don't continue
-        
-        // Take a screenshot of the current UI
-        if let window = UIApplication.shared.windows.first {
-            UIGraphicsBeginImageContextWithOptions(window.frame.size, false, UIScreen.main.scale)
-            window.drawHierarchy(in: window.frame, afterScreenUpdates: true)
-            
-            if let screenshot = UIGraphicsGetImageFromCurrentImageContext() {
-                UIGraphicsEndImageContext()
-                
-                // Update share items with the actual screenshot
-                shareItems = [screenshot, shareText]
-                shareImageReady = true
-            } else {
-                UIGraphicsEndImageContext()
-            }
+    private func checkLocationPermission() {
+        let status = dependencies.locationService.authorizationStatus.value
+        if status == .denied || status == .restricted {
+            // You could show an alert explaining that location is needed
+            // for state detection but not required for manual selection
         }
-        
-        // Done preparing
-        isSharePreparing = false
-    }
-    
-    private func checkAlwaysAuthorization() {
-        // Instead of checking synchronously, use the publisher
-        dependencies.locationService.authorizationStatus
-            .filter { $0 == .authorizedWhenInUse }
-            .first()
-            .sink { _ in
-                guard !self.hasShownAlwaysAlert else { return }
-                
-                // Delay a little if needed so that the splash screen is finished
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.showAlwaysAlert = true
-                    self.hasShownAlwaysAlert = true
-                }
-            }
-            .store(in: &cancellables)
     }
 }
 

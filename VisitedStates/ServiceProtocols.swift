@@ -4,6 +4,7 @@ import Combine
 import SwiftUI
 import MapKit
 
+
 // MARK: - Location Service Protocol
 
 protocol LocationServiceProtocol: AnyObject {
@@ -19,8 +20,8 @@ protocol LocationServiceProtocol: AnyObject {
     /// Stop location updates
     func stopLocationUpdates()
     
-    /// Request "Always" authorization
-    func requestAlwaysAuthorization()
+    /// Request "When In Use" authorization
+    func requestWhenInUseAuthorization()
     
     /// Check if location services are enabled
     var isLocationServicesEnabled: Bool { get }
@@ -154,8 +155,9 @@ class MockLocationService: LocationServiceProtocol {
         // No-op in mock
     }
     
-    func requestAlwaysAuthorization() {
-        authorizationStatus.send(.authorizedAlways)
+    // Change this method from requestAlwaysAuthorization to requestWhenInUseAuthorization
+    func requestWhenInUseAuthorization() {
+        authorizationStatus.send(.authorizedWhenInUse)
     }
 }
 
