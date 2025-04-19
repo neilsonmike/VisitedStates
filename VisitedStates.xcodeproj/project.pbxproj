@@ -32,6 +32,7 @@
 		42DD5A722DB296FA005AC7E8 /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DD5A712DB296F9005AC7E8 /* CloudSyncService.swift */; };
 		42DD5A742DB29704005AC7E8 /* SettingsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DD5A732DB29703005AC7E8 /* SettingsService.swift */; };
 		42DD5A762DB29710005AC7E8 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DD5A752DB2970F005AC7E8 /* NotificationService.swift */; };
+		42DD5A782DB33488005AC7E8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DD5A772DB33485005AC7E8 /* AppDelegate.swift */; };
 		42EECD8E2DB048BD005018EA /* LaunchScreen.png in Resources */ = {isa = PBXBuildFile; fileRef = 42EECD8D2DB048BD005018EA /* LaunchScreen.png */; };
 		42F0FE932DAC995D00D9963B /* StoreKitConfig.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */; };
 		42F0FE952DAF0A0400D9963B /* Constraints.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F0FE942DAF0A0000D9963B /* Constraints.swift */; };
@@ -70,6 +71,7 @@
 		42DD5A712DB296F9005AC7E8 /* CloudSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncService.swift; sourceTree = "<group>"; };
 		42DD5A732DB29703005AC7E8 /* SettingsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsService.swift; sourceTree = "<group>"; };
 		42DD5A752DB2970F005AC7E8 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		42DD5A772DB33485005AC7E8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		42EECD8D2DB048BD005018EA /* LaunchScreen.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = LaunchScreen.png; sourceTree = "<group>"; };
 		42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = StoreKitConfig.storekit; sourceTree = "<group>"; };
 		42F0FE942DAF0A0000D9963B /* Constraints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constraints.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				42DD5A672DB2968F005AC7E8 /* AppDependencies.swift */,
 				42DD5A692DB296AF005AC7E8 /* ServiceProtocols.swift */,
 				42DD5A6B2DB296CB005AC7E8 /* LocationService.swift */,
+				42DD5A772DB33485005AC7E8 /* AppDelegate.swift */,
 				42DD5A6D2DB296DF005AC7E8 /* StateDetectionService.swift */,
 				42DD5A6F2DB296EB005AC7E8 /* StateBoundaryService.swift */,
 				42DD5A712DB296F9005AC7E8 /* CloudSyncService.swift */,
@@ -275,6 +278,7 @@
 				42DD5A742DB29704005AC7E8 /* SettingsService.swift in Sources */,
 				42DD5A762DB29710005AC7E8 /* NotificationService.swift in Sources */,
 				42B9C8052D8000BB0012B018 /* USStates.swift in Sources */,
+				42DD5A782DB33488005AC7E8 /* AppDelegate.swift in Sources */,
 				42DD5A6C2DB296CE005AC7E8 /* LocationService.swift in Sources */,
 				423B20732C0BAE9100EE7FEF /* VisitedStates.xcdatamodeld in Sources */,
 			);

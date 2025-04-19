@@ -108,6 +108,9 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
         locationManager.distanceFilter = standardDistanceFilter
         locationManager.pausesLocationUpdatesAutomatically = true
         locationManager.activityType = .other
+        // Add this to the end of configureLocationManager() in LocationService.swift
+        // This tells iOS to restart your app for location updates after reboot
+        locationManager.startMonitoringSignificantLocationChanges()
         
         print("🔧 Configured location manager with standard settings")
     }
