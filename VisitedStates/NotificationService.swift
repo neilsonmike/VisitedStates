@@ -88,7 +88,12 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         setupNetworkMonitoring()
         
         userNotificationCenter.delegate = self
-        checkNotificationAuthorization()
+        
+        // Reset last notified state on app launch (optional - can remove if not desired)
+        // self.lastNotifiedState = nil
+        
+        // Always request notification permissions on service initialization
+        requestNotificationPermissions()
         
         // Preload factoids for offline use
         preloadFactoids()
@@ -111,7 +116,12 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     // MARK: - NotificationServiceProtocol
     
     func requestNotificationPermissions() {
-        userNotificationCenter.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, error in
+        print("🔔 Requesting notification permissions...")
+        
+        // Important: Use ALL notification options for better visibility
+        let options: UNAuthorizationOptions = [.alert, .sound, .badge, .provisional]
+        
+        userNotificationCenter.requestAuthorization(options: options) { [weak self] granted, error in
             guard let self = self else { return }
             
             if let error = error {
@@ -123,6 +133,9 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 self.isNotificationsAuthorized.send(granted)
                 
                 if granted {
+                    // Register for remote notifications if permissions granted
+                    self.registerForRemoteNotifications()
+                    
                     // If permissions were just granted, preload factoids
                     self.preloadFactoids()
                     print("✅ Notification permission granted")
@@ -130,10 +143,12 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                     print("⚠️ Notification permission denied")
                 }
             }
+            
+            // Check the current settings
+            self.checkNotificationAuthorization()
         }
     }
     
-
     func handleDetectedState(_ state: String) {
         print("🔔 Handling detection of state: \(state)")
         
@@ -235,11 +250,11 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        // Present notifications even when app is in foreground
+        // Present notifications even when app is in foreground with FULL presentation options
         if #available(iOS 14.0, *) {
-            completionHandler([.banner, .sound])
+            completionHandler([.banner, .sound, .badge, .list])
         } else {
-            completionHandler([.alert, .sound])
+            completionHandler([.alert, .sound, .badge])
         }
     }
     
@@ -253,6 +268,14 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     }
     
     // MARK: - Private methods
+    
+    private func registerForRemoteNotifications() {
+        DispatchQueue.main.async {
+            // Register for remote notifications to ensure APNs registration
+            UIApplication.shared.registerForRemoteNotifications()
+            print("🔔 Registered for remote notifications")
+        }
+    }
     
     // DEBUG: Set up network monitoring
     private func setupNetworkMonitoring() {
@@ -271,10 +294,12 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     
     private func checkNotificationAuthorization() {
         userNotificationCenter.getNotificationSettings { [weak self] settings in
-            let isAuthorized = settings.authorizationStatus == .authorized
+            let isAuthorized = settings.authorizationStatus == .authorized ||
+                               settings.authorizationStatus == .provisional
             DispatchQueue.main.async {
                 self?.isNotificationsAuthorized.send(isAuthorized)
                 print("🔔 Notification authorization status: \(isAuthorized)")
+                print("🔔 Notification settings: \(settings)")
             }
         }
     }
@@ -291,7 +316,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
             identifier: "STATE_ENTRY",
             actions: [viewMapAction],
             intentIdentifiers: [],
-            options: []
+            options: [.customDismissAction]  // Added custom dismiss action
         )
         
         // Register the category
@@ -331,6 +356,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         content.title = "Welcome to \(state)!"
         content.body = fact
         content.sound = UNNotificationSound.default
+        //content.badge = 1  // Set badge count
         
         // Add time-sensitive notification settings for better background delivery
         if #available(iOS 15.0, *) {
@@ -340,6 +366,9 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         
         // Add the state as a category identifier for potential actions
         content.categoryIdentifier = "STATE_ENTRY"
+        
+        // Add custom data for handling
+        content.userInfo = ["state": state]
         
         // Use a time interval trigger with increased delay for better background delivery
         let trigger = UNTimeIntervalNotificationTrigger(

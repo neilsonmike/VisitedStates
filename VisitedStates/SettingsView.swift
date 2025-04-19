@@ -8,6 +8,7 @@ struct SettingsView: View {
     
     // Environment values
     @Environment(\.presentationMode) var presentationMode
+    @Environment(\.scenePhase) var scenePhase
     
     // Local state
     @State private var showingSchemaAlert: Bool = false
@@ -20,16 +21,38 @@ struct SettingsView: View {
     @State private var backgroundColor: Color = .white
     @State private var cancellables = Set<AnyCancellable>()
     @State private var locationStatus: CLAuthorizationStatus = .notDetermined
+    @State private var systemNotificationsAuthorized = false
+    @State private var showNotificationSettingsAlert = false
     
     var body: some View {
         NavigationView {
             Form {
-                // Preferences Section
-                Section(header: Text("Preferences")) {
-                    Toggle("Enable Notifications", isOn: $notificationsEnabled)
-                        .onChange(of: notificationsEnabled) { _, newValue in
-                            dependencies.settingsService.notificationsEnabled.send(newValue)
+                // Notifications Section - Now as the first section
+                Section(header: Text("Notifications")) {
+                    // Notification toggle with warning
+                    VStack(alignment: .leading, spacing: 4) {
+                        Toggle("Enable Notifications", isOn: $notificationsEnabled)
+                            .onChange(of: notificationsEnabled) { _, newValue in
+                                dependencies.settingsService.notificationsEnabled.send(newValue)
+                                
+                                // Check for discrepancy with system settings
+                                if newValue && !systemNotificationsAuthorized {
+                                    showNotificationSettingsAlert = true
+                                }
+                            }
+                        
+                        // Warning indicator when there's a discrepancy
+                        if notificationsEnabled && !systemNotificationsAuthorized {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text("System notifications are disabled")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                            }
+                            .padding(.top, 2)
                         }
+                    }
                     
                     if notificationsEnabled {
                         VStack(alignment: .leading) {
@@ -47,8 +70,18 @@ struct SettingsView: View {
                                 .padding(.top, 2)
                                 .padding(.leading, 4)
                         }
+                        
+                        // Link to system notification settings at the bottom of this section
+                        Button("Open System Notification Settings") {
+                            openNotificationSettings()
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.top, 8)
                     }
-                    
+                }
+                
+                // Customizations Section
+                Section(header: Text("Customizations")) {
                     ColorPicker("State Fill Color", selection: $stateFillColor)
                         .onChange(of: stateFillColor) { _, newValue in
                             dependencies.settingsService.stateFillColor.send(newValue)
@@ -63,22 +96,12 @@ struct SettingsView: View {
                         .onChange(of: backgroundColor) { _, newValue in
                             dependencies.settingsService.backgroundColor.send(newValue)
                         }
-                }
-                
-                // Restore Defaults Section (affects only colors)
-                Section {
+                    
+                    // Restore Defaults button as part of the Customizations section
                     Button("Restore Defaults") {
                         showRestoreAlert = true
                     }
                     .foregroundColor(.red)
-                    .alert("Restore Defaults", isPresented: $showRestoreAlert) {
-                        Button("Cancel", role: .cancel) { }
-                        Button("Restore", role: .destructive) {
-                            dependencies.settingsService.restoreDefaults()
-                        }
-                    } message: {
-                        Text("Are you sure you want to restore the default color selections?")
-                    }
                 }
                 
                 // Location Privacy Section
@@ -123,10 +146,38 @@ struct SettingsView: View {
                 EditStatesView()
                     .environmentObject(dependencies)
             }
+            .alert("Notification Settings", isPresented: $showNotificationSettingsAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Open Settings") {
+                    openNotificationSettings()
+                }
+            } message: {
+                Text("Notifications are enabled in the app but disabled in your device settings. Would you like to update your iOS notification settings?")
+            }
+            .alert("Restore Defaults", isPresented: $showRestoreAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Restore", role: .destructive) {
+                    dependencies.settingsService.restoreDefaults()
+                }
+            } message: {
+                Text("Are you sure you want to restore the default color selections?")
+            }
         }
         .onAppear {
             setupSubscriptions()
             updateLocationStatus()
+            checkNotificationStatus()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                // Refresh notification status whenever app becomes active again
+                checkNotificationStatus()
+                
+                // Also refresh location status
+                updateLocationStatus()
+                
+                print("🔄 App became active - refreshing permissions status")
+            }
         }
         .onDisappear {
             // When settings view is dismissed, trigger a sync
@@ -212,5 +263,34 @@ struct SettingsView: View {
                 self.locationStatus = status
             }
             .store(in: &cancellables)
+            
+        // Subscribe to notification authorization status
+        dependencies.notificationService.isNotificationsAuthorized
+            .sink { isAuthorized in
+                self.systemNotificationsAuthorized = isAuthorized
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func checkNotificationStatus() {
+        // Request the current notification status from the service
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                let isAuthorized = (settings.authorizationStatus == .authorized ||
+                                  settings.authorizationStatus == .provisional)
+                
+                print("🔔 Checking notification status: \(isAuthorized ? "Authorized" : "Not authorized")")
+                self.systemNotificationsAuthorized = isAuthorized
+                
+                // Also update the service's status
+                self.dependencies.notificationService.isNotificationsAuthorized.send(isAuthorized)
+            }
+        }
+    }
+    
+    private func openNotificationSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
     }
 }
