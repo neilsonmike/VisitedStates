@@ -144,23 +144,43 @@ struct ContentView: View {
         // Start preparing
         isSharePreparing = true
         
-        // Create share text
-        let stateCount = visitedStates
-            .filter { $0 != "District of Columbia" }
-            .count
-        let stateText = stateCount == 1 ? "state" : "states"
-        let shareText = "I have been to \(stateCount) \(stateText)! Track yours with the VisitedStates app! https://apps.apple.com/us/app/visitedstates/id6504059000"
-        
-        // Create a placeholder image to ensure the share sheet shows immediately
-        let placeholderImage = UIImage(systemName: "map.fill") ?? UIImage()
-        shareItems = [placeholderImage, shareText]
-        
-        // Show share sheet immediately with placeholder
-        showShareSheet = true
-        
-        // After a brief delay, attempt to render the map
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.renderMapForSharing(shareText: shareText)
+        // Render the map view first, then show the share sheet when ready
+        DispatchQueue.main.async {
+            // Get the current UIWindow
+            guard let window = UIApplication.shared.windows.first else {
+                self.isSharePreparing = false
+                return
+            }
+            
+            // Create renderer for MapView
+            let renderer = ImageRenderer(content:
+                MapView()
+                    .environmentObject(self.dependencies)
+                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+            )
+            
+            // Set scale to screen scale for proper resolution
+            renderer.scale = UIScreen.main.scale
+            
+            if let uiImage = renderer.uiImage {
+                // Create share text
+                let stateCount = self.visitedStates
+                    .filter { $0 != "District of Columbia" }
+                    .count
+                let stateText = stateCount == 1 ? "state" : "states"
+                let shareText = "I have been to \(stateCount) \(stateText)! Track yours with the VisitedStates app! https://apps.apple.com/us/app/visitedstates/id6504059000"
+                
+                // Set share items
+                self.shareItems = [uiImage, shareText]
+                
+                // Now show the share sheet with the prepared content
+                self.isSharePreparing = false
+                self.showShareSheet = true
+            } else {
+                // Fallback if image rendering fails
+                print("Failed to render map image")
+                self.isSharePreparing = false
+            }
         }
     }
     
