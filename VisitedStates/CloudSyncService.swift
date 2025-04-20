@@ -748,7 +748,7 @@ class CloudSyncService: CloudSyncServiceProtocol {
             let existingStates = self.settings.getAllGPSVerifiedStates() + self.settings.getActiveGPSVerifiedStates()
             if !existingStates.contains(where: { $0.stateName == state }) {
                 // Only manually add if not already in enhanced model
-                let newState = VisitedState(
+                _ = VisitedState(
                     stateName: state,
                     visited: false,
                     edited: true,

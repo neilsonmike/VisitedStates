@@ -82,10 +82,10 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
                 print("🔍 Started significant location changes")
             }
         case .notDetermined:
-            // Use dispatch queue to avoid blocking UI
-            DispatchQueue.global().async { [weak self] in
-                self?.locationManager.requestWhenInUseAuthorization()
-            }
+            // FIXED: Do not directly request authorization
+            // We'll trigger the request through requestWhenInUseAuthorization()
+            // which now uses dispatch_async
+            requestWhenInUseAuthorization()
         case .restricted, .denied:
             print("🔍 Location services are restricted or denied")
         @unknown default:
@@ -100,7 +100,7 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     }
     
     func requestWhenInUseAuthorization() {
-        // Use dispatch queue to avoid potential UI freeze
+        // FIXED: Always use dispatch_async to avoid blocking main thread
         DispatchQueue.global().async { [weak self] in
             self?.locationManager.requestWhenInUseAuthorization()
         }

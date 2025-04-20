@@ -99,7 +99,8 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         preloadFactoids()
         
         // Clear any existing badges
-        UIApplication.shared.applicationIconBadgeNumber = 0
+        // FIXED: Replace deprecated applicationIconBadgeNumber with UNUserNotificationCenter
+        clearBadgeCount()
         
         print("🔔 NotificationService initialized")
     }
@@ -135,7 +136,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                     }
                     
                     // Clear any badges
-                    UIApplication.shared.applicationIconBadgeNumber = 0
+                    self.clearBadgeCount()
                     
                     // This is the critical line that signals permission response
                     self.isNotificationsAuthorized.send(granted)
@@ -249,11 +250,41 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     ) {
         // Handle notification interactions here if needed
         // Clear badge when user interacts with notification
-        UIApplication.shared.applicationIconBadgeNumber = 0
+        clearBadgeCount()
         completionHandler()
     }
     
     // MARK: - Private methods
+    
+    // FIXED: Add a new method to handle badge count in a modern way
+    private func clearBadgeCount() {
+        if #available(iOS 17.0, *) {
+            // Use the new API for iOS 17+
+            userNotificationCenter.setBadgeCount(0) { error in
+                if let error = error {
+                    print("⚠️ Error clearing badge count: \(error.localizedDescription)")
+                }
+            }
+        } else {
+            // Fall back to the old method for earlier iOS versions
+            UIApplication.shared.applicationIconBadgeNumber = 0
+        }
+    }
+    
+    // FIXED: Add a method to set badge count
+    private func setBadgeCount(_ count: Int) {
+        if #available(iOS 17.0, *) {
+            // Use the new API for iOS 17+
+            userNotificationCenter.setBadgeCount(count) { error in
+                if let error = error {
+                    print("⚠️ Error setting badge count: \(error.localizedDescription)")
+                }
+            }
+        } else {
+            // Fall back to the old method for earlier iOS versions
+            UIApplication.shared.applicationIconBadgeNumber = count
+        }
+    }
     
     private func checkNotificationAuthorization() {
         userNotificationCenter.getNotificationSettings { [weak self] settings in
@@ -319,7 +350,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         content.body = fact
         content.sound = UNNotificationSound.default
         
-        // EXPLICITLY set badge to not increment
+        // FIXED: Set badge to 0 in notification content
         content.badge = 0
         
         // Add time-sensitive notification settings for better background delivery
