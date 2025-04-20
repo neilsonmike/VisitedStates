@@ -55,14 +55,33 @@ class CloudSyncService: CloudSyncServiceProtocol {
             self.syncStatus.send(.syncing)
             
             // Get the enhanced model data
-            let visitedStateModels = self.settings.getAllGPSVerifiedStates() +
-                                 self.settings.getActiveGPSVerifiedStates()
+            var visitedStateModels = self.settings.getAllGPSVerifiedStates()
+            
+            // Add active GPS verified states, avoiding duplicates
+            for state in self.settings.getActiveGPSVerifiedStates() {
+                if !visitedStateModels.contains(where: { $0.stateName == state.stateName }) {
+                    visitedStateModels.append(state)
+                }
+            }
+            
+            // Deduplicate by creating a dictionary keyed by state name
+            var stateDict: [String: VisitedState] = [:]
+            for state in visitedStateModels {
+                stateDict[state.stateName] = state
+            }
+            
+            // Convert back to array
+            let deduplicatedStates = Array(stateDict.values)
+            
+            // Get badges
             let badges = self.settings.getEarnedBadges()
             
-            print("📤 Syncing to cloud - Enhanced states: \(visitedStateModels.count), Legacy states: \(states.count), Badges: \(badges.count)")
+            print("📤 Syncing to cloud - Enhanced states: \(deduplicatedStates.count), Legacy states: \(states.count), Badges: \(badges.count)")
+            print("📤 Enhanced states to sync: \(deduplicatedStates.map { $0.stateName }.joined(separator: ", "))")
+            print("📤 Legacy states to sync: \(states.joined(separator: ", "))")
             
             // First sync the enhanced model
-            self.syncEnhancedModelToCloud(visitedStateModels, badges) { enhancedResult in
+            self.syncEnhancedModelToCloud(deduplicatedStates, badges) { enhancedResult in
                 // Then sync the legacy format for backward compatibility
                 self.syncLegacyFormatToCloud(states) { legacyResult in
                     self.isSyncing = false
@@ -142,8 +161,19 @@ class CloudSyncService: CloudSyncServiceProtocol {
                 // Handle enhanced model result
                 if case let .success((visitedStates, badges)) = enhancedModelResult {
                     print("✅ Successfully fetched enhanced model: \(visitedStates.count) states, \(badges.count) badges")
-                    self.processEnhancedModelData(visitedStates, badges)
-                    enhancedStateNames = visitedStates.filter { $0.isActive }.map { $0.stateName }
+                    
+                    // Deduplicate states by state name
+                    var stateDict: [String: VisitedState] = [:]
+                    for state in visitedStates {
+                        stateDict[state.stateName] = state
+                    }
+                    let deduplicatedStates = Array(stateDict.values)
+                    
+                    print("📥 After deduplication: \(deduplicatedStates.count) states")
+                    print("📥 States from enhanced model: \(deduplicatedStates.map { $0.stateName }.joined(separator: ", "))")
+                    
+                    self.processEnhancedModelData(deduplicatedStates, badges)
+                    enhancedStateNames = deduplicatedStates.filter { $0.isActive }.map { $0.stateName }
                 } else if case let .failure(error) = enhancedModelResult {
                     print("⚠️ Enhanced model fetch failed: \(error.localizedDescription)")
                 }
@@ -151,6 +181,7 @@ class CloudSyncService: CloudSyncServiceProtocol {
                 // Handle legacy format result
                 if case let .success(stateNames) = legacyFormatResult {
                     print("✅ Successfully fetched legacy format: \(stateNames.count) states")
+                    print("📥 States from legacy format: \(stateNames.joined(separator: ", "))")
                     self.processLegacyStateNames(stateNames)
                     legacyStateNames = stateNames
                 } else if case let .failure(error) = legacyFormatResult {
@@ -397,7 +428,25 @@ class CloudSyncService: CloudSyncServiceProtocol {
             do {
                 let states = try JSONDecoder().decode([VisitedState].self, from: data)
                 print("📥 Successfully decoded \(states.count) states from CloudKit")
-                completion(.success(states))
+                
+                // Check for duplicates
+                let stateNames = states.map { $0.stateName }
+                let uniqueStateNames = Set(stateNames)
+                if stateNames.count != uniqueStateNames.count {
+                    print("⚠️ Found duplicate states in CloudKit data: \(stateNames.count) total states, \(uniqueStateNames.count) unique states")
+                    
+                    // Deduplicate
+                    var stateDict: [String: VisitedState] = [:]
+                    for state in states {
+                        stateDict[state.stateName] = state
+                    }
+                    let deduplicatedStates = Array(stateDict.values)
+                    print("📥 Deduplicated to \(deduplicatedStates.count) states")
+                    
+                    completion(.success(deduplicatedStates))
+                } else {
+                    completion(.success(states))
+                }
             } catch {
                 print("⚠️ Error decoding states JSON: \(error.localizedDescription)")
                 completion(.failure(error))
@@ -466,8 +515,22 @@ class CloudSyncService: CloudSyncServiceProtocol {
             let serverStates = try JSONDecoder().decode([VisitedState].self, from: serverData)
             let localStates = try JSONDecoder().decode([VisitedState].self, from: localData)
             
+            // Deduplicate server states
+            var serverStateDict: [String: VisitedState] = [:]
+            for state in serverStates {
+                serverStateDict[state.stateName] = state
+            }
+            let deduplicatedServerStates = Array(serverStateDict.values)
+            
+            // Deduplicate local states
+            var localStateDict: [String: VisitedState] = [:]
+            for state in localStates {
+                localStateDict[state.stateName] = state
+            }
+            let deduplicatedLocalStates = Array(localStateDict.values)
+            
             // Merge server and local data
-            let mergedStates = mergeVisitedStates(local: localStates, cloud: serverStates)
+            let mergedStates = mergeVisitedStates(local: deduplicatedLocalStates, cloud: deduplicatedServerStates)
             
             // Encode the merged data
             let mergedData = try JSONEncoder().encode(mergedStates)
