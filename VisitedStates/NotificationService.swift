@@ -89,24 +89,19 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         
         userNotificationCenter.delegate = self
         
-        // Reset last notified state on app launch (optional - can remove if not desired)
-        // self.lastNotifiedState = nil
-        
-        // Always request notification permissions on service initialization
-        requestNotificationPermissions()
-        
-        // Preload factoids for offline use
-        preloadFactoids()
+        // Check the current notification authorization status
+        checkNotificationAuthorization()
         
         // Register notification categories and actions
         registerNotificationCategories()
         
-        print("🔔 NotificationService initialized")
+        // Preload factoids for offline use
+        preloadFactoids()
         
-        // DEBUG: Log cached factoid stats
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            self?.logCachedFactoidStats()
-        }
+        // Clear any existing badges
+        UIApplication.shared.applicationIconBadgeNumber = 0
+        
+        print("🔔 NotificationService initialized")
     }
     
     deinit {
@@ -116,36 +111,36 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     // MARK: - NotificationServiceProtocol
     
     func requestNotificationPermissions() {
-        print("🔔 Requesting notification permissions...")
+        print("🔔 EXPLICITLY requesting notification permissions...")
         
-        // Important: Use ALL notification options for better visibility
-        let options: UNAuthorizationOptions = [.alert, .sound, .badge, .provisional]
+        // Important: Use standard notification options, but REMOVE badge option
+        let options: UNAuthorizationOptions = [.alert, .sound]
         
-        userNotificationCenter.requestAuthorization(options: options) { [weak self] granted, error in
-            guard let self = self else { return }
-            
-            if let error = error {
-                print("⚠️ Notification permission error: \(error.localizedDescription)")
-            }
-            
-            // Update authorization status
-            DispatchQueue.main.async {
-                self.isNotificationsAuthorized.send(granted)
+        // Use the main thread for the permission request
+        DispatchQueue.main.async {
+            self.userNotificationCenter.requestAuthorization(options: options) { [weak self] granted, error in
+                guard let self = self else { return }
                 
-                if granted {
-                    // Register for remote notifications if permissions granted
-                    self.registerForRemoteNotifications()
+                if let error = error {
+                    print("⚠️ Notification permission error: \(error.localizedDescription)")
+                }
+                
+                // Update authorization status - this triggers the Combine publisher
+                // which the app uses to sequence the next permission request
+                DispatchQueue.main.async {
+                    if granted {
+                        print("✅ Notification permission GRANTED")
+                    } else {
+                        print("⚠️ Notification permission DENIED")
+                    }
                     
-                    // If permissions were just granted, preload factoids
-                    self.preloadFactoids()
-                    print("✅ Notification permission granted")
-                } else {
-                    print("⚠️ Notification permission denied")
+                    // Clear any badges
+                    UIApplication.shared.applicationIconBadgeNumber = 0
+                    
+                    // This is the critical line that signals permission response
+                    self.isNotificationsAuthorized.send(granted)
                 }
             }
-            
-            // Check the current settings
-            self.checkNotificationAuthorization()
         }
     }
     
@@ -210,10 +205,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         
         print("🔔 Starting notification process for \(state)")
         
-        // DEBUG: Log network status before fetch
-        print("🌐 Network status before fetch: \(isNetworkAvailable ? "Available" : "Unavailable")")
-        print("🌐 Additional connection check: \(checkInternetConnection() ? "Connected" : "Disconnected")")
-        
         // Fetch factoid with priority on CloudKit and fall back to cache
         fetchFactoidWithPriority(for: state) { [weak self] factoid in
             guard let self = self else {
@@ -224,10 +215,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
             // Use the factoid or a default welcome message
             let factText = factoid ?? "Welcome to \(state)!"
             
-            // DEBUG: Log the factoid content to help identify source
-            print("📊 Factoid selected: \"\(factText)\"")
-            print("📊 Factoid source stats: \(self.factoidSourceStats)")
-            
             // Schedule notification with time delay for better background delivery
             self.sendEnhancedNotification(for: state, fact: factText)
             
@@ -237,9 +224,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
             // Update the persistent last notified state
             self.lastNotifiedState = state
             print("🔔 Updated persistent last notified state to: \(state)")
-            
-            // Keep the background task running until notification is scheduled
-            // The notification completion handler will end it
         }
     }
     
@@ -250,11 +234,11 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        // Present notifications even when app is in foreground with FULL presentation options
+        // Present notifications even when app is in foreground but DO NOT include badge
         if #available(iOS 14.0, *) {
-            completionHandler([.banner, .sound, .badge, .list])
+            completionHandler([.banner, .sound, .list])
         } else {
-            completionHandler([.alert, .sound, .badge])
+            completionHandler([.alert, .sound])
         }
     }
     
@@ -264,33 +248,12 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         // Handle notification interactions here if needed
+        // Clear badge when user interacts with notification
+        UIApplication.shared.applicationIconBadgeNumber = 0
         completionHandler()
     }
     
     // MARK: - Private methods
-    
-    private func registerForRemoteNotifications() {
-        DispatchQueue.main.async {
-            // Register for remote notifications to ensure APNs registration
-            UIApplication.shared.registerForRemoteNotifications()
-            print("🔔 Registered for remote notifications")
-        }
-    }
-    
-    // DEBUG: Set up network monitoring
-    private func setupNetworkMonitoring() {
-        networkMonitor = NWPathMonitor()
-        networkMonitor?.pathUpdateHandler = { [weak self] path in
-            DispatchQueue.main.async {
-                self?.isNetworkAvailable = path.status == .satisfied
-                print("🌐 Network status changed: \(path.status == .satisfied ? "Connected" : "Disconnected")")
-                print("🌐 Connection details: \(path.debugDescription)")
-            }
-        }
-        
-        let queue = DispatchQueue(label: "NetworkMonitor")
-        networkMonitor?.start(queue: queue)
-    }
     
     private func checkNotificationAuthorization() {
         userNotificationCenter.getNotificationSettings { [weak self] settings in
@@ -298,8 +261,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                                settings.authorizationStatus == .provisional
             DispatchQueue.main.async {
                 self?.isNotificationsAuthorized.send(isAuthorized)
-                print("🔔 Notification authorization status: \(isAuthorized)")
-                print("🔔 Notification settings: \(settings)")
+                print("🔔 Initial notification authorization status: \(isAuthorized)")
             }
         }
     }
@@ -356,7 +318,9 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         content.title = "Welcome to \(state)!"
         content.body = fact
         content.sound = UNNotificationSound.default
-        //content.badge = 1  // Set badge count
+        
+        // EXPLICITLY set badge to not increment
+        content.badge = 0
         
         // Add time-sensitive notification settings for better background delivery
         if #available(iOS 15.0, *) {
@@ -419,7 +383,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         isPreloadingFactoids = true
         
         print("🔍 Preloading state factoids for all states...")
-        print("🌐 Network status before preload: \(isNetworkAvailable ? "Available" : "Unavailable")")
         
         // Create query for all factoids
         let query = CKQuery(recordType: "StateFactoids", predicate: NSPredicate(value: true))
@@ -461,13 +424,8 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 self.saveCachedFactoids()
                 self.lastFactoidFetchTime = Date()
                 
-                // DEBUG: Log factoid details
-                self.logCachedFactoidStats()
-                
             case .failure(let error):
                 print("⚠️ Error preloading factoids: \(error.localizedDescription)")
-                print("⚠️ CloudKit error details: \(String(describing: error))")
-                print("⚠️ Network status during error: \(self.isNetworkAvailable ? "Available" : "Unavailable")")
                 
                 // Load from UserDefaults as fallback
                 self.loadCachedFactoids()
@@ -476,39 +434,10 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
             self.isPreloadingFactoids = false
         }
         
-        // DEBUG: Log operation details
-        print("☁️ Creating CloudKit operation: \(operation)")
-        
         publicDatabase.add(operation)
         
         // Immediately load cached factoids while waiting for fresh data
         loadCachedFactoids()
-    }
-    
-    // DEBUG: Log statistics about cached factoids
-    private func logCachedFactoidStats() {
-        print("📊 FACTOID CACHE STATS:")
-        print("📊 Total states with cached factoids: \(cachedFactoids.count)")
-        
-        var totalFactoids = 0
-        var statesWithFactoids: [String] = []
-        
-        for (state, facts) in cachedFactoids {
-            totalFactoids += facts.count
-            print("📊 State \"\(state)\" has \(facts.count) factoids")
-            if facts.count > 0 {
-                statesWithFactoids.append(state)
-            }
-        }
-        
-        print("📊 Total factoids cached: \(totalFactoids)")
-        print("📊 States with factoids: \(statesWithFactoids.joined(separator: ", "))")
-        
-        if let lastFetch = lastFactoidFetchTime {
-            print("📊 Last factoid fetch time: \(lastFetch)")
-        } else {
-            print("📊 No previous factoid fetch recorded")
-        }
     }
     
     private func saveCachedFactoids() {
@@ -540,13 +469,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 }
             }
             print("📖 Loaded \(loadedFactoids.count) state factoid categories from UserDefaults")
-            
-            // DEBUG: Log what we loaded
-            for (state, facts) in loadedFactoids {
-                if !facts.isEmpty {
-                    print("📖 Loaded \(facts.count) factoids for \(state)")
-                }
-            }
         }
     }
     
@@ -556,11 +478,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         
         // 1. First check if internet is available
         let isOnline = checkInternetConnection()
-        print("🌐 Internet connection check: \(isOnline ? "Connected" : "Disconnected")")
-        print("🌐 Network monitor says: \(isNetworkAvailable ? "Available" : "Unavailable")")
-        
-        // DEBUG: Log CloudKit container status
-        checkCloudKitStatus()
         
         // 2. If online, try CloudKit first, fall back to cache if needed
         //    If offline, use cache directly
@@ -591,6 +508,31 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         }
     }
     
+    // Helper to check internet connection
+    private func checkInternetConnection() -> Bool {
+        // Use network path monitor
+        if isNetworkAvailable {
+            return true
+        }
+        
+        // Secondary method - check reachability to CloudKit
+        let semaphore = DispatchSemaphore(value: 0)
+        var isOnline = false
+        
+        cloudContainer.accountStatus { (accountStatus, error) in
+            // If we can get the account status, we're likely online
+            if error == nil {
+                isOnline = true
+            }
+            semaphore.signal()
+        }
+        
+        // Wait up to 1 second for the check
+        _ = semaphore.wait(timeout: .now() + 1.0)
+        
+        return isOnline
+    }
+    
     // DEBUG: Check CloudKit container status
     private func checkCloudKitStatus() {
         cloudContainer.accountStatus { status, error in
@@ -614,35 +556,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 print("☁️ CloudKit container error: \(error.localizedDescription)")
             }
         }
-        
-        // Check container configuration
-        print("☁️ CloudKit container ID: \(String(describing: cloudContainer.containerIdentifier))")
-        print("☁️ Using public database: \(publicDatabase)")
-    }
-    
-    // Helper to check internet connection
-    private func checkInternetConnection() -> Bool {
-        // Use both methods - network path monitor and CloudKit status
-        if isNetworkAvailable {
-            return true
-        }
-        
-        // Secondary method - check reachability to CloudKit
-        let semaphore = DispatchSemaphore(value: 0)
-        var isOnline = false
-        
-        cloudContainer.accountStatus { (accountStatus, error) in
-            // If we can get the account status, we're likely online
-            if error == nil {
-                isOnline = true
-            }
-            semaphore.signal()
-        }
-        
-        // Wait up to 1 second for the check
-        _ = semaphore.wait(timeout: .now() + 1.0)
-        
-        return isOnline
     }
     
     // Fetch factoid from CloudKit with timeout
@@ -654,10 +567,8 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         
         factoidFetchTasks[state] = taskId
         
-        // DEBUG: Extended timeout for testing
-        let timeoutDuration: TimeInterval = 5.0 // 5 seconds instead of 3
-        
         // Setup timeout - if fetch takes too long, fall back to cache
+        let timeoutDuration: TimeInterval = 5.0
         let timeoutWorkItem = DispatchWorkItem { [weak self] in
             print("⏰ CloudKit fetch timed out after \(timeoutDuration) seconds")
             self?.endFactoidFetchTask(for: state)
@@ -671,21 +582,16 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         let predicate = NSPredicate(format: "state IN %@", [state, "Generic"])
         let query = CKQuery(recordType: "StateFactoids", predicate: predicate)
         
-        // DEBUG: Log query details
-        print("☁️ CloudKit query: \(query)")
-        print("☁️ CloudKit predicate: \(predicate)")
-        
         let operation = CKQueryOperation(query: query)
         var fetchedRecords = [CKRecord]()
         
         operation.recordMatchedBlock = { (_, result) in
             switch result {
             case .success(let record):
-                print("☁️ CloudKit found record: \(record.recordID.recordName)")
                 fetchedRecords.append(record)
-            case .failure(let error):
-                print("⚠️ CloudKit record fetch failed: \(error.localizedDescription)")
-                print("⚠️ CloudKit error details: \(String(describing: error))")
+            case .failure:
+                // Error handling in queryResultBlock
+                break
             }
         }
         
@@ -700,24 +606,16 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
             
             switch result {
             case .success:
-                print("☁️ CloudKit query completed successfully with \(fetchedRecords.count) records")
-                
                 // Group factoids by state
                 var stateFactoids: [String: [String]] = [:]
                 
                 for record in fetchedRecords {
                     if let state = record["state"] as? String,
                        let fact = record["fact"] as? String {
-                        // Fixed the optional string interpolation warning
-                        print("☁️ CloudKit record details - State: \(String(describing: state)), Fact: \"\(String(describing: fact))\"")
-                        
                         if stateFactoids[state] == nil {
                             stateFactoids[state] = []
                         }
                         stateFactoids[state]?.append(fact)
-                    } else {
-                        print("⚠️ CloudKit record missing state or fact fields: \(record)")
-                        print("⚠️ Record keys: \(record.allKeys().map { String(describing: $0) })")
                     }
                 }
                 
@@ -739,13 +637,9 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 if let stateSpecificFacts = stateFactoids[state], !stateSpecificFacts.isEmpty {
                     // Prefer state-specific factoids from CloudKit
                     selectedFactoid = stateSpecificFacts.randomElement()
-                    print("☁️ Using state-specific factoid from CloudKit for \(state)")
                 } else if let genericFacts = stateFactoids["Generic"], !genericFacts.isEmpty {
                     // Fall back to generic factoids from CloudKit
                     selectedFactoid = genericFacts.randomElement()
-                    print("☁️ Using generic factoid from CloudKit")
-                } else {
-                    print("⚠️ CloudKit query succeeded but returned no usable factoids")
                 }
                 
                 // End the background task
@@ -754,16 +648,12 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 // Return the selected factoid
                 completion(selectedFactoid)
                 
-            case .failure(let error):
-                print("⚠️ CloudKit query failed: \(error.localizedDescription)")
-                print("⚠️ CloudKit error details: \(String(describing: error))")
-                print("⚠️ Network status during error: \(self.isNetworkAvailable ? "Available" : "Unavailable")")
+            case .failure:
                 self.endFactoidFetchTask(for: state)
                 completion(nil)
             }
         }
         
-        print("☁️ Adding CloudKit operation to database")
         publicDatabase.add(operation)
     }
     
@@ -772,7 +662,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         // First try the cache for this specific state
         if let stateFactoids = cachedFactoids[state], !stateFactoids.isEmpty {
             let fact = stateFactoids.randomElement()!
-            print("📖 Using cached factoid for \(state)")
             self.factoidSourceStats["stateCache"] = (self.factoidSourceStats["stateCache"] ?? 0) + 1
             completion(fact)
             return
@@ -781,7 +670,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         // Next try cache for generic factoids
         if let genericFactoids = cachedFactoids["Generic"], !genericFactoids.isEmpty {
             let fact = genericFactoids.randomElement()!
-            print("📖 Using generic cached factoid")
             self.factoidSourceStats["genericCache"] = (self.factoidSourceStats["genericCache"] ?? 0) + 1
             completion(fact)
             return
@@ -790,7 +678,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         // Try offline fallbacks for this specific state
         if let stateFactoids = fallbackFactoids[state], !stateFactoids.isEmpty {
             let fact = stateFactoids.randomElement()!
-            print("📖 Using offline fallback for \(state)")
             self.factoidSourceStats["fallback"] = (self.factoidSourceStats["fallback"] ?? 0) + 1
             completion(fact)
             return
@@ -799,7 +686,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         // If we don't have state-specific factoids, use generic ones
         if let genericFactoids = fallbackFactoids["Generic"], !genericFactoids.isEmpty {
             let fact = genericFactoids.randomElement()!
-            print("📖 Using generic factoid fallback")
             self.factoidSourceStats["fallback"] = (self.factoidSourceStats["fallback"] ?? 0) + 1
             completion(fact)
             return
@@ -814,5 +700,18 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
             UIApplication.shared.endBackgroundTask(taskID)
             factoidFetchTasks.removeValue(forKey: state)
         }
+    }
+    
+    // Setup network monitoring
+    private func setupNetworkMonitoring() {
+        networkMonitor = NWPathMonitor()
+        networkMonitor?.pathUpdateHandler = { [weak self] path in
+            DispatchQueue.main.async {
+                self?.isNetworkAvailable = path.status == .satisfied
+            }
+        }
+        
+        let queue = DispatchQueue(label: "NetworkMonitor")
+        networkMonitor?.start(queue: queue)
     }
 }

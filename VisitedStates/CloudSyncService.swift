@@ -59,6 +59,8 @@ class CloudSyncService: CloudSyncServiceProtocol {
                                  self.settings.getActiveGPSVerifiedStates()
             let badges = self.settings.getEarnedBadges()
             
+            print("📤 Syncing to cloud - Enhanced states: \(visitedStateModels.count), Legacy states: \(states.count), Badges: \(badges.count)")
+            
             // First sync the enhanced model
             self.syncEnhancedModelToCloud(visitedStateModels, badges) { enhancedResult in
                 // Then sync the legacy format for backward compatibility
@@ -107,48 +109,78 @@ class CloudSyncService: CloudSyncServiceProtocol {
             self.isSyncing = true
             self.syncStatus.send(.syncing)
             
-            // First try to fetch the enhanced model
-            self.fetchEnhancedModelFromCloud { [weak self] enhancedResult in
-                guard let self = self else { return }
+            print("📥 Starting fetch from cloud")
+            
+            // Use dispatch group to fetch both formats in parallel
+            let group = DispatchGroup()
+            var enhancedModelResult: Result<([VisitedState], [Badge]), Error>?
+            var legacyFormatResult: Result<[String], Error>?
+            
+            // Fetch enhanced model
+            group.enter()
+            self.fetchEnhancedModelFromCloud { result in
+                enhancedModelResult = result
+                group.leave()
+            }
+            
+            // Fetch legacy format at the same time
+            group.enter()
+            self.fetchLegacyFormatFromCloud { result in
+                legacyFormatResult = result
+                group.leave()
+            }
+            
+            // Wait for both fetches to complete
+            group.notify(queue: self.syncQueue) {
+                self.isSyncing = false
                 
-                switch enhancedResult {
-                case .success(let (visitedStates, badges)):
-                    // Process the fetched enhanced model data
+                // Process the results
+                var enhancedStateNames: [String] = []
+                var legacyStateNames: [String] = []
+                var combinedStateNames: [String] = []
+                
+                // Handle enhanced model result
+                if case let .success((visitedStates, badges)) = enhancedModelResult {
+                    print("✅ Successfully fetched enhanced model: \(visitedStates.count) states, \(badges.count) badges")
                     self.processEnhancedModelData(visitedStates, badges)
+                    enhancedStateNames = visitedStates.filter { $0.isActive }.map { $0.stateName }
+                } else if case let .failure(error) = enhancedModelResult {
+                    print("⚠️ Enhanced model fetch failed: \(error.localizedDescription)")
+                }
+                
+                // Handle legacy format result
+                if case let .success(stateNames) = legacyFormatResult {
+                    print("✅ Successfully fetched legacy format: \(stateNames.count) states")
+                    self.processLegacyStateNames(stateNames)
+                    legacyStateNames = stateNames
+                } else if case let .failure(error) = legacyFormatResult {
+                    print("⚠️ Legacy format fetch failed: \(error.localizedDescription)")
+                }
+                
+                // Combine results, giving preference to enhanced model
+                if !enhancedStateNames.isEmpty {
+                    combinedStateNames = enhancedStateNames
                     
-                    // Return just the active state names for backward compatibility
-                    let activeStateNames = visitedStates.filter { $0.isActive }.map { $0.stateName }
-                    self.isSyncing = false
-                    self.syncStatus.send(.succeeded)
-                    
-                    DispatchQueue.main.async {
-                        completion(.success(activeStateNames))
-                    }
-                    
-                case .failure(_):
-                    // If enhanced model fetch fails, fall back to legacy format
-                    print("Enhanced model fetch failed, falling back to legacy format")
-                    self.fetchLegacyFormatFromCloud { legacyResult in
-                        self.isSyncing = false
-                        
-                        switch legacyResult {
-                        case .success(let stateNames):
-                            // Create basic VisitedState models from the state names
-                            self.processLegacyStateNames(stateNames)
-                            self.syncStatus.send(.succeeded)
-                            
-                            DispatchQueue.main.async {
-                                completion(.success(stateNames))
-                            }
-                            
-                        case .failure(let error):
-                            self.syncStatus.send(.failed(error))
-                            
-                            DispatchQueue.main.async {
-                                completion(.failure(error))
-                            }
+                    // Add legacy states that aren't in enhanced model
+                    for state in legacyStateNames {
+                        if !combinedStateNames.contains(state) {
+                            combinedStateNames.append(state)
                         }
                     }
+                    
+                    print("📥 Combined \(enhancedStateNames.count) enhanced states and \(legacyStateNames.count) legacy states into \(combinedStateNames.count) unique states")
+                } else if !legacyStateNames.isEmpty {
+                    // If no enhanced states, just use legacy states
+                    combinedStateNames = legacyStateNames
+                    print("📥 Using \(legacyStateNames.count) legacy states only")
+                } else {
+                    // Both formats failed or returned empty results
+                    print("⚠️ No states found in cloud")
+                }
+                
+                self.syncStatus.send(.succeeded)
+                DispatchQueue.main.async {
+                    completion(.success(combinedStateNames))
                 }
             }
         }
@@ -295,8 +327,10 @@ class CloudSyncService: CloudSyncServiceProtocol {
         fetchEnhancedStatesFromCloud { result in
             switch result {
             case .success(let states):
+                print("📥 Fetched \(states.count) states from cloud")
                 visitedStates = states
             case .failure(let error):
+                print("⚠️ Error fetching states: \(error.localizedDescription)")
                 fetchError = error
             }
             group.leave()
@@ -307,8 +341,10 @@ class CloudSyncService: CloudSyncServiceProtocol {
         fetchBadgesFromCloud { result in
             switch result {
             case .success(let badgesData):
+                print("📥 Fetched \(badgesData.count) badges from cloud")
                 badges = badgesData
             case .failure(let error):
+                print("⚠️ Error fetching badges: \(error.localizedDescription)")
                 if fetchError == nil {
                     fetchError = error
                 }
@@ -336,14 +372,17 @@ class CloudSyncService: CloudSyncServiceProtocol {
             if let error = error {
                 if (error as? CKError)?.code == .unknownItem {
                     // No record found - not an error, just return empty array
+                    print("📥 No enhanced states record found in CloudKit")
                     completion(.success([]))
                 } else {
+                    print("⚠️ Error fetching enhanced states: \(error.localizedDescription)")
                     completion(.failure(error))
                 }
                 return
             }
             
             guard let record = record, let statesJSON = record["statesJSON"] as? String else {
+                print("📥 Enhanced states record exists but contains no data")
                 completion(.success([]))
                 return
             }
@@ -357,8 +396,10 @@ class CloudSyncService: CloudSyncServiceProtocol {
             
             do {
                 let states = try JSONDecoder().decode([VisitedState].self, from: data)
+                print("📥 Successfully decoded \(states.count) states from CloudKit")
                 completion(.success(states))
             } catch {
+                print("⚠️ Error decoding states JSON: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }
@@ -370,14 +411,17 @@ class CloudSyncService: CloudSyncServiceProtocol {
             if let error = error {
                 if (error as? CKError)?.code == .unknownItem {
                     // No record found - not an error, just return empty array
+                    print("📥 No badges record found in CloudKit")
                     completion(.success([]))
                 } else {
+                    print("⚠️ Error fetching badges: \(error.localizedDescription)")
                     completion(.failure(error))
                 }
                 return
             }
             
             guard let record = record, let badgesJSON = record["badgesJSON"] as? String else {
+                print("📥 Badges record exists but contains no data")
                 completion(.success([]))
                 return
             }
@@ -391,8 +435,10 @@ class CloudSyncService: CloudSyncServiceProtocol {
             
             do {
                 let badges = try JSONDecoder().decode([Badge].self, from: data)
+                print("📥 Successfully decoded \(badges.count) badges from CloudKit")
                 completion(.success(badges))
             } catch {
+                print("⚠️ Error decoding badges JSON: \(error.localizedDescription)")
                 completion(.failure(error))
             }
         }
@@ -583,31 +629,76 @@ class CloudSyncService: CloudSyncServiceProtocol {
     
     /// Process fetched enhanced model data
     private func processEnhancedModelData(_ visitedStates: [VisitedState], _ badges: [Badge]) {
+        print("🔄 Processing \(visitedStates.count) fetched states and \(badges.count) badges")
         // Update the settings service with the fetched data
+        
+        // First, count how many states were manually edited vs. GPS-verified
+        var manualEditCount = 0
+        var gpsVerifiedCount = 0
+        var activeCount = 0
+        
         // Loop through each state and use appropriate setting method
         for state in visitedStates {
             if state.wasEverVisited {
                 // If it was ever GPS-verified, use addStateViaGPS
                 self.settings.addStateViaGPS(state.stateName)
+                gpsVerifiedCount += 1
             } else if state.edited {
                 // If it was manually edited, use addVisitedState
                 self.settings.addVisitedState(state.stateName)
+                manualEditCount += 1
             }
             
             // If the state should not be active, remove it
             if !state.isActive {
                 self.settings.removeVisitedState(state.stateName)
+            } else {
+                activeCount += 1
             }
         }
         
-        // TODO: Process badges when badge UI is implemented
+        print("🔄 Processed states: \(gpsVerifiedCount) GPS-verified, \(manualEditCount) manually edited, \(activeCount) active")
+        
+        // Process badges
+        var earnedBadgeCount = 0
+        for badge in badges {
+            if badge.isEarned {
+                earnedBadgeCount += 1
+                // TODO: Process badges when badge UI is implemented
+            }
+        }
+        
+        print("🔄 Processed \(earnedBadgeCount) earned badges")
     }
     
     /// Process legacy state names by creating basic VisitedState models
     private func processLegacyStateNames(_ stateNames: [String]) {
-        // Mark all states as active and manually edited
+        print("🔄 Processing \(stateNames.count) legacy state names")
+        
+        // Mark all fetched states from legacy format as manually edited
+        print("🔄 Adding legacy states as manually edited: \(stateNames.joined(separator: ", "))")
         for state in stateNames {
+            print("🔄 Adding manually edited state: \(state)")
             self.settings.addVisitedState(state)
+            
+            // Create or update an enhanced model for this state
+            let existingStates = self.settings.getAllGPSVerifiedStates() + self.settings.getActiveGPSVerifiedStates()
+            if !existingStates.contains(where: { $0.stateName == state }) {
+                // Only manually add if not already in enhanced model
+                let newState = VisitedState(
+                    stateName: state,
+                    visited: false,
+                    edited: true,
+                    firstVisitedDate: Date(),
+                    lastVisitedDate: Date(),
+                    isActive: true,
+                    wasEverVisited: false
+                )
+                
+                // TODO: When full Enhanced model UI is implemented, update this
+                // For now, we just mark it as a manually edited state
+                print("🔄 Creating new enhanced model for manually edited state: \(state)")
+            }
         }
     }
     
@@ -680,6 +771,7 @@ class CloudSyncService: CloudSyncServiceProtocol {
                 switch result {
                 case .success(let (matchResults, _)):
                     guard !matchResults.isEmpty else {
+                        print("📥 No legacy records found in CloudKit")
                         completion(.success([]))
                         return
                     }
@@ -699,9 +791,11 @@ class CloudSyncService: CloudSyncServiceProtocol {
                     
                     // Remove duplicates
                     let uniqueStates = Array(Set(allStates))
+                    print("📥 Fetched \(uniqueStates.count) unique states from legacy format")
                     completion(.success(uniqueStates))
                     
                 case .failure(let error):
+                    print("⚠️ Error fetching legacy format: \(error.localizedDescription)")
                     completion(.failure(error))
                 }
             }
@@ -709,12 +803,14 @@ class CloudSyncService: CloudSyncServiceProtocol {
             // Fallback for older iOS versions
             privateDatabase.perform(query, inZoneWith: nil) { results, error in
                 if let error = error {
+                    print("⚠️ Error fetching legacy format: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
                 
                 guard let records = results, !records.isEmpty else {
                     // No records found - this is not an error, just return empty array
+                    print("📥 No legacy records found in CloudKit (iOS < 15)")
                     completion(.success([]))
                     return
                 }
@@ -730,6 +826,7 @@ class CloudSyncService: CloudSyncServiceProtocol {
                 
                 // Remove duplicates
                 let uniqueStates = Array(Set(allStates))
+                print("📥 Fetched \(uniqueStates.count) unique states from legacy format (iOS < 15)")
                 completion(.success(uniqueStates))
             }
         }
