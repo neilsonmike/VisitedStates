@@ -83,8 +83,7 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
             }
         case .notDetermined:
             // FIXED: Do not directly request authorization
-            // We'll trigger the request through requestWhenInUseAuthorization()
-            // which now uses dispatch_async
+            // Use our thread-safe method instead
             requestWhenInUseAuthorization()
         case .restricted, .denied:
             print("🔍 Location services are restricted or denied")

@@ -46,29 +46,10 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         }
     }
     
-    // Fallback factoids when cloud fetch fails
-    private let fallbackFactoids: [String: [String]] = [
-        "Generic": [
-            "Did you know? This state has its own unique history and culture!",
-            "Fun fact: Every state has something special to discover!",
-            "This state has its own unique landmarks and natural beauty!",
-            "Each state contributes something special to America!",
-            "This state has its own fascinating stories to tell!"
-        ]
-    ]
-    
     // Cached factoids to handle offline scenarios
     private var cachedFactoids: [String: [String]] = [:]
     private var isPreloadingFactoids = false
     private var factoidFetchTasks: [String: UIBackgroundTaskIdentifier] = [:]
-    
-    // DEBUG: Count of factoid sources used
-    private var factoidSourceStats: [String: Int] = [
-        "cloudKit": 0,
-        "stateCache": 0,
-        "genericCache": 0,
-        "fallback": 0
-    ]
     
     // MARK: - Initialization
     
@@ -99,7 +80,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         preloadFactoids()
         
         // Clear any existing badges
-        // FIXED: Replace deprecated applicationIconBadgeNumber with UNUserNotificationCenter
         clearBadgeCount()
         
         print("🔔 NotificationService initialized")
@@ -213,11 +193,8 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 return
             }
             
-            // Use the factoid or a default welcome message
-            let factText = factoid ?? "Welcome to \(state)!"
-            
             // Schedule notification with time delay for better background delivery
-            self.sendEnhancedNotification(for: state, fact: factText)
+            self.sendEnhancedNotification(for: state, fact: factoid)
             
             // Update tracking
             UserDefaults.standard.set(Date(), forKey: key)
@@ -342,12 +319,17 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         return true
     }
     
-    private func sendEnhancedNotification(for state: String, fact: String) {
+    private func sendEnhancedNotification(for state: String, fact: String?) {
         print("🔔 Preparing enhanced notification for \(state)")
         
         let content = UNMutableNotificationContent()
         content.title = "Welcome to \(state)!"
-        content.body = fact
+        
+        // Only set the body if we have a factoid, otherwise leave it with just the title
+        if let factText = fact {
+            content.body = factText
+        }
+        
         content.sound = UNNotificationSound.default
         
         // FIXED: Set badge to 0 in notification content
@@ -503,39 +485,248 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         }
     }
     
-    // New prioritized factoid fetching method
+    // MARK: - New factoid selection logic
+    
+    // Main method for prioritized factoid fetching
     private func fetchFactoidWithPriority(for state: String, completion: @escaping (String?) -> Void) {
         print("🔍 Fetching factoid for state with priority: \(state)")
         
-        // 1. First check if internet is available
+        // Check if internet is available
         let isOnline = checkInternetConnection()
         
-        // 2. If online, try CloudKit first, fall back to cache if needed
-        //    If offline, use cache directly
         if isOnline {
-            // Try CloudKit first (with timeout)
-            print("📡 Internet available - trying CloudKit fetch first")
-            fetchFactoidFromCloudKit(for: state) { [weak self] (cloudResult) in
-                guard let self = self else {
-                    completion(nil)
+            // First priority: Try to get state-specific factoid from CloudKit
+            fetchSpecificStateFactoidFromCloudKit(for: state) { [weak self] stateSpecificFactoid in
+                guard let self = self else { return completion(nil) }
+                
+                if let factoid = stateSpecificFactoid {
+                    // Success - we have a state-specific factoid from CloudKit
+                    print("☁️ Successfully fetched state-specific factoid from CloudKit")
+                    completion(factoid)
                     return
                 }
                 
-                if let factoid = cloudResult {
-                    // Successfully fetched from CloudKit
-                    print("☁️ Successfully fetched factoid from CloudKit")
-                    self.factoidSourceStats["cloudKit"] = (self.factoidSourceStats["cloudKit"] ?? 0) + 1
-                    completion(factoid)
-                } else {
-                    // CloudKit fetch failed, try cache
-                    print("☁️ CloudKit fetch failed, falling back to cache")
-                    self.fetchFactoidFromCache(for: state, completion: completion)
+                // Second priority: Try cached state-specific factoid
+                if let cachedStateFactoid = self.getCachedFactoid(for: state) {
+                    print("💾 Using cached state-specific factoid")
+                    completion(cachedStateFactoid)
+                    return
+                }
+                
+                // Third priority: Try to get generic factoid from CloudKit
+                self.fetchGenericFactoidFromCloudKit { genericFactoid in
+                    if let factoid = genericFactoid {
+                        // Success - we have a generic factoid from CloudKit
+                        print("☁️ Successfully fetched generic factoid from CloudKit")
+                        completion(factoid)
+                        return
+                    }
+                    
+                    // Fourth priority: Try cached generic factoid
+                    if let cachedGenericFactoid = self.getCachedFactoid(for: "Generic") {
+                        print("💾 Using cached generic factoid")
+                        completion(cachedGenericFactoid)
+                        return
+                    }
+                    
+                    // No factoid available - just use nil for basic welcome message
+                    print("ℹ️ No factoids available - using basic welcome message")
+                    completion(nil)
                 }
             }
         } else {
-            // Offline - use cache directly
-            print("📡 No internet - using cached factoids")
-            fetchFactoidFromCache(for: state, completion: completion)
+            // Offline mode - use cache only
+            print("📡 No internet - trying cached factoids")
+            
+            // First try state-specific cache
+            if let cachedStateFactoid = getCachedFactoid(for: state) {
+                print("💾 Using cached state-specific factoid")
+                completion(cachedStateFactoid)
+                return
+            }
+            
+            // Then try generic cache
+            if let cachedGenericFactoid = getCachedFactoid(for: "Generic") {
+                print("💾 Using cached generic factoid")
+                completion(cachedGenericFactoid)
+                return
+            }
+            
+            // No factoid available - just use nil for basic welcome message
+            print("ℹ️ No factoids available - using basic welcome message")
+            completion(nil)
+        }
+    }
+    
+    // Helper to get a cached factoid from memory
+    private func getCachedFactoid(for state: String) -> String? {
+        // Check if we have cached factoids for this state
+        if let stateFactoids = cachedFactoids[state], !stateFactoids.isEmpty {
+            return stateFactoids.randomElement()
+        }
+        return nil
+    }
+    
+    // Fetch specifically state-related factoids from CloudKit
+    private func fetchSpecificStateFactoidFromCloudKit(for state: String, completion: @escaping (String?) -> Void) {
+        // Create a background task for this fetch
+        let taskId = UIApplication.shared.beginBackgroundTask { [weak self] in
+            self?.endFactoidFetchTask(for: state)
+        }
+        
+        factoidFetchTasks[state] = taskId
+        
+        // Setup timeout - if fetch takes too long, fall back to next option
+        let timeoutDuration: TimeInterval = 5.0
+        let timeoutWorkItem = DispatchWorkItem { [weak self] in
+            print("⏰ CloudKit fetch timed out after \(timeoutDuration) seconds")
+            self?.endFactoidFetchTask(for: state)
+            completion(nil)
+        }
+        
+        // Schedule timeout
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeoutDuration, execute: timeoutWorkItem)
+        
+        // Create query for state-specific factoids only
+        let predicate = NSPredicate(format: "state == %@", state)
+        let query = CKQuery(recordType: "StateFactoids", predicate: predicate)
+        
+        let operation = CKQueryOperation(query: query)
+        operation.resultsLimit = 10 // Limit to avoid excessive network usage
+        var fetchedFactoids: [String] = []
+        
+        operation.recordMatchedBlock = { (_, result) in
+            switch result {
+            case .success(let record):
+                if let fact = record["fact"] as? String {
+                    fetchedFactoids.append(fact)
+                }
+            case .failure:
+                // Error handling in queryResultBlock
+                break
+            }
+        }
+        
+        operation.queryResultBlock = { [weak self] result in
+            // Cancel the timeout
+            timeoutWorkItem.cancel()
+            
+            guard let self = self else {
+                completion(nil)
+                return
+            }
+            
+            switch result {
+            case .success:
+                // Update cache with any fetched factoids
+                if !fetchedFactoids.isEmpty {
+                    // Update the cache
+                    if self.cachedFactoids[state] == nil {
+                        self.cachedFactoids[state] = []
+                    }
+                    
+                    // Add any new factoids to the cache
+                    for fact in fetchedFactoids {
+                        if !(self.cachedFactoids[state]?.contains(fact) ?? false) {
+                            self.cachedFactoids[state]?.append(fact)
+                        }
+                    }
+                    
+                    // Save updated cache
+                    self.saveCachedFactoids()
+                    
+                    // Return a random factoid from the results
+                    let selectedFactoid = fetchedFactoids.randomElement()
+                    
+                    // End the background task
+                    self.endFactoidFetchTask(for: state)
+                    
+                    // Return the selected factoid
+                    completion(selectedFactoid)
+                } else {
+                    // No factoids found for this state
+                    self.endFactoidFetchTask(for: state)
+                    completion(nil)
+                }
+                
+            case .failure(let error):
+                print("⚠️ Error fetching state factoids: \(error.localizedDescription)")
+                self.endFactoidFetchTask(for: state)
+                completion(nil)
+            }
+        }
+        
+        publicDatabase.add(operation)
+    }
+    
+    // Fetch generic factoids from CloudKit
+    private func fetchGenericFactoidFromCloudKit(completion: @escaping (String?) -> Void) {
+        // Create query for generic factoids only
+        let predicate = NSPredicate(format: "state == %@", "Generic")
+        let query = CKQuery(recordType: "StateFactoids", predicate: predicate)
+        
+        let operation = CKQueryOperation(query: query)
+        operation.resultsLimit = 10 // Limit to avoid excessive network usage
+        var fetchedFactoids: [String] = []
+        
+        operation.recordMatchedBlock = { (_, result) in
+            switch result {
+            case .success(let record):
+                if let fact = record["fact"] as? String {
+                    fetchedFactoids.append(fact)
+                }
+            case .failure:
+                // Error handling in queryResultBlock
+                break
+            }
+        }
+        
+        operation.queryResultBlock = { [weak self] result in
+            guard let self = self else {
+                completion(nil)
+                return
+            }
+            
+            switch result {
+            case .success:
+                // Update cache with any fetched factoids
+                if !fetchedFactoids.isEmpty {
+                    // Update the cache
+                    if self.cachedFactoids["Generic"] == nil {
+                        self.cachedFactoids["Generic"] = []
+                    }
+                    
+                    // Add any new factoids to the cache
+                    for fact in fetchedFactoids {
+                        if !(self.cachedFactoids["Generic"]?.contains(fact) ?? false) {
+                            self.cachedFactoids["Generic"]?.append(fact)
+                        }
+                    }
+                    
+                    // Save updated cache
+                    self.saveCachedFactoids()
+                    
+                    // Return a random factoid from the results
+                    let selectedFactoid = fetchedFactoids.randomElement()
+                    completion(selectedFactoid)
+                } else {
+                    // No generic factoids found
+                    completion(nil)
+                }
+                
+            case .failure(let error):
+                print("⚠️ Error fetching generic factoids: \(error.localizedDescription)")
+                completion(nil)
+            }
+        }
+        
+        publicDatabase.add(operation)
+    }
+    
+    private func endFactoidFetchTask(for state: String) {
+        if let taskID = factoidFetchTasks[state], taskID != .invalid {
+            UIApplication.shared.endBackgroundTask(taskID)
+            factoidFetchTasks.removeValue(forKey: state)
         }
     }
     
@@ -562,175 +753,6 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         _ = semaphore.wait(timeout: .now() + 1.0)
         
         return isOnline
-    }
-    
-    // DEBUG: Check CloudKit container status
-    private func checkCloudKitStatus() {
-        cloudContainer.accountStatus { status, error in
-            var statusString: String
-            
-            switch status {
-            case .available:
-                statusString = "Available"
-            case .noAccount:
-                statusString = "No iCloud Account"
-            case .restricted:
-                statusString = "Restricted"
-            case .couldNotDetermine:
-                statusString = "Could Not Determine"
-            default:
-                statusString = "Unknown (\(status.rawValue))"
-            }
-            
-            print("☁️ CloudKit container status: \(statusString)")
-            if let error = error {
-                print("☁️ CloudKit container error: \(error.localizedDescription)")
-            }
-        }
-    }
-    
-    // Fetch factoid from CloudKit with timeout
-    private func fetchFactoidFromCloudKit(for state: String, completion: @escaping (String?) -> Void) {
-        // Create a background task for this fetch
-        let taskId = UIApplication.shared.beginBackgroundTask { [weak self] in
-            self?.endFactoidFetchTask(for: state)
-        }
-        
-        factoidFetchTasks[state] = taskId
-        
-        // Setup timeout - if fetch takes too long, fall back to cache
-        let timeoutDuration: TimeInterval = 5.0
-        let timeoutWorkItem = DispatchWorkItem { [weak self] in
-            print("⏰ CloudKit fetch timed out after \(timeoutDuration) seconds")
-            self?.endFactoidFetchTask(for: state)
-            completion(nil)
-        }
-        
-        // Schedule timeout
-        DispatchQueue.main.asyncAfter(deadline: .now() + timeoutDuration, execute: timeoutWorkItem)
-        
-        // Create query for both state-specific and generic factoids
-        let predicate = NSPredicate(format: "state IN %@", [state, "Generic"])
-        let query = CKQuery(recordType: "StateFactoids", predicate: predicate)
-        
-        let operation = CKQueryOperation(query: query)
-        var fetchedRecords = [CKRecord]()
-        
-        operation.recordMatchedBlock = { (_, result) in
-            switch result {
-            case .success(let record):
-                fetchedRecords.append(record)
-            case .failure:
-                // Error handling in queryResultBlock
-                break
-            }
-        }
-        
-        operation.queryResultBlock = { [weak self] result in
-            // Cancel the timeout
-            timeoutWorkItem.cancel()
-            
-            guard let self = self else {
-                completion(nil)
-                return
-            }
-            
-            switch result {
-            case .success:
-                // Group factoids by state
-                var stateFactoids: [String: [String]] = [:]
-                
-                for record in fetchedRecords {
-                    if let state = record["state"] as? String,
-                       let fact = record["fact"] as? String {
-                        if stateFactoids[state] == nil {
-                            stateFactoids[state] = []
-                        }
-                        stateFactoids[state]?.append(fact)
-                    }
-                }
-                
-                // Update our cache
-                for (stateName, facts) in stateFactoids {
-                    if self.cachedFactoids[stateName] == nil {
-                        self.cachedFactoids[stateName] = facts
-                    } else {
-                        self.cachedFactoids[stateName]?.append(contentsOf: facts)
-                    }
-                }
-                
-                // Save updated cache
-                self.saveCachedFactoids()
-                
-                // Now select the factoid to return
-                var selectedFactoid: String? = nil
-                
-                if let stateSpecificFacts = stateFactoids[state], !stateSpecificFacts.isEmpty {
-                    // Prefer state-specific factoids from CloudKit
-                    selectedFactoid = stateSpecificFacts.randomElement()
-                } else if let genericFacts = stateFactoids["Generic"], !genericFacts.isEmpty {
-                    // Fall back to generic factoids from CloudKit
-                    selectedFactoid = genericFacts.randomElement()
-                }
-                
-                // End the background task
-                self.endFactoidFetchTask(for: state)
-                
-                // Return the selected factoid
-                completion(selectedFactoid)
-                
-            case .failure:
-                self.endFactoidFetchTask(for: state)
-                completion(nil)
-            }
-        }
-        
-        publicDatabase.add(operation)
-    }
-    
-    // Fetch factoid from local cache
-    private func fetchFactoidFromCache(for state: String, completion: @escaping (String?) -> Void) {
-        // First try the cache for this specific state
-        if let stateFactoids = cachedFactoids[state], !stateFactoids.isEmpty {
-            let fact = stateFactoids.randomElement()!
-            self.factoidSourceStats["stateCache"] = (self.factoidSourceStats["stateCache"] ?? 0) + 1
-            completion(fact)
-            return
-        }
-        
-        // Next try cache for generic factoids
-        if let genericFactoids = cachedFactoids["Generic"], !genericFactoids.isEmpty {
-            let fact = genericFactoids.randomElement()!
-            self.factoidSourceStats["genericCache"] = (self.factoidSourceStats["genericCache"] ?? 0) + 1
-            completion(fact)
-            return
-        }
-        
-        // Try offline fallbacks for this specific state
-        if let stateFactoids = fallbackFactoids[state], !stateFactoids.isEmpty {
-            let fact = stateFactoids.randomElement()!
-            self.factoidSourceStats["fallback"] = (self.factoidSourceStats["fallback"] ?? 0) + 1
-            completion(fact)
-            return
-        }
-        
-        // If we don't have state-specific factoids, use generic ones
-        if let genericFactoids = fallbackFactoids["Generic"], !genericFactoids.isEmpty {
-            let fact = genericFactoids.randomElement()!
-            self.factoidSourceStats["fallback"] = (self.factoidSourceStats["fallback"] ?? 0) + 1
-            completion(fact)
-            return
-        }
-        
-        // Last resort - use hardcoded welcome message
-        completion("Welcome to \(state)! A new adventure begins!")
-    }
-    
-    private func endFactoidFetchTask(for state: String) {
-        if let taskID = factoidFetchTasks[state], taskID != .invalid {
-            UIApplication.shared.endBackgroundTask(taskID)
-            factoidFetchTasks.removeValue(forKey: state)
-        }
     }
     
     // Setup network monitoring
