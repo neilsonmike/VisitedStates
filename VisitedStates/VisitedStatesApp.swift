@@ -108,6 +108,7 @@ struct VisitedStatesApp: App {
             case .success(let states):
                 print("✅ Initial cloud sync successful - fetched \(states.count) states")
                 isInitialSyncComplete = true
+                dependencies.notificationService.cloudSyncDidComplete()
                 
                 // Perform an additional sync to CloudKit with our current data
                 // This helps ensure everything is in sync both ways

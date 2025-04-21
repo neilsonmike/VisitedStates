@@ -146,6 +146,9 @@ protocol NotificationServiceProtocol: AnyObject {
     
     /// Check if notifications are authorized
     var isNotificationsAuthorized: CurrentValueSubject<Bool, Never> { get }
+    
+    /// Notify the service that cloud sync has completed
+    func cloudSyncDidComplete()
 }
 
 // MARK: - Mock versions for testing
@@ -423,6 +426,10 @@ class MockNotificationService: NotificationServiceProtocol {
         if settings.notificationsEnabled.value {
             scheduleStateEntryNotification(for: state)
         }
+    }
+    
+    func cloudSyncDidComplete() {
+        print("Mock notification service received cloud sync completion")
     }
 }
 

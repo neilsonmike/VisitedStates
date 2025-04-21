@@ -27,9 +27,12 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         }
     }
     private var notificationCooldowns: [String: Date] = [:]
-    private let cooldownInterval: TimeInterval = 300 // 5 minutes
+    private let cooldownInterval: TimeInterval = 1 // 5 minutes
     private let cooldownKeyPrefix = "lastNotified_"
     private var notificationBackgroundTasks: [String: UIBackgroundTaskIdentifier] = [:]
+    private var cloudSyncComplete = false
+    private var pendingStateDetections: [String] = []
+    
     
     // DEBUG: Network monitor
     private var networkMonitor: NWPathMonitor?
@@ -50,6 +53,10 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     private var cachedFactoids: [String: [String]] = [:]
     private var isPreloadingFactoids = false
     private var factoidFetchTasks: [String: UIBackgroundTaskIdentifier] = [:]
+    
+    // Cache for tracking visited states before notification
+    private var statesVisitedBeforeCurrentSession: Set<String> = []
+    private var hasLoadedInitialStates = false
     
     // MARK: - Initialization
     
@@ -81,6 +88,9 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         
         // Clear any existing badges
         clearBadgeCount()
+        
+        // Load initial states for proper "new state" detection
+        loadInitialVisitedStates()
         
         print("🔔 NotificationService initialized")
     }
@@ -128,15 +138,36 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     func handleDetectedState(_ state: String) {
         print("🔔 Handling detection of state: \(state)")
         
+        // Make sure initial states are loaded
+        if !hasLoadedInitialStates {
+            loadInitialVisitedStates()
+        }
+        
+        // Check if CloudKit sync is still in progress
+        if !cloudSyncComplete && settings.visitedStates.value.isEmpty {
+            print("⚠️ Deferring notification decision until cloud sync completes")
+            // Store this state to process after sync completes
+            pendingStateDetections.append(state)
+            return
+        }
+        
         // Always notify for state changes, regardless of whether the state has been visited before
         // UNLESS the user has set notifyOnlyNewStates to true
         if shouldNotifyForState(state) {
             // Check if we should notify only for new states
             if settings.notifyOnlyNewStates.value {
-                // Check if this state has been visited before
-                if !settings.hasVisitedState(state) {
-                    print("🔔 Will notify for new state: \(state)")
+                // Check if this state was visited BEFORE the current detection
+                let isNewState = !statesVisitedBeforeCurrentSession.contains(state)
+                
+                print("🔍 DEBUG: Previously visited states: \(statesVisitedBeforeCurrentSession.sorted().joined(separator: ", "))")
+                print("🔍 DEBUG: Is \(state) a new state? \(isNewState ? "YES" : "NO")")
+                
+                if isNewState {
+                    print("🔔 Notification allowed for \(state) - not previously visited and notify only new states is enabled")
                     scheduleStateEntryNotification(for: state)
+                    
+                    // Add to our tracking set after notification decision
+                    statesVisitedBeforeCurrentSession.insert(state)
                 } else {
                     print("🔔 Skipping notification for already visited state: \(state) (notify only new states is enabled)")
                 }
@@ -145,6 +176,9 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 print("🔔 Will notify for state: \(state)")
                 scheduleStateEntryNotification(for: state)
             }
+            
+            // Always add to our session tracking
+            statesVisitedBeforeCurrentSession.insert(state)
         } else {
             print("🔔 Skipping notification for \(state) - cooldown or same as last state")
         }
@@ -233,6 +267,24 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     
     // MARK: - Private methods
     
+    // Load visited states at initialization for proper "new state" detection
+    private func loadInitialVisitedStates() {
+        // Load all currently visited states to initialize our tracking set
+        let initialStates = settings.visitedStates.value
+        statesVisitedBeforeCurrentSession = Set(initialStates)
+        
+        // Also load any GPS-verified states to ensure comprehensive tracking
+        let gpsVerifiedStates = settings.getAllGPSVerifiedStates()
+        for state in gpsVerifiedStates {
+            if state.wasEverVisited {
+                statesVisitedBeforeCurrentSession.insert(state.stateName)
+            }
+        }
+        
+        hasLoadedInitialStates = true
+        print("🔍 Loaded initial visited states for notification logic: \(statesVisitedBeforeCurrentSession.sorted().joined(separator: ", "))")
+    }
+    
     // FIXED: Add a new method to handle badge count in a modern way
     private func clearBadgeCount() {
         if #available(iOS 17.0, *) {
@@ -266,7 +318,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     private func checkNotificationAuthorization() {
         userNotificationCenter.getNotificationSettings { [weak self] settings in
             let isAuthorized = settings.authorizationStatus == .authorized ||
-                               settings.authorizationStatus == .provisional
+            settings.authorizationStatus == .provisional
             DispatchQueue.main.async {
                 self?.isNotificationsAuthorized.send(isAuthorized)
                 print("🔔 Initial notification authorization status: \(isAuthorized)")
@@ -766,5 +818,19 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         
         let queue = DispatchQueue(label: "NetworkMonitor")
         networkMonitor?.start(queue: queue)
+    }
+    
+    // MARK: - Cloud Sync Integration
+
+    /// Call this when cloud sync completes to process pending notifications
+    func cloudSyncDidComplete() {
+        cloudSyncComplete = true
+        print("☁️ Cloud sync completed - processing \(pendingStateDetections.count) pending state detections")
+        
+        // Process any pending state detections
+        for state in pendingStateDetections {
+            handleDetectedState(state)
+        }
+        pendingStateDetections.removeAll()
     }
 }

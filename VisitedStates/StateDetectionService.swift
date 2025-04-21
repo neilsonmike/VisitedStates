@@ -111,8 +111,8 @@ class StateDetectionService: StateDetectionServiceProtocol {
                 // Store detection time for caching
                 self?.stateDetectionCache[stateName] = Date()
                 
-                // Add to visited states using the GPS method
-                // This ensures proper tracking of GPS-verified states
+                // IMPORTANT: Add to visited states AFTER notification decision
+                // This ensures proper "new state" detection for notifications
                 self?.settings.addStateViaGPS(stateName)
                 
                 // Sync with cloud
@@ -351,7 +351,7 @@ class StateDetectionService: StateDetectionServiceProtocol {
                 strongSelf.notifyStateChange(state)
             }
             
-            // Add using GPS method since this was detected via location
+            // Add using GPS method since this was detected via location - AFTER notification
             strongSelf.settings.addStateViaGPS(state)
             strongSelf.syncToCloud()
         }
@@ -359,7 +359,7 @@ class StateDetectionService: StateDetectionServiceProtocol {
     
     private func notifyStateChange(_ state: String) {
         // Always notify about state changes, even for previously visited states
-        // This is the single control point for notifications
+        // This is the single control point for notifications - BEFORE adding to visited states
         DispatchQueue.main.async { [weak self] in
             guard let strongSelf = self else { return }
             
