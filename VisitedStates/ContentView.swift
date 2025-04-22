@@ -163,7 +163,7 @@ struct ContentView: View {
         // Start preparing
         isSharePreparing = true
         
-        // Use the 3:4 aspect ratio for better sharing in messaging apps
+        // Use a smaller, more reasonable size for sharing (1200x1600)
         let shareWidth: CGFloat = 1200
         let shareHeight: CGFloat = 1600
         
@@ -174,12 +174,36 @@ struct ContentView: View {
                 SharePreviewView()
                     .environmentObject(self.dependencies)
                     .frame(width: shareWidth, height: shareHeight)
+                    .background(Color.white) // Ensure we have a solid background
             )
             
             // Set scale for proper resolution
             renderer.scale = UIScreen.main.scale
             
-            if let uiImage = renderer.uiImage {
+            // Instead of setting uiImageRendererFormat, we'll convert the image after rendering
+            if var uiImage = renderer.uiImage {
+                // Convert to a fully opaque image without alpha channel
+                if let cgImage = uiImage.cgImage {
+                    let colorSpace = CGColorSpaceCreateDeviceRGB()
+                    let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue)
+                    
+                    if let context = CGContext(data: nil,
+                                              width: cgImage.width,
+                                              height: cgImage.height,
+                                              bitsPerComponent: 8,
+                                              bytesPerRow: 0,
+                                              space: colorSpace,
+                                              bitmapInfo: bitmapInfo.rawValue) {
+                        
+                        let rect = CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height)
+                        context.draw(cgImage, in: rect)
+                        
+                        if let newCGImage = context.makeImage() {
+                            uiImage = UIImage(cgImage: newCGImage)
+                        }
+                    }
+                }
+                
                 // Create share text
                 let stateCount = self.visitedStates
                     .filter { $0 != "District of Columbia" }

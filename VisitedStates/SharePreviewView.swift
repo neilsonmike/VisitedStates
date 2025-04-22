@@ -62,7 +62,7 @@ struct SharePreviewView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Background
+                // Background - use explicit solid background
                 backgroundColor
                     .edgesIgnoringSafeArea(.all)
                 
@@ -194,6 +194,8 @@ struct SharePreviewView: View {
                     Spacer() // Push everything up to make room for footer area
                 }
             }
+            // Make sure to use explicit solid background to ensure opaque image
+            .background(backgroundColor)
         }
         .onAppear {
             setupSubscriptions()
@@ -202,6 +204,7 @@ struct SharePreviewView: View {
             cancellables.removeAll()
         }
     }
+    
     private func setupSubscriptions() {
         // Subscribe to visited states changes
         dependencies.settingsService.visitedStates
@@ -228,12 +231,6 @@ struct SharePreviewView: View {
                 self.backgroundColor = color
             }
             .store(in: &cancellables)
-    }
-    
-    @MainActor
-    func takeSnapshot(size: CGSize) async -> UIImage? {
-        let renderer = ImageRenderer(content: self.frame(width: size.width, height: size.height))
-        return renderer.uiImage
     }
 }
 
@@ -302,6 +299,7 @@ struct ShareContiguousStatesCanvas: View {
         .onDisappear {
             cancellables.removeAll()
         }
+        // Use explicit background to ensure opacity
         .background(backgroundColor)
     }
     
@@ -439,6 +437,7 @@ struct ShareFullScreenStateView: View {
                     }
                 }
             }
+            // Use explicit background to ensure opacity
             .background(backgroundColor)
         }
         .onAppear {
@@ -503,6 +502,7 @@ struct ShareInsetStateView: View {
                     drawState(mapRect: unionRect, size: size, context: &context)
                 }
             }
+            // Use explicit background to ensure opacity
             .background(backgroundColor)
         }
         .onAppear {
