@@ -134,6 +134,14 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            // Add Done button to navigation bar (left side)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                }
+            }
             .alert("Notification Settings", isPresented: $showNotificationSettingsAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Open Settings") {
