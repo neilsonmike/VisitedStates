@@ -12,7 +12,6 @@ struct SettingsView: View {
     
     // Local state
     @State private var showingSchemaAlert: Bool = false
-    @State private var showEditStates = false
     @State private var showRestoreAlert = false  // For restore defaults confirmation
     @State private var notificationsEnabled = true
     @State private var notifyOnlyNewStates = false
@@ -129,23 +128,12 @@ struct SettingsView: View {
                     }
                 }
                 
-                // State Editing Section (without header)
-                Section {
-                    Button("Edit Visited States") {
-                        showEditStates.toggle()
-                    }
-                }
-                
                 // About Section
                 Section {
                     NavigationLink("About VisitedStates", destination: AboutView())
                 }
             }
             .navigationTitle("Settings")
-            .sheet(isPresented: $showEditStates) {
-                EditStatesView()
-                    .environmentObject(dependencies)
-            }
             .alert("Notification Settings", isPresented: $showNotificationSettingsAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Open Settings") {

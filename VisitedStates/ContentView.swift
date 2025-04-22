@@ -9,6 +9,7 @@ struct ContentView: View {
     
     // Local state
     @State private var showingSettings = false
+    @State private var showEditStates = false
     @State private var showShareSheet = false
     @State private var shareItems: [Any] = []
     @AppStorage("hasShownAlwaysAlert") private var hasShownAlwaysAlert = false
@@ -41,7 +42,7 @@ struct ContentView: View {
                 }
             }
             
-            // Settings and share buttons
+            // Control buttons
             VStack {
                 Spacer()
                 HStack {
@@ -59,6 +60,18 @@ struct ContentView: View {
                                 .clipShape(Circle())
                         }
                         .disabled(isSharePreparing)
+                        
+                        // Edit States Button (New)
+                        Button(action: {
+                            showEditStates.toggle()
+                        }) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 16))
+                                .padding(8)
+                                .background(Color.gray.opacity(0.3))
+                                .foregroundColor(.white)
+                                .clipShape(Circle())
+                        }
                         
                         // Settings Button
                         Button(action: {
@@ -89,6 +102,11 @@ struct ContentView: View {
         // Present the settings sheet
         .sheet(isPresented: $showingSettings) {
             SettingsView()
+                .environmentObject(dependencies)
+        }
+        // Present the edit states sheet
+        .sheet(isPresented: $showEditStates) {
+            EditStatesView()
                 .environmentObject(dependencies)
         }
         // Present the share sheet
