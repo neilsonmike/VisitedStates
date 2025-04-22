@@ -9,8 +9,8 @@ struct ContentView: View {
     
     // Local state
     @State private var showingSettings = false
-    @State private var showEditStates = false
     @State private var showShareSheet = false
+    @State private var showEditStates = false
     @State private var shareItems: [Any] = []
     @AppStorage("hasShownAlwaysAlert") private var hasShownAlwaysAlert = false
     @State private var showLocationPermissionAlert = false
@@ -42,7 +42,7 @@ struct ContentView: View {
                 }
             }
             
-            // Control buttons
+            // Settings and share buttons
             VStack {
                 Spacer()
                 HStack {
@@ -61,7 +61,7 @@ struct ContentView: View {
                         }
                         .disabled(isSharePreparing)
                         
-                        // Edit States Button (New)
+                        // Edit States Button
                         Button(action: {
                             showEditStates.toggle()
                         }) {
@@ -104,17 +104,17 @@ struct ContentView: View {
             SettingsView()
                 .environmentObject(dependencies)
         }
-        // Present the edit states sheet
-        .sheet(isPresented: $showEditStates) {
-            EditStatesView()
-                .environmentObject(dependencies)
-        }
         // Present the share sheet
         .sheet(isPresented: $showShareSheet, onDismiss: {
             isSharePreparing = false
             shareImageReady = false
         }) {
             ShareSheet(activityItems: shareItems)
+        }
+        // Present the edit states sheet
+        .sheet(isPresented: $showEditStates) {
+            EditStatesView()
+                .environmentObject(dependencies)
         }
         // Show location permission alert
         .alert("Enable 'Always' Location Access", isPresented: $showLocationPermissionAlert) {
@@ -163,16 +163,20 @@ struct ContentView: View {
         // Start preparing
         isSharePreparing = true
         
-        // Render the map view first, then show the share sheet when ready
+        // Use the 3:4 aspect ratio for better sharing in messaging apps
+        let shareWidth: CGFloat = 1200
+        let shareHeight: CGFloat = 1600
+        
+        // Render the SharePreviewView for a better sharing experience
         DispatchQueue.main.async {
-            // Create renderer for MapView
+            // Create renderer for SharePreviewView
             let renderer = ImageRenderer(content:
-                MapView()
+                SharePreviewView()
                     .environmentObject(self.dependencies)
-                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                    .frame(width: shareWidth, height: shareHeight)
             )
             
-            // Set scale to screen scale for proper resolution
+            // Set scale for proper resolution
             renderer.scale = UIScreen.main.scale
             
             if let uiImage = renderer.uiImage {

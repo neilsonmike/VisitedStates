@@ -2,7 +2,7 @@ import SwiftUI
 import MapKit
 import Combine
 
-struct MapView: View {
+struct SharePreviewView: View {
     // Access app dependencies
     @EnvironmentObject var dependencies: AppDependencies
     
@@ -13,7 +13,7 @@ struct MapView: View {
     @State private var backgroundColor: Color = .white
     @State private var cancellables = Set<AnyCancellable>()
     
-    // Constants
+    // Constants - same as MapView
     static let borderLineWidth: CGFloat = 0.5
     static let californiaCenter = CLLocationCoordinate2D(latitude: 37.3, longitude: -119.5)
     static let californiaSpan = MKCoordinateSpan(latitudeDelta: 10.0, longitudeDelta: 10.0)
@@ -60,81 +60,139 @@ struct MapView: View {
     }
     
     var body: some View {
-        ZStack {
-            // Background with settings
-            backgroundColor
-                .edgesIgnoringSafeArea(.all)
-            
-            GeometryReader { geometry in
-                // Exclude D.C. from count for share stats
-                let visitedStatesExcludingDC = visitedStates.filter { $0 != "District of Columbia" }
-                let visitedCount = visitedStatesExcludingDC.count
+        GeometryReader { geometry in
+            ZStack {
+                // Background
+                backgroundColor
+                    .edgesIgnoringSafeArea(.all)
                 
-                let showAlaska = visitedStates.contains("Alaska")
-                let showHawaii = visitedStates.contains("Hawaii")
-                
-                // For drawing, use all visitedStates (so D.C. is drawn if visited)
-                let contiguousStates = visitedStates.filter { $0 != "Alaska" && $0 != "Hawaii" }
-                let noContiguousStates = contiguousStates.isEmpty
-                
-                if visitedCount == 2 && showAlaska && showHawaii && noContiguousStates {
-                    VStack(spacing: 0) {
-                        InsetStateView(stateName: "Alaska")
-                            .environmentObject(dependencies)
-                            .frame(width: geometry.size.width, height: geometry.size.height / 2)
-                        InsetStateView(stateName: "Hawaii")
-                            .environmentObject(dependencies)
-                            .frame(width: geometry.size.width, height: geometry.size.height / 2)
-                    }
-                } else if visitedCount == 1 && (showAlaska || showHawaii) && noContiguousStates {
-                    if showAlaska {
-                        FullScreenStateView(state: "Alaska")
-                            .environmentObject(dependencies)
-                    } else {
-                        FullScreenStateView(state: "Hawaii")
-                            .environmentObject(dependencies)
-                    }
-                } else {
-                    let insetsCount = (showAlaska ? 1 : 0) + (showHawaii ? 1 : 0)
-                    let boxSize: CGFloat = geometry.size.width * 0.375
+                VStack(spacing: 0) {
+                    // Add logo at the top with some padding
+                    Image("VisitedStatesLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: geometry.size.width * 0.8) // 80% of width
+                        .padding(.top, geometry.size.height * 0.04) // 4% top padding
                     
-                    ZStack(alignment: .bottomLeading) {
-                        ContiguousStatesCanvas(visitedStates: contiguousStates)
-                            .environmentObject(dependencies)
-                            .frame(width: geometry.size.width, height: geometry.size.height * 0.6)
-                            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                        if insetsCount > 0 {
-                            if showAlaska && showHawaii {
-                                HStack(spacing: 0) {
-                                    InsetStateView(stateName: "Alaska")
-                                        .environmentObject(dependencies)
-                                        .frame(width: boxSize, height: boxSize)
-                                    InsetStateView(stateName: "Hawaii")
-                                        .environmentObject(dependencies)
-                                        .frame(width: boxSize, height: boxSize)
-                                }
-                                .padding([.leading, .bottom], 8)
-                            } else if showAlaska {
-                                InsetStateView(stateName: "Alaska")
+                    // Exclude D.C. from count for share stats
+                    let visitedStatesExcludingDC = visitedStates.filter { $0 != "District of Columbia" }
+                    let visitedCount = visitedStatesExcludingDC.count
+                    
+                    // Count label
+                    let labelText = "\(visitedCount)/50 States Visited"
+                    Text(labelText)
+                        .foregroundColor(.gray)
+                        .font(.custom("DoHyeon-Regular", size: 48))
+                        .padding(.bottom, geometry.size.height * 0.02) // 2% bottom padding
+                    
+                    // Map area - takes remaining space
+                    ZStack {
+                        let showAlaska = visitedStates.contains("Alaska")
+                        let showHawaii = visitedStates.contains("Hawaii")
+                        
+                        // For drawing, use all visitedStates (so D.C. is drawn if visited)
+                        let contiguousStates = visitedStates.filter { $0 != "Alaska" && $0 != "Hawaii" }
+                        let noContiguousStates = contiguousStates.isEmpty
+                        
+                        // Special case 1: Only Alaska and Hawaii, nothing else
+                        if visitedCount == 2 && showAlaska && showHawaii && noContiguousStates {
+                            VStack(spacing: 0) {
+                                // Alaska in top position - smaller to avoid overlap with logo
+                                ShareInsetStateView(stateName: "Alaska")
                                     .environmentObject(dependencies)
-                                    .frame(width: boxSize, height: boxSize)
-                                    .padding([.leading, .bottom], 8)
-                            } else if showHawaii {
-                                InsetStateView(stateName: "Hawaii")
+                                    .frame(width: 600, height: 600)
+                                    
+                                
+                                // Hawaii in bottom position - smaller than Alaska
+                                ShareInsetStateView(stateName: "Hawaii")
                                     .environmentObject(dependencies)
-                                    .frame(width: boxSize, height: boxSize)
-                                    .padding([.leading, .bottom], 8)
+                                    .frame(width: 600, height: 600)
+                                   
+                            }
+                            .padding(.top, geometry.size.height * 0.05) // Push down to avoid logo
+                        }
+                        // Special case 2: Only Alaska or only Hawaii
+                        else if visitedCount == 1 && (showAlaska || showHawaii) && noContiguousStates {
+                            if showAlaska {
+                                // Alaska centered in the main map area
+                                ShareFullScreenStateView(state: "Alaska")
+                                    .environmentObject(dependencies)
+                                    .frame(width: geometry.size.width, height: geometry.size.height * 0.6)
+                            } else {
+                                // Hawaii centered in the main map area
+                                ShareFullScreenStateView(state: "Hawaii")
+                                    .environmentObject(dependencies)
+                                    .frame(width: geometry.size.width, height: geometry.size.height * 0.6)
+                            }
+                        }
+                        // Regular case: Show contiguous states only (no AK/HI)
+                        else if !showAlaska && !showHawaii {
+                            ZStack(alignment: .bottomLeading) {
+                                // Main map of contiguous states only
+                                ShareContiguousStatesCanvas(visitedStates: contiguousStates)
+                                    .environmentObject(dependencies)
+                                    .frame(width: geometry.size.width * 0.95, height: geometry.size.height * 0.75)
+                                    .position(x: 600, y: 600)
+                            }
+                        }
+                        // Mixed case: Show contiguous states with Alaska/Hawaii insets
+                        else {
+                            ZStack(alignment: .bottomLeading) {
+                                // Main map of contiguous states - top 75% of map area
+                                ShareContiguousStatesCanvas(visitedStates: contiguousStates)
+                                    .environmentObject(dependencies)
+                                    .frame(width: geometry.size.width * 0.9, height: geometry.size.height * 0.55)
+                                    .position(x: 600, y: 420)
 
+                                
+                                // Insets for Alaska and Hawaii - bottom 25% of map area
+                                if showAlaska && showHawaii {
+                                    // Explicit positioning for Alaska and Hawaii together
+                                    ZStack {
+                                        // Alaska - adjust xOffset and yOffset as needed
+                                        let akXOffset: CGFloat = 250
+                                        let akYOffset: CGFloat = 550
+                                        
+                                        ShareInsetStateView(stateName: "Alaska")
+                                            .environmentObject(dependencies)
+                                            .frame(width: geometry.size.width * 0.28, height: geometry.size.width * 0.28)
+                                            .position(x: akXOffset, y: geometry.size.height - akYOffset)
+                                        
+                                        // Hawaii - adjust xOffset and yOffset as needed
+                                        let hiXOffset: CGFloat = 625
+                                        let hiYOffset: CGFloat = 550
+                                        
+                                        ShareInsetStateView(stateName: "Hawaii")
+                                            .environmentObject(dependencies)
+                                            .frame(width: geometry.size.width * 0.25, height: geometry.size.width * 0.25)
+                                            .position(x: hiXOffset, y: geometry.size.height - hiYOffset)
+                                    }
+                                } else if showAlaska {
+                                    // Just Alaska - adjust xOffset and yOffset as needed
+                                    let akXOffset: CGFloat = 250
+                                    let akYOffset: CGFloat = 550
+                                    
+                                    ShareInsetStateView(stateName: "Alaska")
+                                        .environmentObject(dependencies)
+                                        .frame(width: geometry.size.width * 0.28, height: geometry.size.width * 0.28)
+                                        .position(x: akXOffset, y: geometry.size.height - akYOffset)
+                                } else if showHawaii {
+                                    // Just Hawaii - adjust xOffset and yOffset as needed
+                                    let hiXOffset: CGFloat = 250
+                                    let hiYOffset: CGFloat = 550
+                                    
+                                    ShareInsetStateView(stateName: "Hawaii")
+                                        .environmentObject(dependencies)
+                                        .frame(width: geometry.size.width * 0.28, height: geometry.size.width * 0.28)
+                                        .position(x: hiXOffset, y: geometry.size.height - hiYOffset)
+                                }
                             }
                         }
                     }
+                    .frame(height: geometry.size.height * 0.6) // Allocate 60% of view height to map area
+                    
+                    Spacer() // Push everything up to make room for footer area
                 }
-                
-                let labelText = "\(visitedCount)/50 States Visited"
-                Text(labelText)
-                    .foregroundColor(.gray)
-                    .font(.custom("DoHyeon-Regular", size: 20))
-                    .position(x: geometry.size.width / 2, y: geometry.size.height * 0.2)
             }
         }
         .onAppear {
@@ -144,7 +202,6 @@ struct MapView: View {
             cancellables.removeAll()
         }
     }
-    
     private func setupSubscriptions() {
         // Subscribe to visited states changes
         dependencies.settingsService.visitedStates
@@ -180,9 +237,9 @@ struct MapView: View {
     }
 }
 
-// MARK: - ContiguousStatesCanvas
+// MARK: - ShareContiguousStatesCanvas
 
-struct ContiguousStatesCanvas: View {
+struct ShareContiguousStatesCanvas: View {
     @EnvironmentObject var dependencies: AppDependencies
     let visitedStates: [String]
     
@@ -233,7 +290,7 @@ struct ContiguousStatesCanvas: View {
                             path.closeSubpath()
                             
                             context.fill(path, with: .color(fillColor))
-                            context.stroke(path, with: .color(strokeColor), lineWidth: MapView.borderLineWidth)
+                            context.stroke(path, with: .color(strokeColor), lineWidth: SharePreviewView.borderLineWidth)
                         }
                     }
                 }
@@ -282,9 +339,9 @@ struct ContiguousStatesCanvas: View {
     }
 }
 
-// MARK: - FullScreenStateView
+// MARK: - ShareFullScreenStateView
 
-struct FullScreenStateView: View {
+struct ShareFullScreenStateView: View {
     var state: String
     @EnvironmentObject var dependencies: AppDependencies
     
@@ -297,7 +354,7 @@ struct FullScreenStateView: View {
     var body: some View {
         GeometryReader { geometry in
             Canvas { context, size in
-                if let mapRect = MapView.preferredMapRects[state] {
+                if let mapRect = SharePreviewView.preferredMapRects[state] {
                     let extraPaddingFraction: Double = 0.02
                     let extraDx = mapRect.size.width * extraPaddingFraction
                     let extraDy = mapRect.size.height * extraPaddingFraction
@@ -333,7 +390,7 @@ struct FullScreenStateView: View {
                             path.closeSubpath()
                             
                             context.fill(path, with: .color(fillColor))
-                            context.stroke(path, with: .color(strokeColor), lineWidth: MapView.borderLineWidth)
+                            context.stroke(path, with: .color(strokeColor), lineWidth: SharePreviewView.borderLineWidth)
                         }
                     }
                 }
@@ -377,7 +434,7 @@ struct FullScreenStateView: View {
                             path.closeSubpath()
                             
                             context.fill(path, with: .color(fillColor))
-                            context.stroke(path, with: .color(strokeColor), lineWidth: MapView.borderLineWidth)
+                            context.stroke(path, with: .color(strokeColor), lineWidth: SharePreviewView.borderLineWidth)
                         }
                     }
                 }
@@ -424,9 +481,9 @@ struct FullScreenStateView: View {
     }
 }
 
-// MARK: - InsetStateView
+// MARK: - ShareInsetStateView
 
-struct InsetStateView: View {
+struct ShareInsetStateView: View {
     let stateName: String
     @EnvironmentObject var dependencies: AppDependencies
     
@@ -439,7 +496,7 @@ struct InsetStateView: View {
     var body: some View {
         GeometryReader { geo in
             Canvas { context, size in
-                if let mapRect = MapView.preferredMapRects[stateName] {
+                if let mapRect = SharePreviewView.preferredMapRects[stateName] {
                     drawState(mapRect: mapRect, size: size, context: &context)
                 }
                 else if let unionRect = computeUnionRect(for: stateName) {
@@ -450,12 +507,6 @@ struct InsetStateView: View {
         }
         .onAppear {
             setupSubscriptions()
-            // Debug: Log inset view appearance
-            if stateName == "Alaska" {
-                print("🟢 Showing InsetStateView for Alaska")
-            } else if stateName == "Hawaii" {
-                print("🟢 Showing InsetStateView for Hawaii")
-            }
         }
         .onDisappear {
             cancellables.removeAll()
@@ -528,7 +579,7 @@ struct InsetStateView: View {
                 path.closeSubpath()
                 
                 context.fill(path, with: .color(fillColor))
-                context.stroke(path, with: .color(strokeColor), lineWidth: MapView.borderLineWidth)
+                context.stroke(path, with: .color(strokeColor), lineWidth: SharePreviewView.borderLineWidth)
             }
         }
     }

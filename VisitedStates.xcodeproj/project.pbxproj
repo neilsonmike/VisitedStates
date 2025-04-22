@@ -34,6 +34,7 @@
 		42E4E36F2DB3DB32002D8FAD /* VIsitedStatesLogo.png in Resources */ = {isa = PBXBuildFile; fileRef = 42E4E36E2DB3DB32002D8FAD /* VIsitedStatesLogo.png */; };
 		42E4E3712DB3DD10002D8FAD /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 42E4E3702DB3DD10002D8FAD /* LaunchScreen.storyboard */; };
 		42E4E37F2DB408AD002D8FAD /* VisitedStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42E4E37E2DB408A6002D8FAD /* VisitedStateModel.swift */; };
+		42ED611F2DB819F000415A9D /* SharePreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42ED611E2DB819E900415A9D /* SharePreviewView.swift */; };
 		42F0FE932DAC995D00D9963B /* StoreKitConfig.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */; };
 		42F0FE952DAF0A0400D9963B /* Constraints.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F0FE942DAF0A0000D9963B /* Constraints.swift */; };
 		42F551042D7A83F300986E1F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F551032D7A83EE00986E1F /* SettingsView.swift */; };
@@ -73,6 +74,7 @@
 		42E4E36E2DB3DB32002D8FAD /* VIsitedStatesLogo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = VIsitedStatesLogo.png; sourceTree = "<group>"; };
 		42E4E3702DB3DD10002D8FAD /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		42E4E37E2DB408A6002D8FAD /* VisitedStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedStateModel.swift; sourceTree = "<group>"; };
+		42ED611E2DB819E900415A9D /* SharePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharePreviewView.swift; sourceTree = "<group>"; };
 		42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = StoreKitConfig.storekit; sourceTree = "<group>"; };
 		42F0FE942DAF0A0000D9963B /* Constraints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constraints.swift; sourceTree = "<group>"; };
 		42F0FEA22DAF3DF700D9963B /* Ohio_WV_PA_Test.gpx */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = Ohio_WV_PA_Test.gpx; sourceTree = "<group>"; };
@@ -112,6 +114,7 @@
 		423B206C2C0BAE9100EE7FEF /* VisitedStates */ = {
 			isa = PBXGroup;
 			children = (
+				42ED611E2DB819E900415A9D /* SharePreviewView.swift */,
 				42DD5A672DB2968F005AC7E8 /* AppDependencies.swift */,
 				42E4E37E2DB408A6002D8FAD /* VisitedStateModel.swift */,
 				42DD5A692DB296AF005AC7E8 /* ServiceProtocols.swift */,
@@ -268,6 +271,7 @@
 				4221270F2D8277080033E461 /* AboutView.swift in Sources */,
 				423B20A22C0BB21C00EE7FEF /* MapView.swift in Sources */,
 				42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */,
+				42ED611F2DB819F000415A9D /* SharePreviewView.swift in Sources */,
 				422127112D83B1110033E461 /* ShareSheet.swift in Sources */,
 				42DD5A682DB29693005AC7E8 /* AppDependencies.swift in Sources */,
 				42AA80262D7DF0EF008AF2DE /* AlaskaHawaiiSplitView.swift in Sources */,
