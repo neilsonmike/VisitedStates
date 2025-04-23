@@ -53,8 +53,8 @@ struct ContentView: View {
                             prepareShareContent()
                         }) {
                             Image(systemName: isSharePreparing ? "hourglass" : "square.and.arrow.up")
-                                .font(.system(size: 16))
-                                .padding(8)
+                                .font(.system(size: 20))
+                                .frame(width: 50, height: 50)
                                 .background(Color.gray.opacity(0.3))
                                 .foregroundColor(.white)
                                 .clipShape(Circle())
@@ -66,8 +66,8 @@ struct ContentView: View {
                             showEditStates.toggle()
                         }) {
                             Image(systemName: "pencil")
-                                .font(.system(size: 16))
-                                .padding(8)
+                                .font(.system(size: 20))
+                                .frame(width: 50, height: 50)
                                 .background(Color.gray.opacity(0.3))
                                 .foregroundColor(.white)
                                 .clipShape(Circle())
@@ -78,8 +78,8 @@ struct ContentView: View {
                             showingSettings.toggle()
                         }) {
                             Image(systemName: "ellipsis")
-                                .font(.title)
-                                .padding(12)
+                                .font(.system(size: 20))
+                                .frame(width: 50, height: 50)
                                 .background(Color.gray.opacity(0.3))
                                 .foregroundColor(.white)
                                 .clipShape(Circle())
