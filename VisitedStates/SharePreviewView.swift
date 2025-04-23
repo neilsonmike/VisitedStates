@@ -304,7 +304,12 @@ struct ShareContiguousStatesCanvas: View {
     }
     
     private func setupSubscriptions() {
-        // Subscribe to color changes
+        // IMPORTANT FIX: Get current values first
+        fillColor = dependencies.settingsService.stateFillColor.value
+        strokeColor = dependencies.settingsService.stateStrokeColor.value
+        backgroundColor = dependencies.settingsService.backgroundColor.value
+        
+        // Then subscribe to future changes
         dependencies.settingsService.stateFillColor
             .sink { color in
                 self.fillColor = color
@@ -449,7 +454,12 @@ struct ShareFullScreenStateView: View {
     }
     
     private func setupSubscriptions() {
-        // Subscribe to color changes
+        // IMPORTANT FIX: Get current values first
+        fillColor = dependencies.settingsService.stateFillColor.value
+        strokeColor = dependencies.settingsService.stateStrokeColor.value
+        backgroundColor = dependencies.settingsService.backgroundColor.value
+        
+        // Then subscribe to future changes
         dependencies.settingsService.stateFillColor
             .sink { color in
                 self.fillColor = color
@@ -514,7 +524,12 @@ struct ShareInsetStateView: View {
     }
     
     private func setupSubscriptions() {
-        // Subscribe to color changes
+        // IMPORTANT FIX: Get current values first
+        fillColor = dependencies.settingsService.stateFillColor.value
+        strokeColor = dependencies.settingsService.stateStrokeColor.value
+        backgroundColor = dependencies.settingsService.backgroundColor.value
+        
+        // Then subscribe to future changes
         dependencies.settingsService.stateFillColor
             .sink { color in
                 self.fillColor = color
