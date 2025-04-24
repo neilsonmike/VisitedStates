@@ -23,8 +23,8 @@ struct IntroMapView: View {
 
     var body: some View {
         ZStack {
-            // Background
-            Color.white.edgesIgnoringSafeArea(.all)
+            // Background - change to use Color.primary.colorInvert() which respects dark mode
+            Color(UIColor.systemBackground).edgesIgnoringSafeArea(.all)
             
             // State animations
             GeometryReader { geometry in
@@ -118,9 +118,9 @@ struct IntroMapView: View {
             )
         }
 
-        // Explicitly use gray for the intro animation, not from settings
+        // Use gray for the intro animation, but adapt to dark mode
         let fillColor = Color.gray
-        let strokeColor = Color.white
+        let strokeColor = Color(UIColor.systemBackground) // This will be white in light mode and black in dark mode
 
         for polygon in polygons {
             var path = Path()
