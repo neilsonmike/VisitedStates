@@ -54,7 +54,7 @@ struct ContentView: View {
                         }) {
                             Image(systemName: isSharePreparing ? "hourglass" : "square.and.arrow.up")
                                 .font(.system(size: 20))
-                                .frame(width: 50, height: 50)
+                                .frame(width: 40, height: 40)
                                 .background(Color.gray.opacity(0.3))
                                 .foregroundColor(.white)
                                 .clipShape(Circle())
@@ -67,7 +67,7 @@ struct ContentView: View {
                         }) {
                             Image(systemName: "pencil")
                                 .font(.system(size: 20))
-                                .frame(width: 50, height: 50)
+                                .frame(width: 40, height: 40)
                                 .background(Color.gray.opacity(0.3))
                                 .foregroundColor(.white)
                                 .clipShape(Circle())
@@ -79,7 +79,7 @@ struct ContentView: View {
                         }) {
                             Image(systemName: "ellipsis")
                                 .font(.system(size: 20))
-                                .frame(width: 50, height: 50)
+                                .frame(width: 40, height: 40)
                                 .background(Color.gray.opacity(0.3))
                                 .foregroundColor(.white)
                                 .clipShape(Circle())
