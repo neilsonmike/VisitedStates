@@ -258,26 +258,30 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     }
     
     private func isValidLocation(_ location: CLLocation) -> Bool {
-        // Convert values to user-friendly units for logging
-        let speedMph = location.speed * 2.23694 // m/s to mph
-        let altitudeFeet = location.altitude * 3.28084 // meters to feet
+        // Converting values and getting thresholds for logging only
+        // Commented out to avoid using the actual thresholds
+        // let speedMph = location.speed * 2.23694 // m/s to mph
+        // let altitudeFeet = location.altitude * 3.28084 // meters to feet
         
         // Get threshold values from settings
-        let speedThreshold = settings.speedThreshold.value
-        let altitudeThreshold = settings.altitudeThreshold.value
+        // let speedThreshold = settings.speedThreshold.value
+        // let altitudeThreshold = settings.altitudeThreshold.value
         
-        // Check altitude threshold - this is still valid to check
+        // Comment out altitude threshold check
+        /*
         if altitudeFeet > altitudeThreshold {
             print("Ignoring location: altitude = \(altitudeFeet) ft exceeds threshold of \(altitudeThreshold) ft")
             return false
         }
+        */
         
-        // Check positive speed threshold - but allow negative speeds
-        // This is important for GPX testing
+        // Comment out speed threshold check
+        /*
         if location.speed > 0 && speedMph > speedThreshold {
             print("Ignoring location: speed = \(speedMph) mph exceeds threshold of \(speedThreshold) mph")
             return false
         }
+        */
         
         // Check horizontal accuracy - discard very inaccurate readings
         if location.horizontalAccuracy < 0 || location.horizontalAccuracy > 1000 {
