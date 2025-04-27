@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		4212952B2C0D515A00E38B54 /* blank.png in Resources */ = {isa = PBXBuildFile; fileRef = 4212952A2C0D515A00E38B54 /* blank.png */; };
 		4221270D2D8274080033E461 /* DoHyeon-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */; };
 		4221270F2D8277080033E461 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4221270E2D8277020033E461 /* AboutView.swift */; };
 		422127112D83B1110033E461 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422127102D83B10F0033E461 /* ShareSheet.swift */; };
@@ -41,7 +40,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		4212952A2C0D515A00E38B54 /* blank.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = blank.png; sourceTree = "<group>"; };
 		4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "DoHyeon-Regular.ttf"; sourceTree = "<group>"; };
 		4221270E2D8277020033E461 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		422127102D83B10F0033E461 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
@@ -114,39 +112,19 @@
 		423B206C2C0BAE9100EE7FEF /* VisitedStates */ = {
 			isa = PBXGroup;
 			children = (
-				42ED611E2DB819E900415A9D /* SharePreviewView.swift */,
-				42DD5A672DB2968F005AC7E8 /* AppDependencies.swift */,
-				42E4E37E2DB408A6002D8FAD /* VisitedStateModel.swift */,
-				42DD5A692DB296AF005AC7E8 /* ServiceProtocols.swift */,
-				42DD5A6B2DB296CB005AC7E8 /* LocationService.swift */,
-				42DD5A772DB33485005AC7E8 /* AppDelegate.swift */,
-				42E4E36E2DB3DB32002D8FAD /* VIsitedStatesLogo.png */,
-				42DD5A6D2DB296DF005AC7E8 /* StateDetectionService.swift */,
-				42DD5A6F2DB296EB005AC7E8 /* StateBoundaryService.swift */,
-				42DD5A712DB296F9005AC7E8 /* CloudSyncService.swift */,
-				42DD5A732DB29703005AC7E8 /* SettingsService.swift */,
-				42DD5A752DB2970F005AC7E8 /* NotificationService.swift */,
-				42F0FE942DAF0A0000D9963B /* Constraints.swift */,
-				422127102D83B10F0033E461 /* ShareSheet.swift */,
-				4221270E2D8277020033E461 /* AboutView.swift */,
-				42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */,
-				42B9C8062D8000CB0012B018 /* EditStatesView.swift */,
-				42B9C8042D8000B70012B018 /* USStates.swift */,
-				42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */,
-				42F551032D7A83EE00986E1F /* SettingsView.swift */,
-				4212952A2C0D515A00E38B54 /* blank.png */,
-				42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */,
+				42EF56002DBE89CD009684CE /* Resources */,
+				42EF55FC2DBE889B009684CE /* Models */,
+				42EF55FA2DBE8827009684CE /* Services */,
+				42EF55FB2DBE883E009684CE /* Views */,
+				42EF55FD2DBE88AD009684CE /* Protocols */,
+				42EF55FE2DBE8989009684CE /* App Core */,
+				42EF55FF2DBE899C009684CE /* Utilities */,
 				423B20A32C0BB32400EE7FEF /* GeoJSON */,
-				423B209D2C0BAFCC00EE7FEF /* Info.plist */,
-				42E4E3702DB3DD10002D8FAD /* LaunchScreen.storyboard */,
-				423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */,
-				423B20742C0BAE9100EE7FEF /* ContentView.swift */,
 				423B20762C0BAE9200EE7FEF /* Assets.xcassets */,
+				423B209D2C0BAFCC00EE7FEF /* Info.plist */,
 				423B20782C0BAE9200EE7FEF /* VisitedStates.entitlements */,
 				423B20712C0BAE9100EE7FEF /* VisitedStates.xcdatamodeld */,
 				423B20792C0BAE9200EE7FEF /* Preview Content */,
-				423B20A12C0BB21C00EE7FEF /* MapView.swift */,
-				4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */,
 			);
 			path = VisitedStates;
 			sourceTree = "<group>";
@@ -182,6 +160,105 @@
 				4284837B2C0D301B0021DDAE /* us_states.geojson */,
 			);
 			path = GeoJSON;
+			sourceTree = "<group>";
+		};
+		42EF55FA2DBE8827009684CE /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				42DD5A712DB296F9005AC7E8 /* CloudSyncService.swift */,
+				42DD5A6B2DB296CB005AC7E8 /* LocationService.swift */,
+				42DD5A752DB2970F005AC7E8 /* NotificationService.swift */,
+				42DD5A732DB29703005AC7E8 /* SettingsService.swift */,
+				42DD5A6F2DB296EB005AC7E8 /* StateBoundaryService.swift */,
+				42DD5A6D2DB296DF005AC7E8 /* StateDetectionService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		42EF55FB2DBE883E009684CE /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				4221270E2D8277020033E461 /* AboutView.swift */,
+				42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */,
+				423B20742C0BAE9100EE7FEF /* ContentView.swift */,
+				42B9C8062D8000CB0012B018 /* EditStatesView.swift */,
+				42302CDC2D81CB6F00B1C06E /* IntroMapView.swift */,
+				423B20A12C0BB21C00EE7FEF /* MapView.swift */,
+				42F551032D7A83EE00986E1F /* SettingsView.swift */,
+				42ED611E2DB819E900415A9D /* SharePreviewView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		42EF55FC2DBE889B009684CE /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				42E4E37E2DB408A6002D8FAD /* VisitedStateModel.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		42EF55FD2DBE88AD009684CE /* Protocols */ = {
+			isa = PBXGroup;
+			children = (
+				42DD5A692DB296AF005AC7E8 /* ServiceProtocols.swift */,
+			);
+			path = Protocols;
+			sourceTree = "<group>";
+		};
+		42EF55FE2DBE8989009684CE /* App Core */ = {
+			isa = PBXGroup;
+			children = (
+				42DD5A772DB33485005AC7E8 /* AppDelegate.swift */,
+				42DD5A672DB2968F005AC7E8 /* AppDependencies.swift */,
+				423B206D2C0BAE9100EE7FEF /* VisitedStatesApp.swift */,
+			);
+			path = "App Core";
+			sourceTree = "<group>";
+		};
+		42EF55FF2DBE899C009684CE /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				42F0FE942DAF0A0000D9963B /* Constraints.swift */,
+				422127102D83B10F0033E461 /* ShareSheet.swift */,
+				42B9C8042D8000B70012B018 /* USStates.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		42EF56002DBE89CD009684CE /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				42EF56032DBE89E9009684CE /* Fonts */,
+				42EF56022DBE89E4009684CE /* Assets */,
+				42EF56012DBE89DB009684CE /* Configuration */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		42EF56012DBE89DB009684CE /* Configuration */ = {
+			isa = PBXGroup;
+			children = (
+				42F0FE922DAC995D00D9963B /* StoreKitConfig.storekit */,
+			);
+			path = Configuration;
+			sourceTree = "<group>";
+		};
+		42EF56022DBE89E4009684CE /* Assets */ = {
+			isa = PBXGroup;
+			children = (
+				42E4E36E2DB3DB32002D8FAD /* VIsitedStatesLogo.png */,
+				42E4E3702DB3DD10002D8FAD /* LaunchScreen.storyboard */,
+			);
+			path = Assets;
+			sourceTree = "<group>";
+		};
+		42EF56032DBE89E9009684CE /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				4221270C2D8274080033E461 /* DoHyeon-Regular.ttf */,
+			);
+			path = Fonts;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -247,7 +324,6 @@
 				42E4E3712DB3DD10002D8FAD /* LaunchScreen.storyboard in Resources */,
 				42F0FE932DAC995D00D9963B /* StoreKitConfig.storekit in Resources */,
 				42E4E36F2DB3DB32002D8FAD /* VIsitedStatesLogo.png in Resources */,
-				4212952B2C0D515A00E38B54 /* blank.png in Resources */,
 				4221270D2D8274080033E461 /* DoHyeon-Regular.ttf in Resources */,
 				4284837C2C0D301B0021DDAE /* us_states.geojson in Resources */,
 				423B207B2C0BAE9200EE7FEF /* Preview Assets.xcassets in Resources */,
