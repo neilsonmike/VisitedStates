@@ -55,12 +55,12 @@ struct ContentView: View {
                     VStack(alignment: .trailing, spacing: 4) {
                         // Speed indicator
                         Text("Detected Speed: \(Int(currentSpeed)) mph")
-                            .font(.system(size: 8))
+                            .font(.system(size: 10))
                             .foregroundColor(currentSpeed > speedThreshold ? .red : .gray)
                         
                         // Altitude indicator
                         Text("Detected Altitude: \(Int(currentAltitude)) ft")
-                            .font(.system(size: 8))
+                            .font(.system(size: 10))
                             .foregroundColor(currentAltitude > altitudeThreshold ? .red : .gray)
                     }
                     .padding(8)
