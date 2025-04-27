@@ -28,15 +28,34 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     private var batteryIsLow: Bool = false
     private let lowBatteryThreshold: Float = 0.2
     
+    // Cached application state to avoid UI thread issues
+    private var cachedApplicationState: UIApplication.State
+    
     // MARK: - Initialization
     
     init(settings: SettingsServiceProtocol, boundaryService: StateBoundaryServiceProtocol) {
         self.settings = settings
         self.boundaryService = boundaryService
         
+        // Initialize locationManager before super.init
         locationManager = CLLocationManager()
+        
+        // FIXED: Initialize cachedApplicationState without using self
+        // Get the initial app state on the main thread to avoid UIKit issues
+        var initialAppState: UIApplication.State = .active
+        if Thread.isMainThread {
+            initialAppState = UIApplication.shared.applicationState
+        } else {
+            DispatchQueue.main.sync {
+                initialAppState = UIApplication.shared.applicationState
+            }
+        }
+        cachedApplicationState = initialAppState
+        
+        // Call super.init before we can use self
         super.init()
         
+        // Now we can use self safely
         locationManager.delegate = self
         configureLocationManager()
         
@@ -72,9 +91,12 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
         
         print("🚀 Starting location updates...")
         
+        // FIXED: Use cached application state or get it on main thread
+        let currentAppState = getApplicationState()
+        
         switch authorizationStatus.value {
         case .authorizedWhenInUse, .authorizedAlways:
-            if UIApplication.shared.applicationState == .active {
+            if currentAppState == .active {
                 locationManager.startUpdatingLocation()
                 print("🔍 Started standard location updates")
             } else {
@@ -82,8 +104,7 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
                 print("🔍 Started significant location changes")
             }
         case .notDetermined:
-            // FIXED: Do not directly request authorization
-            // Use our thread-safe method instead
+            // Use our thread-safe method
             requestWhenInUseAuthorization()
         case .restricted, .denied:
             print("🔍 Location services are restricted or denied")
@@ -99,13 +120,25 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     }
     
     func requestWhenInUseAuthorization() {
-        // FIXED: Always use dispatch_async to avoid blocking main thread
+        // Always use dispatch_async to avoid blocking main thread
         DispatchQueue.global().async { [weak self] in
             self?.locationManager.requestWhenInUseAuthorization()
         }
     }
     
     // MARK: - Private methods
+    
+    // Thread-safe way to get application state
+    private func getApplicationState() -> UIApplication.State {
+        // If we're on the main thread, get it directly
+        if Thread.isMainThread {
+            return UIApplication.shared.applicationState
+        }
+        // Otherwise use our cached value, which is updated by notification observers
+        else {
+            return cachedApplicationState
+        }
+    }
     
     private func configureLocationManager() {
         // Configure for standard accuracy and distance
@@ -121,6 +154,7 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     }
     
     private func setupNotificationObservers() {
+        // Update cached app state when app state changes
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appDidEnterBackground),
@@ -203,6 +237,9 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     @objc private func appDidEnterBackground() {
         print("🔍 App entered background")
         
+        // Update cached application state
+        cachedApplicationState = .background
+        
         // Cancel any existing background task
         endBackgroundTask()
         
@@ -222,6 +259,9 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     
     @objc private func appDidBecomeActive() {
         print("🔍 App became active")
+        
+        // Update cached application state
+        cachedApplicationState = .active
         
         // End any background task
         endBackgroundTask()
@@ -244,7 +284,15 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
         let taskToEnd = taskID ?? backgroundTask
         
         if taskToEnd != .invalid {
-            UIApplication.shared.endBackgroundTask(taskToEnd)
+            // If we're not on the main thread, dispatch to main
+            if !Thread.isMainThread {
+                DispatchQueue.main.async {
+                    UIApplication.shared.endBackgroundTask(taskToEnd)
+                }
+            } else {
+                UIApplication.shared.endBackgroundTask(taskToEnd)
+            }
+            
             if taskToEnd == backgroundTask {
                 backgroundTask = .invalid
             }
@@ -252,8 +300,19 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     }
     
     private func beginBackgroundTask() -> UIBackgroundTaskIdentifier {
-        return UIApplication.shared.beginBackgroundTask { [weak self] in
-            self?.endBackgroundTask()
+        // This must be called on the main thread
+        if Thread.isMainThread {
+            return UIApplication.shared.beginBackgroundTask { [weak self] in
+                self?.endBackgroundTask()
+            }
+        } else {
+            var taskID: UIBackgroundTaskIdentifier = .invalid
+            DispatchQueue.main.sync {
+                taskID = UIApplication.shared.beginBackgroundTask { [weak self] in
+                    self?.endBackgroundTask()
+                }
+            }
+            return taskID
         }
     }
     
@@ -296,12 +355,18 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     // MARK: - CLLocationManagerDelegate
     
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus.send(manager.authorizationStatus)
-        
-        // Start updates if we have authorization
-        if manager.authorizationStatus == .authorizedWhenInUse ||
-           manager.authorizationStatus == .authorizedAlways {
-            startLocationUpdates()
+        // Ensure authorization status changes are processed on main thread
+        DispatchQueue.main.async { [weak self] in
+            self?.authorizationStatus.send(manager.authorizationStatus)
+            
+            // Start updates if we have authorization
+            if manager.authorizationStatus == .authorizedWhenInUse ||
+               manager.authorizationStatus == .authorizedAlways {
+                // Start location updates on a background thread
+                DispatchQueue.global(qos: .userInitiated).async {
+                    self?.startLocationUpdates()
+                }
+            }
         }
     }
     

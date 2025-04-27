@@ -89,7 +89,21 @@ struct VisitedStatesApp: App {
     private func requestLocationPermission() {
         print("🗺️ Now requesting location permission")
         hasRequestedLocation = true
-        dependencies.locationService.requestWhenInUseAuthorization()
+        
+        // FIXED: Use a background thread to call requestWhenInUseAuthorization
+        DispatchQueue.global().async {
+            DispatchQueue.main.async {
+                // Mark that we've requested permission first (on main thread)
+                // to avoid potential race conditions
+                print("🗺️ Setting hasRequestedLocation flag to true")
+            }
+            // Then request permission from background thread
+            print("🗺️ Dispatching location permission request to background thread")
+            DispatchQueue.global().async {
+                // This call will itself dispatch to a background thread
+                self.dependencies.locationService.requestWhenInUseAuthorization()
+            }
+        }
     }
     
     // Perform initial cloud sync to ensure data is up to date

@@ -54,24 +54,38 @@ class StateDetectionService: StateDetectionServiceProtocol {
     func startStateDetection() {
         guard !isDetecting else { return }
         isDetecting = true
-        locationService.startLocationUpdates()
-        print("🗺️ Started state detection")
+        
+        print("🗺️ Starting state detection")
+        
+        // FIXED: We need to properly handle thread safety here
+        // First update UI immediately
+        DispatchQueue.main.async {
+            print("🗺️ Started state detection") // UI log
+        }
+        
+        // Then start location updates on a background thread
+        // But don't access UIKit APIs directly from this thread
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.locationService.startLocationUpdates()
+        }
     }
     
     func stopStateDetection() {
         guard isDetecting else { return }
         isDetecting = false
-        locationService.stopLocationUpdates()
-        print("🗺️ Stopped state detection")
+        
+        // Stop location updates on the main thread
+        DispatchQueue.main.async { [weak self] in
+            self?.locationService.stopLocationUpdates()
+            print("🗺️ Stopped state detection")
+        }
     }
     
     func processLocation(_ location: CLLocation) {
         print("🧩 Processing location: \(location.coordinate.latitude), \(location.coordinate.longitude)")
         
         // Create a background task for this processing
-        let bgTask = UIApplication.shared.beginBackgroundTask { [weak self] in
-            self?.endProcessingBgTask()
-        }
+        let bgTask = beginBackgroundTask()
         
         // For significant location changes in background, we want to process all of them
         // So we'll skip the distance check that was previously used
@@ -85,43 +99,39 @@ class StateDetectionService: StateDetectionServiceProtocol {
             
             // Update the current detected state (on main thread)
             DispatchQueue.main.async { [weak self] in
-                guard self != nil else {
+                guard let self = self else {
                     // End the background task if self no longer exists
-                    Task { @MainActor in
-                        UIApplication.shared.endBackgroundTask(bgTask)
-                    }
+                    self?.endBackgroundTask(bgTask)
                     return
                 }
                 
                 // Get current state before updating
-                let previousState = self?.currentDetectedState.value
+                let previousState = self.currentDetectedState.value
                 
                 // Only send if the state has changed
                 if previousState != stateName {
                     print("✨ NEW STATE DETECTED: \(stateName) (previous: \(previousState ?? "none"))")
-                    self?.currentDetectedState.send(stateName)
+                    self.currentDetectedState.send(stateName)
                     
                     // Only notify on state change
-                    self?.notifyStateChange(stateName)
+                    self.notifyStateChange(stateName)
                 }
                 
                 // Keep track of last known location in this state
-                self?.lastLocationByState[stateName] = location
+                self.lastLocationByState[stateName] = location
                 
                 // Store detection time for caching
-                self?.stateDetectionCache[stateName] = Date()
+                self.stateDetectionCache[stateName] = Date()
                 
                 // IMPORTANT: Add to visited states AFTER notification decision
                 // This ensures proper "new state" detection for notifications
-                self?.settings.addStateViaGPS(stateName)
+                self.settings.addStateViaGPS(stateName)
                 
                 // Sync with cloud
-                self?.syncToCloud()
+                self.syncToCloud()
                 
                 // End the background task
-                Task { @MainActor in
-                    UIApplication.shared.endBackgroundTask(bgTask)
-                }
+                self.endBackgroundTask(bgTask)
             }
         } else {
             // Increment failed detection counter
@@ -136,7 +146,7 @@ class StateDetectionService: StateDetectionServiceProtocol {
             }
             
             // End the background task
-            endProcessingBgTask(bgTask)
+            endBackgroundTask(bgTask)
         }
     }
     
@@ -160,7 +170,10 @@ class StateDetectionService: StateDetectionServiceProtocol {
                 switch status {
                 case .authorizedWhenInUse, .authorizedAlways:
                     if self?.isDetecting == true {
-                        self?.locationService.startLocationUpdates()
+                        // FIXED: Move to background thread but don't access UI APIs directly
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            self?.locationService.startLocationUpdates()
+                        }
                     }
                 default:
                     break
@@ -372,9 +385,7 @@ class StateDetectionService: StateDetectionServiceProtocol {
         print("☁️ Syncing states to cloud...")
         
         // Create background task for cloud sync
-        let syncTask = UIApplication.shared.beginBackgroundTask { [weak self] in
-            self?.endCloudSyncTask()
-        }
+        let syncTask = beginBackgroundTask()
         
         // Sync with cloud with retry logic
         var retryCount = 0
@@ -385,19 +396,15 @@ class StateDetectionService: StateDetectionServiceProtocol {
             let statesToSync = self.settings.visitedStates.value
             
             self.cloudSync.syncToCloud(states: statesToSync) { [weak self] result in
-                guard self != nil else {
-                    Task { @MainActor in
-                        UIApplication.shared.endBackgroundTask(syncTask)
-                    }
+                guard let self = self else {
+                    self?.endBackgroundTask(syncTask)
                     return
                 }
                 
                 switch result {
                 case .success:
                     print("✅ Successfully synced states to cloud")
-                    Task { @MainActor in
-                        UIApplication.shared.endBackgroundTask(syncTask)
-                    }
+                    self.endBackgroundTask(syncTask)
                     
                 case .failure(let error):
                     retryCount += 1
@@ -411,9 +418,7 @@ class StateDetectionService: StateDetectionServiceProtocol {
                             attemptSync()
                         }
                     } else {
-                        Task { @MainActor in
-                            UIApplication.shared.endBackgroundTask(syncTask)
-                        }
+                        self.endBackgroundTask(syncTask)
                     }
                 }
             }
@@ -423,19 +428,42 @@ class StateDetectionService: StateDetectionServiceProtocol {
         attemptSync()
     }
     
-    private func endProcessingBgTask(_ taskID: UIBackgroundTaskIdentifier? = nil) {
+    private func beginBackgroundTask() -> UIBackgroundTaskIdentifier {
+        var taskID: UIBackgroundTaskIdentifier = .invalid
+        
+        // Must be on main thread
+        if Thread.isMainThread {
+            taskID = UIApplication.shared.beginBackgroundTask { [weak self] in
+                self?.endBackgroundTask(taskID)
+            }
+        } else {
+            DispatchQueue.main.sync {
+                taskID = UIApplication.shared.beginBackgroundTask { [weak self] in
+                    self?.endBackgroundTask(taskID)
+                }
+            }
+        }
+        
+        return taskID
+    }
+    
+    private func endBackgroundTask(_ taskID: UIBackgroundTaskIdentifier? = nil) {
         if let taskID = taskID, taskID != .invalid {
-            Task { @MainActor in
+            if Thread.isMainThread {
                 UIApplication.shared.endBackgroundTask(taskID)
+            } else {
+                DispatchQueue.main.async {
+                    UIApplication.shared.endBackgroundTask(taskID)
+                }
             }
         }
     }
     
+    private func endProcessingBgTask(_ taskID: UIBackgroundTaskIdentifier? = nil) {
+        endBackgroundTask(taskID)
+    }
+    
     private func endCloudSyncTask(_ taskID: UIBackgroundTaskIdentifier? = nil) {
-        if let taskID = taskID, taskID != .invalid {
-            Task { @MainActor in
-                UIApplication.shared.endBackgroundTask(taskID)
-            }
-        }
+        endBackgroundTask(taskID)
     }
 }
