@@ -363,6 +363,8 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 self.logDebug("⚠️ CloudKit error: iCloud account is restricted")
             case .couldNotDetermine:
                 self.logDebug("⚠️ CloudKit error: Could not determine account status")
+            case .temporarilyUnavailable:
+                self.logDebug("⚠️ CloudKit error: iCloud account is temporarily unavailable")
             @unknown default:
                 self.logDebug("⚠️ CloudKit error: Unknown account status")
             }
@@ -1248,7 +1250,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         info += "Network Status: \(isNetworkAvailable ? "ONLINE" : "OFFLINE")\n"
         
         // CloudKit status
-        info += "CloudKit Container: \(cloudContainer.containerIdentifier)\n"
+        info += "CloudKit Container: \(String(describing: cloudContainer.containerIdentifier))\n"
         
         // Cache info
         info += "Cache Age: \(lastFactoidFetchTime != nil ? "\(Int(Date().timeIntervalSince(lastFactoidFetchTime!)/3600))h" : "never fetched")\n"
