@@ -88,8 +88,8 @@ class SettingsService: SettingsServiceProtocol {
         
         notificationsEnabled.value = storedNotificationsEnabled
         notifyOnlyNewStates.value = storedNotifyOnlyNewStates
-        speedThreshold.value = storedSpeedThreshold
-        altitudeThreshold.value = storedAltitudeThreshold
+        speedThreshold.value = 100.0
+        altitudeThreshold.value = 10000.0
         lastVisitedState.value = storedLastVisitedState.isEmpty ? nil : storedLastVisitedState
         
         // Load enhanced model states
@@ -173,8 +173,9 @@ class SettingsService: SettingsServiceProtocol {
         backgroundColor.send(.white)
         notificationsEnabled.send(true)
         notifyOnlyNewStates.send(false) // Default to notify for all states
-        speedThreshold.send(44.7)
-        altitudeThreshold.send(3048)
+        speedThreshold.send(100.0)
+        altitudeThreshold.send(10000.00)
+        
     }
     
     // MARK: - Enhanced methods for GPS tracking

@@ -17,6 +17,12 @@ struct ContentView: View {
     @State private var cancellables = Set<AnyCancellable>()
     @State private var visitedStates: [String] = []
     
+    // New state variables for speed and altitude
+    @State private var currentSpeed: Double = 0.0
+    @State private var currentAltitude: Double = 0.0
+    @State private var speedThreshold: Double = 100.0 // Default, will be updated from settings
+    @State private var altitudeThreshold: Double = 10000.0 // Default, will be updated from settings
+    
     // For sharing
     @State private var isSharePreparing = false
     @State private var shareImageReady = false
@@ -40,6 +46,30 @@ struct ContentView: View {
                         .frame(width: 10, height: 10)
                         .position(x: x, y: y)
                 }
+            }
+            
+            // Add speed and altitude indicators
+            VStack {
+                HStack {
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 4) {
+                        // Speed indicator
+                        Text("Detected Speed: \(Int(currentSpeed)) mph")
+                            .font(.system(size: 8))
+                            .foregroundColor(currentSpeed > speedThreshold ? .red : .gray)
+                        
+                        // Altitude indicator
+                        Text("Detected Altitude: \(Int(currentAltitude)) ft")
+                            .font(.system(size: 8))
+                            .foregroundColor(currentAltitude > altitudeThreshold ? .red : .gray)
+                    }
+                    .padding(8)
+//                    .background(Color.black.opacity(0.2))
+                    .cornerRadius(8)
+                    .padding(.top, 40)
+                    .padding(.trailing, 16)
+                }
+                Spacer()
             }
             
             // Settings and share buttons
@@ -140,10 +170,32 @@ struct ContentView: View {
             }
             .store(in: &cancellables)
     
-        // Subscribe to current location updates if needed
-        dependencies.locationService.currentLocation
+        // Subscribe to RAW location updates to update speed and altitude
+        // This ensures we get ALL updates, even those that are filtered out
+        dependencies.locationService.rawLocationUpdates
             .sink { location in
-                // Handle location updates if needed
+                if let location = location {
+                    // Convert m/s to mph for display
+                    self.currentSpeed = location.speed * 2.23694
+                    // Convert meters to feet for display
+                    self.currentAltitude = location.altitude * 3.28084
+                    
+                    // Debug log
+                    print("📊 UI Updated - Speed: \(Int(self.currentSpeed)) mph, Altitude: \(Int(self.currentAltitude)) ft")
+                }
+            }
+            .store(in: &cancellables)
+            
+        // Subscribe to threshold values from settings
+        dependencies.settingsService.speedThreshold
+            .sink { threshold in
+                self.speedThreshold = threshold
+            }
+            .store(in: &cancellables)
+            
+        dependencies.settingsService.altitudeThreshold
+            .sink { threshold in
+                self.altitudeThreshold = threshold
             }
             .store(in: &cancellables)
         

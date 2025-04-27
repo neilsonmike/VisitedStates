@@ -11,6 +11,9 @@ protocol LocationServiceProtocol: AnyObject {
     /// Current location reported by the service
     var currentLocation: CurrentValueSubject<CLLocation?, Never> { get }
     
+    /// Raw location updates including those filtered out by thresholds
+    var rawLocationUpdates: CurrentValueSubject<CLLocation?, Never> { get }
+    
     /// Current authorization status
     var authorizationStatus: CurrentValueSubject<CLAuthorizationStatus, Never> { get }
     
@@ -155,6 +158,7 @@ protocol NotificationServiceProtocol: AnyObject {
 
 class MockLocationService: LocationServiceProtocol {
     var currentLocation = CurrentValueSubject<CLLocation?, Never>(nil)
+    var rawLocationUpdates = CurrentValueSubject<CLLocation?, Never>(nil) // Added new property
     var authorizationStatus = CurrentValueSubject<CLAuthorizationStatus, Never>(.notDetermined)
     var isLocationServicesEnabled: Bool = true
     
@@ -170,7 +174,9 @@ class MockLocationService: LocationServiceProtocol {
     func startLocationUpdates() {
         // Simulate a location in a random state
         let randomCoordinate = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
-        currentLocation.send(CLLocation(latitude: randomCoordinate.latitude, longitude: randomCoordinate.longitude))
+        let location = CLLocation(latitude: randomCoordinate.latitude, longitude: randomCoordinate.longitude)
+        currentLocation.send(location)
+        rawLocationUpdates.send(location) // Also send to the raw updates
     }
     
     func stopLocationUpdates() {
@@ -283,8 +289,8 @@ class MockSettingsService: SettingsServiceProtocol {
     var stateStrokeColor = CurrentValueSubject<Color, Never>(.white)
     var backgroundColor = CurrentValueSubject<Color, Never>(.white)
     var notificationsEnabled = CurrentValueSubject<Bool, Never>(true)
-    var speedThreshold = CurrentValueSubject<Double, Never>(44.7)
-    var altitudeThreshold = CurrentValueSubject<Double, Never>(3048)
+    var speedThreshold = CurrentValueSubject<Double, Never>(100.0) // Updated to 100 mph
+    var altitudeThreshold = CurrentValueSubject<Double, Never>(10000.0) // Updated to 10,000 feet
     var lastVisitedState = CurrentValueSubject<String?, Never>(nil)
     var notifyOnlyNewStates = CurrentValueSubject<Bool, Never>(false)
     
@@ -337,8 +343,8 @@ class MockSettingsService: SettingsServiceProtocol {
         backgroundColor.send(.white)
         notificationsEnabled.send(true)
         notifyOnlyNewStates.send(false)
-        speedThreshold.send(44.7)
-        altitudeThreshold.send(3048)
+        speedThreshold.send(100.0) // Updated to 100 mph
+        altitudeThreshold.send(10000.0) // Updated to 10,000 feet
     }
     
     func addStateViaGPS(_ state: String) {
@@ -432,4 +438,3 @@ class MockNotificationService: NotificationServiceProtocol {
         print("Mock notification service received cloud sync completion")
     }
 }
-

@@ -8,6 +8,10 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     
     var currentLocation = CurrentValueSubject<CLLocation?, Never>(nil)
     var authorizationStatus = CurrentValueSubject<CLAuthorizationStatus, Never>(.notDetermined)
+    
+    // New property for raw location updates (includes filtered ones)
+    var rawLocationUpdates = CurrentValueSubject<CLLocation?, Never>(nil)
+    
     private var locationManager: CLLocationManager
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     
@@ -317,30 +321,25 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
     }
     
     private func isValidLocation(_ location: CLLocation) -> Bool {
-        // Converting values and getting thresholds for logging only
-        // Commented out to avoid using the actual thresholds
-        // let speedMph = location.speed * 2.23694 // m/s to mph
-        // let altitudeFeet = location.altitude * 3.28084 // meters to feet
+        // Converting values for logging and comparison
+        let speedMph = location.speed * 2.23694 // m/s to mph
+        let altitudeFeet = location.altitude * 3.28084 // meters to feet
         
         // Get threshold values from settings
-        // let speedThreshold = settings.speedThreshold.value
-        // let altitudeThreshold = settings.altitudeThreshold.value
+        let speedThreshold = settings.speedThreshold.value // This is in mph
+        let altitudeThreshold = settings.altitudeThreshold.value // This is in feet
         
-        // Comment out altitude threshold check
-        /*
+        // Check altitude threshold
         if altitudeFeet > altitudeThreshold {
             print("Ignoring location: altitude = \(altitudeFeet) ft exceeds threshold of \(altitudeThreshold) ft")
             return false
         }
-        */
         
-        // Comment out speed threshold check
-        /*
+        // Check speed threshold - only filter if speed is valid (> 0)
         if location.speed > 0 && speedMph > speedThreshold {
             print("Ignoring location: speed = \(speedMph) mph exceeds threshold of \(speedThreshold) mph")
             return false
         }
-        */
         
         // Check horizontal accuracy - discard very inaccurate readings
         if location.horizontalAccuracy < 0 || location.horizontalAccuracy > 1000 {
@@ -376,7 +375,10 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
         // Start a new background task for this specific location update
         let taskID = beginBackgroundTask()
         
-        // Filter out invalid locations
+        // IMPORTANT: Always publish the raw location for UI updates
+        rawLocationUpdates.send(location)
+        
+        // Filter out invalid locations for state detection
         if !isValidLocation(location) {
             endBackgroundTask(taskID)
             return
