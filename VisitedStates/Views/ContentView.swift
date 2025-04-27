@@ -175,8 +175,10 @@ struct ContentView: View {
         dependencies.locationService.rawLocationUpdates
             .sink { location in
                 if let location = location {
-                    // Convert m/s to mph for display
-                    self.currentSpeed = location.speed * 2.23694
+                    // Convert m/s to mph for display, ensuring non-negative values
+                    let speedMps = max(0, location.speed) // Ensure non-negative value
+                    self.currentSpeed = speedMps * 2.23694
+                    
                     // Convert meters to feet for display
                     self.currentAltitude = location.altitude * 3.28084
                     
