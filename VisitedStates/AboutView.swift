@@ -8,47 +8,75 @@ struct AboutView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            // Replace text with logo image
-            Image("VisitedStatesLogo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: UIScreen.main.bounds.width * 0.7) // 70% of screen width
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // Drag indicator at the absolute top
+                HStack {
+                    Spacer()
+                    Capsule()
+                        .fill(Color.gray.opacity(0.5))
+                        .frame(width: 36, height: 5)
+                    Spacer()
+                }
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+                
+                // Create a spacer that pushes content down
+                Spacer()
+                
+                // Main content centered in the remaining space
+                VStack(spacing: 20) {
+                    // Replace text with logo image
+                    Image("VisitedStatesLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: geometry.size.width * 0.7) // 70% of screen width
 
-            Text("Version \(appVersion)")
-                .font(.subheadline)
-                .foregroundColor(.gray)
+                    Text("Version \(appVersion)")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
 
-            Divider()
-                .padding(.vertical, 20)
+                    Divider()
+                        .padding(.vertical, 10)
 
-            VStack(spacing: 8) {
-                Text("Created by Mike Neilson")
-                    .font(.footnote)
+                    VStack(spacing: 8) {
+                        Text("Created by Mike Neilson")
+                            .font(.footnote)
 
-                Link("Bluesky: @neils.me", destination: URL(string: "https://bsky.app/profile/neils.me")!)
-                    .font(.footnote)
-                    .foregroundColor(.blue)
-                    .underline()
+                        Link("Bluesky: @neils.me", destination: URL(string: "https://bsky.app/profile/neils.me")!)
+                            .font(.footnote)
+                            .foregroundColor(.blue)
+                            .underline()
 
-                Link("GitHub: neilsonmike", destination: URL(string: "https://github.com/neilsonmike")!)
-                    .font(.footnote)
-                    .foregroundColor(.blue)
-                    .underline()
+                        Link("GitHub: neilsonmike", destination: URL(string: "https://github.com/neilsonmike")!)
+                            .font(.footnote)
+                            .foregroundColor(.blue)
+                            .underline()
 
-                Text("©2025 Mike Neilson. All rights reserved.")
-                    .font(.footnote)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 16)
+                        Text("©2025 Mike Neilson. All rights reserved.")
+                            .font(.footnote)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 16)
+                    }
+                    .foregroundColor(.gray)
+
+                    Text("This app was designed and developed entirely through collaboration with AI as a test of the possibilities of pairing a product owner with an AI developer. No original code in this app is human written.")
+                        .font(.footnote)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                }
+                .padding(.horizontal)
+                
+                // Create another spacer to push content up, creating center alignment
+                Spacer()
             }
-            .foregroundColor(.gray)
-
-            Text("This app was designed and developed entirely through collaboration with AI as a test of the possibilities of pairing a product owner with an AI developer. No original code in this app is human written.")
-                .font(.footnote)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 20)
         }
-        .padding()
+        .onAppear {
+            print("AboutView appeared")
+        }
+        .onDisappear {
+            print("AboutView disappeared")
+        }
     }
 }
 

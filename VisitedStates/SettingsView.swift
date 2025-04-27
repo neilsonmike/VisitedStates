@@ -23,6 +23,9 @@ struct SettingsView: View {
     @State private var systemNotificationsAuthorized = false
     @State private var showNotificationSettingsAlert = false
     
+    // New state for showing AboutView as sheet
+    @State private var showingAboutView = false
+    
     var body: some View {
         NavigationView {
             Form {
@@ -128,9 +131,11 @@ struct SettingsView: View {
                     }
                 }
                 
-                // About Section
+                // About Section - Changed to use button that presents sheet
                 Section {
-                    NavigationLink("About VisitedStates", destination: AboutView())
+                    Button("About VisitedStates") {
+                        showingAboutView = true
+                    }
                 }
             }
             .navigationTitle("Settings")
@@ -158,6 +163,10 @@ struct SettingsView: View {
             } message: {
                 Text("Are you sure you want to restore the default color selections?")
             }
+            // Present AboutView as sheet instead of NavigationLink
+            .sheet(isPresented: $showingAboutView) {
+                AboutView()
+            }
         }
         .onAppear {
             setupSubscriptions()
@@ -177,8 +186,16 @@ struct SettingsView: View {
         }
         .onDisappear {
             // When settings view is dismissed, trigger a sync
+            print("SettingsView disappearing - triggering sync")
             dependencies.cloudSyncService.syncToCloud(
-                states: dependencies.settingsService.visitedStates.value) { _ in }
+                states: dependencies.settingsService.visitedStates.value) { result in
+                    switch result {
+                    case .success:
+                        print("✅ Settings view dismissal sync completed successfully")
+                    case .failure(let error):
+                        print("❌ Settings view dismissal sync failed: \(error.localizedDescription)")
+                    }
+                }
             
             cancellables.removeAll()
         }
