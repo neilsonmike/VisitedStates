@@ -48,29 +48,29 @@ struct ContentView: View {
                 }
             }
             
-            // Add speed and altitude indicators
-            VStack {
-                HStack {
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 4) {
-                        // Speed indicator
-                        Text("Detected Speed: \(Int(currentSpeed)) mph")
-                            .font(.system(size: 10))
-                            .foregroundColor(currentSpeed > speedThreshold ? .red : .gray)
-                        
-                        // Altitude indicator
-                        Text("Detected Altitude: \(Int(currentAltitude)) ft")
-                            .font(.system(size: 10))
-                            .foregroundColor(currentAltitude > altitudeThreshold ? .red : .gray)
-                    }
-                    .padding(8)
+//            // Add speed and altitude indicators
+//            VStack {
+//                HStack {
+//                    Spacer()
+//                    VStack(alignment: .trailing, spacing: 4) {
+//                        // Speed indicator
+//                        Text("Detected Speed: \(Int(currentSpeed)) mph")
+//                            .font(.system(size: 10))
+//                            .foregroundColor(currentSpeed > speedThreshold ? .red : .gray)
+//                        
+//                        // Altitude indicator
+//                        Text("Detected Altitude: \(Int(currentAltitude)) ft")
+//                            .font(.system(size: 10))
+//                            .foregroundColor(currentAltitude > altitudeThreshold ? .red : .gray)
+//                    }
+//                    .padding(8)
 //                    .background(Color.black.opacity(0.2))
-                    .cornerRadius(8)
-                    .padding(.top, 40)
-                    .padding(.trailing, 16)
-                }
-                Spacer()
-            }
+//                    .cornerRadius(8)
+//                    .padding(.top, 40)
+//                    .padding(.trailing, 16)
+//                }
+//                Spacer()
+//            }
             
             // Settings and share buttons
             VStack {
