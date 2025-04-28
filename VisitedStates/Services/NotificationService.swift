@@ -123,10 +123,14 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         DispatchQueue.global(qos: .utility).async { [weak self] in
             self?.preloadFactoids(forceRefresh: true)
         }
+        
+        // Set up app state observer
+        setupAppStateObserver()
     }
     
     deinit {
         networkMonitor?.cancel()
+        NotificationCenter.default.removeObserver(self)
         logDebug("🚫 NotificationService deinit")
     }
     
@@ -322,6 +326,23 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     }
     
     // MARK: - Private methods
+    
+    // Set up app state observer
+    private func setupAppStateObserver() {
+        // Add notification observer for when app becomes active
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func appDidBecomeActive() {
+        // Synchronize the last notified state from UserDefaults
+        // No action needed since our property directly reads from UserDefaults
+        logDebug("🔔 App became active - synchronized last notified state: \(lastNotifiedState ?? "none")")
+    }
     
     // Clear the factoid cache to force fresh fetches
     private func clearFactoidCache() {
