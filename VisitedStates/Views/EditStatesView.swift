@@ -117,13 +117,38 @@ struct EditStatesView: View {
             if let index = updatedStates.firstIndex(of: state) {
                 updatedStates.remove(at: index)
                 dependencies.settingsService.setVisitedStates(updatedStates)
+                
+                // If removing Alaska or Hawaii, refresh colors
+                if state == "Alaska" || state == "Hawaii" {
+                    forceRefreshColors()
+                }
             }
         } else {
             // Add if not visited
             var updatedStates = visitedStates
             updatedStates.append(state)
             dependencies.settingsService.setVisitedStates(updatedStates)
+            
+            // If adding Alaska or Hawaii, refresh colors
+            if state == "Alaska" || state == "Hawaii" {
+                forceRefreshColors()
+            }
         }
+    }
+    
+    // Force a refresh of color values by sending the current value through the publisher
+    private func forceRefreshColors() {
+        // Get current colors
+        let fillColor = dependencies.settingsService.stateFillColor.value
+        let strokeColor = dependencies.settingsService.stateStrokeColor.value
+        let bgColor = dependencies.settingsService.backgroundColor.value
+        
+        // Re-send them through publishers to trigger updates
+        dependencies.settingsService.stateFillColor.send(fillColor)
+        dependencies.settingsService.stateStrokeColor.send(strokeColor)
+        dependencies.settingsService.backgroundColor.send(bgColor)
+        
+        print("🎨 Forced color refresh - fill: \(fillColor), stroke: \(strokeColor)")
     }
     
     // Sync with CloudKit

@@ -73,6 +73,9 @@ struct MapView: View {
                 let showAlaska = visitedStates.contains("Alaska")
                 let showHawaii = visitedStates.contains("Hawaii")
                 
+                // Debug to check colors when states change
+                let _ = print("🗺️ MapView rendering with stateFillColor: \(stateFillColor), visitedStates: \(visitedStates.count)")
+                
                 // For drawing, use all visitedStates (so D.C. is drawn if visited)
                 let contiguousStates = visitedStates.filter { $0 != "Alaska" && $0 != "Hawaii" }
                 let noContiguousStates = contiguousStates.isEmpty
@@ -146,10 +149,21 @@ struct MapView: View {
     }
     
     private func setupSubscriptions() {
+        // Get initial values first to ensure state and colors are in sync
+        stateFillColor = dependencies.settingsService.stateFillColor.value
+        stateStrokeColor = dependencies.settingsService.stateStrokeColor.value
+        backgroundColor = dependencies.settingsService.backgroundColor.value
+        visitedStates = dependencies.settingsService.visitedStates.value
+        
         // Subscribe to visited states changes
         dependencies.settingsService.visitedStates
             .sink { states in
+                // When states change, force refresh all color values too
+                // to ensure newly added states use the current colors
                 self.visitedStates = states
+                self.stateFillColor = self.dependencies.settingsService.stateFillColor.value
+                self.stateStrokeColor = self.dependencies.settingsService.stateStrokeColor.value
+                self.backgroundColor = self.dependencies.settingsService.backgroundColor.value
             }
             .store(in: &cancellables)
         
