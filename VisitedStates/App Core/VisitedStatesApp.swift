@@ -13,6 +13,10 @@ struct VisitedStatesApp: App {
     @AppStorage("hasRequestedNotifications") private var hasRequestedNotifications = false
     @AppStorage("hasRequestedLocation") private var hasRequestedLocation = false
     
+    // State for showing onboarding
+    @State private var showOnboarding = false
+    @State private var isExistingUser = false
+    
     // Store the cancellable for notification subscription
     @State private var notificationSubscription: AnyCancellable? = nil
     
@@ -23,50 +27,65 @@ struct VisitedStatesApp: App {
     // Track app lifecycle for background sync
     @Environment(\.scenePhase) var scenePhase
     
+    // No custom initializer needed for now
+    
     var body: some Scene {
         WindowGroup {
             // Show the IntroMapView directly
-            IntroMapView()
-                .environmentObject(dependencies)
-                // Add environment values for scene phase monitoring
-                .environment(\.scenePhase, scenePhase)
-                .onAppear {
-                    print("🟢 App is launching: VisitedStatesApp.swift")
-                    
-                    // Perform initial cloud sync to ensure data is up to date
-                    // This is especially important for fresh installs
-                    performInitialCloudSync()
-                    
-                    // Fetch settings from cloud
-                    dependencies.cloudSyncService.fetchSettingsFromCloud { result in
-                        if case .success = result {
-                            print("✅ Initial settings fetch successful")
-                        } else if case .failure(let error) = result {
-                            print("⚠️ Initial settings fetch failed: \(error.localizedDescription)")
+            ZStack {
+                IntroMapView()
+                    .environmentObject(dependencies)
+                    // Add environment values for scene phase monitoring
+                    .environment(\.scenePhase, scenePhase)
+                    .onAppear {
+                        print("🟢 App is launching: VisitedStatesApp.swift")
+                        
+                        // Perform initial cloud sync to ensure data is up to date
+                        // This is especially important for fresh installs
+                        performInitialCloudSync()
+                        
+                        // Fetch settings from cloud
+                        dependencies.cloudSyncService.fetchSettingsFromCloud { result in
+                            if case .success = result {
+                                print("✅ Initial settings fetch successful")
+                            } else if case .failure(let error) = result {
+                                print("⚠️ Initial settings fetch failed: \(error.localizedDescription)")
+                            }
                         }
-                    }
-                    
-                    // Start the permission sequence
-                    if !hasRequestedNotifications {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            requestNotificationsWithCallback()
+                        
+                        // Simple check for onboarding - we'll make this smarter later
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            // For now, just check if we've requested permissions
+                            let needsOnboarding = !hasRequestedNotifications || !hasRequestedLocation
+                            
+                            // For testing: always show onboarding
+                            showOnboarding = true
+                            isExistingUser = UserDefaults.standard.bool(forKey: "appPreviouslyLaunched")
+                            
+                            // Mark that the app has been launched
+                            UserDefaults.standard.set(true, forKey: "appPreviouslyLaunched")
                         }
-                    } else if !hasRequestedLocation {
-                        // If notifications were already handled but location wasn't
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            requestLocationPermission()
-                        }
+                        
+                        // Note: We're NOT automatically requesting permissions here anymore
+                        // as that will be handled by the onboarding flow
                     }
-                    
-                    // If app was launched by location services, start them
-                    if appDelegate.launchedByLocationServices {
-                        dependencies.locationService.startLocationUpdates()
-                        dependencies.stateDetectionService.startStateDetection()
-                        print("✅ Successfully restarted location services after device reboot")
-                    }
+                
+                // Show onboarding flow as a sheet when needed
+            }
+            .fullScreenCover(isPresented: $showOnboarding) {
+                OnboardingView(isPresented: $showOnboarding, isExistingUser: isExistingUser)
+                    .environmentObject(dependencies)
+            }
+            .onAppear {
+                // If app was launched by location services, start them
+                if appDelegate.launchedByLocationServices {
+                    dependencies.locationService.startLocationUpdates()
+                    dependencies.stateDetectionService.startStateDetection()
+                    print("✅ Successfully restarted location services after device reboot")
                 }
-                // Add scene phase change handling
-                .onChange(of: scenePhase) { _, newPhase in
+            }
+            // Add scene phase change handling
+            .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .background {
                         // Sync settings to cloud when app goes to background
                         dependencies.cloudSyncService.syncSettingsToCloud { result in
