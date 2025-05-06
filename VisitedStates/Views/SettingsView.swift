@@ -43,7 +43,7 @@ struct SettingsView: View {
                                 }
                                 
                                 // Sync settings to cloud after change
-                                dependencies.cloudSyncService.syncSettingsToCloud(nil)
+                                dependencies.cloudSyncService.syncSettingsToCloud(completion: nil)
                             }
                         
                         // Warning indicator when there's a discrepancy
@@ -66,7 +66,7 @@ struct SettingsView: View {
                                     dependencies.settingsService.notifyOnlyNewStates.send(newValue)
                                     
                                     // Sync settings to cloud after change
-                                    dependencies.cloudSyncService.syncSettingsToCloud(nil)
+                                    dependencies.cloudSyncService.syncSettingsToCloud(completion: nil)
                                 }
                             
                             // Conditional explainer text
@@ -94,21 +94,21 @@ struct SettingsView: View {
                         .onChange(of: stateFillColor) { _, newValue in
                             dependencies.settingsService.stateFillColor.send(newValue)
                             // Sync settings to cloud after change
-                            dependencies.cloudSyncService.syncSettingsToCloud(nil)
+                            dependencies.cloudSyncService.syncSettingsToCloud(completion: nil)
                         }
                     
                     ColorPicker("State Border Color", selection: $stateStrokeColor)
                         .onChange(of: stateStrokeColor) { _, newValue in
                             dependencies.settingsService.stateStrokeColor.send(newValue)
                             // Sync settings to cloud after change
-                            dependencies.cloudSyncService.syncSettingsToCloud(nil)
+                            dependencies.cloudSyncService.syncSettingsToCloud(completion: nil)
                         }
                     
                     ColorPicker("Background Color", selection: $backgroundColor)
                         .onChange(of: backgroundColor) { _, newValue in
                             dependencies.settingsService.backgroundColor.send(newValue)
                             // Sync settings to cloud after change
-                            dependencies.cloudSyncService.syncSettingsToCloud(nil)
+                            dependencies.cloudSyncService.syncSettingsToCloud(completion: nil)
                         }
                     
                     // Restore Defaults button as part of the Customizations section

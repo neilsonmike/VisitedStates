@@ -1,8 +1,9 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 /// Structure to hold user settings for cloud synchronization
-struct CloudSettings: Codable {
+public struct CloudSettings: Codable {
     // Notification settings
     var notificationsEnabled: Bool
     var notifyOnlyNewStates: Bool
@@ -20,7 +21,7 @@ struct CloudSettings: Codable {
     var lastUpdated: Date
     
     /// Creates CloudSettings from the current app settings
-    static func from(settingsService: SettingsServiceProtocol) -> CloudSettings {
+    public static func from(settingsService: SettingsServiceProtocol) -> CloudSettings {
         return CloudSettings(
             notificationsEnabled: settingsService.notificationsEnabled.value,
             notifyOnlyNewStates: settingsService.notifyOnlyNewStates.value,
@@ -34,7 +35,7 @@ struct CloudSettings: Codable {
     }
     
     /// Apply these cloud settings to the local settings service
-    func applyTo(settingsService: SettingsServiceProtocol) {
+    public func applyTo(settingsService: SettingsServiceProtocol) {
         settingsService.notificationsEnabled.send(notificationsEnabled)
         settingsService.notifyOnlyNewStates.send(notifyOnlyNewStates)
         settingsService.stateFillColor.send(stateFillColor.toSwiftUIColor())
@@ -46,7 +47,7 @@ struct CloudSettings: Codable {
 }
 
 /// A structure to make SwiftUI Color codable for cloud storage
-struct EncodableColor: Codable {
+public struct EncodableColor: Codable {
     var red: Double
     var green: Double
     var blue: Double
@@ -60,8 +61,8 @@ struct EncodableColor: Codable {
     }
     
     init(from color: Color) {
-        // Convert SwiftUI Color to RGB components
-        let uiColor = UIColor(color)
+        // Convert SwiftUI Color to RGB components using extension
+        let uiColor = UIColor(color: color)
         var red: CGFloat = 0
         var green: CGFloat = 0
         var blue: CGFloat = 0
@@ -75,7 +76,7 @@ struct EncodableColor: Codable {
         self.opacity = Double(alpha)
     }
     
-    func toSwiftUIColor() -> Color {
+    public func toSwiftUIColor() -> Color {
         return Color(red: red, green: green, blue: blue, opacity: opacity)
     }
 }

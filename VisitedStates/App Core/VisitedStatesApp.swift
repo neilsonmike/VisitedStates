@@ -70,12 +70,22 @@ struct VisitedStatesApp: App {
                     if newPhase == .background {
                         // Sync settings to cloud when app goes to background
                         dependencies.cloudSyncService.syncSettingsToCloud { result in
-                            print("📤 App entering background - settings sync \(result.map { _ in "succeeded" } ?? "failed")")
+                            switch result {
+                            case .success:
+                                print("📤 App entering background - settings sync succeeded")
+                            case .failure(let error):
+                                print("📤 App entering background - settings sync failed: \(error.localizedDescription)")
+                            }
                         }
                     } else if newPhase == .active {
                         // Fetch settings from cloud when app becomes active
                         dependencies.cloudSyncService.fetchSettingsFromCloud { result in
-                            print("📥 App became active - settings fetch \(result.map { _ in "succeeded" } ?? "failed")")
+                            switch result {
+                            case .success:
+                                print("📥 App became active - settings fetch succeeded")
+                            case .failure(let error):
+                                print("📥 App became active - settings fetch failed: \(error.localizedDescription)")
+                            }
                         }
                     }
                 }

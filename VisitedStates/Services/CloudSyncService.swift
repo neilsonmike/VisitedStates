@@ -1,6 +1,113 @@
 import Foundation
 import CloudKit
 import Combine
+import UIKit
+import SwiftUI
+
+// Direct local definition of CloudSettings to fix scope issues
+struct CloudSettings: Codable {
+    // Notification settings
+    var notificationsEnabled: Bool
+    var notifyOnlyNewStates: Bool
+    
+    // Appearance settings
+    var stateFillColor: EncodableColor
+    var stateStrokeColor: EncodableColor
+    var backgroundColor: EncodableColor
+    
+    // Detection settings
+    var speedThreshold: Double
+    var altitudeThreshold: Double
+    
+    // Metadata
+    var lastUpdated: Date
+    
+    // Creates CloudSettings from the current app settings
+    static func from(settingsService: SettingsServiceProtocol) -> CloudSettings {
+        return CloudSettings(
+            notificationsEnabled: settingsService.notificationsEnabled.value,
+            notifyOnlyNewStates: settingsService.notifyOnlyNewStates.value,
+            stateFillColor: EncodableColor(from: settingsService.stateFillColor.value),
+            stateStrokeColor: EncodableColor(from: settingsService.stateStrokeColor.value),
+            backgroundColor: EncodableColor(from: settingsService.backgroundColor.value),
+            speedThreshold: settingsService.speedThreshold.value,
+            altitudeThreshold: settingsService.altitudeThreshold.value,
+            lastUpdated: Date()
+        )
+    }
+    
+    // Apply these cloud settings to the local settings service
+    func applyTo(settingsService: SettingsServiceProtocol) {
+        settingsService.notificationsEnabled.send(notificationsEnabled)
+        settingsService.notifyOnlyNewStates.send(notifyOnlyNewStates)
+        settingsService.stateFillColor.send(stateFillColor.toSwiftUIColor())
+        settingsService.stateStrokeColor.send(stateStrokeColor.toSwiftUIColor())
+        settingsService.backgroundColor.send(backgroundColor.toSwiftUIColor())
+        settingsService.speedThreshold.send(speedThreshold)
+        settingsService.altitudeThreshold.send(altitudeThreshold)
+    }
+}
+
+// A structure to make SwiftUI Color codable for cloud storage
+struct EncodableColor: Codable {
+    var red: Double
+    var green: Double
+    var blue: Double
+    var opacity: Double
+    
+    init(red: Double, green: Double, blue: Double, opacity: Double = 1.0) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.opacity = opacity
+    }
+    
+    init(from color: Color) {
+        // Convert SwiftUI Color to RGB components
+        // Use a proxy to ensure opacity is captured correctly
+        let uiColor = UIColor(color)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        
+        // Get RGBA components - if this fails, use reasonable defaults
+        if !uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+            // Fallback for color models that don't use RGB (like grayscale)
+            var white: CGFloat = 0
+            if uiColor.getWhite(&white, alpha: &alpha) {
+                red = white
+                green = white
+                blue = white
+            } else {
+                // Last-resort fallback
+                red = 0
+                green = 0
+                blue = 0
+                alpha = 1 // Default to fully opaque if conversion fails
+            }
+        }
+        
+        // Store the components
+        self.red = Double(red)
+        self.green = Double(green)
+        self.blue = Double(blue)
+        // Always enforce at least 0.1 opacity to prevent invisible elements
+        self.opacity = max(0.1, Double(alpha))
+    }
+    
+    func toSwiftUIColor() -> Color {
+        // Ensure opacity is at least 0.1 to prevent invisible elements
+        let safeOpacity = max(0.1, opacity)
+        
+        // For debugging
+        if safeOpacity < 0.99 {
+            print("⚠️ Color opacity below 100%: \(safeOpacity * 100)%")
+        }
+        
+        return Color(red: red, green: green, blue: blue, opacity: safeOpacity)
+    }
+}
 
 class CloudSyncService: CloudSyncServiceProtocol {
     // MARK: - Properties
@@ -67,12 +174,12 @@ class CloudSyncService: CloudSyncServiceProtocol {
     
     @objc private func appDidEnterBackground() {
         print("☁️ App entering background - syncing settings to cloud")
-        syncSettingsToCloud(nil)
+        syncSettingsToCloud(completion: nil)
     }
     
     @objc private func appDidBecomeActive() {
         print("☁️ App became active - fetching settings from cloud")
-        fetchSettingsFromCloud(nil)
+        fetchSettingsFromCloud(completion: nil)
     }
     
     // MARK: - CloudSyncServiceProtocol
@@ -493,11 +600,22 @@ class CloudSyncService: CloudSyncServiceProtocol {
         let useLocalSettings = local.lastUpdated > cloud.lastUpdated
         var result = useLocalSettings ? local : cloud
         
-        // If local settings are newer, use them
+        // Special opacity handling to avoid invisible colors
+        result.stateFillColor.opacity = max(0.5, local.stateFillColor.opacity, cloud.stateFillColor.opacity)
+        result.stateStrokeColor.opacity = max(0.5, local.stateStrokeColor.opacity, cloud.stateStrokeColor.opacity)
+        result.backgroundColor.opacity = max(0.5, local.backgroundColor.opacity, cloud.backgroundColor.opacity)
+        
+        // Log the settings merge
         if useLocalSettings {
-            print("📥 Using local settings (newer than cloud)")
+            print("📥 Using local settings (newer than cloud), with opacity fixes")
+            print("📥 State fill opacity: \(result.stateFillColor.opacity)")
+            print("📥 State stroke opacity: \(result.stateStrokeColor.opacity)")
+            print("📥 Background opacity: \(result.backgroundColor.opacity)")
         } else {
-            print("📥 Using cloud settings (newer than local)")
+            print("📥 Using cloud settings (newer than local), with opacity fixes")
+            print("📥 State fill opacity: \(result.stateFillColor.opacity)")
+            print("📥 State stroke opacity: \(result.stateStrokeColor.opacity)")
+            print("📥 Background opacity: \(result.backgroundColor.opacity)")
         }
         
         // Update lastUpdated
