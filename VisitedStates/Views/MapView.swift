@@ -82,12 +82,23 @@ struct MapView: View {
                 
                 if visitedCount == 2 && showAlaska && showHawaii && noContiguousStates {
                     VStack(spacing: 0) {
-                        InsetStateView(stateName: "Alaska")
-                            .environmentObject(dependencies)
-                            .frame(width: geometry.size.width, height: geometry.size.height / 2)
-                        InsetStateView(stateName: "Hawaii")
-                            .environmentObject(dependencies)
-                            .frame(width: geometry.size.width, height: geometry.size.height / 2)
+                        InsetStateView(
+                            stateName: "Alaska",
+                            fillColor: $stateFillColor,
+                            strokeColor: $stateStrokeColor,
+                            backgroundColor: $backgroundColor
+                        )
+                        .environmentObject(dependencies)
+                        .frame(width: geometry.size.width, height: geometry.size.height / 2)
+                        
+                        InsetStateView(
+                            stateName: "Hawaii",
+                            fillColor: $stateFillColor,
+                            strokeColor: $stateStrokeColor,
+                            backgroundColor: $backgroundColor
+                        )
+                        .environmentObject(dependencies)
+                        .frame(width: geometry.size.width, height: geometry.size.height / 2)
                     }
                 } else if visitedCount == 1 && (showAlaska || showHawaii) && noContiguousStates {
                     if showAlaska {
@@ -109,25 +120,45 @@ struct MapView: View {
                         if insetsCount > 0 {
                             if showAlaska && showHawaii {
                                 HStack(spacing: 0) {
-                                    InsetStateView(stateName: "Alaska")
-                                        .environmentObject(dependencies)
-                                        .frame(width: boxSize, height: boxSize)
-                                    InsetStateView(stateName: "Hawaii")
-                                        .environmentObject(dependencies)
-                                        .frame(width: boxSize, height: boxSize)
+                                    InsetStateView(
+                                        stateName: "Alaska",
+                                        fillColor: $stateFillColor,
+                                        strokeColor: $stateStrokeColor,
+                                        backgroundColor: $backgroundColor
+                                    )
+                                    .environmentObject(dependencies)
+                                    .frame(width: boxSize, height: boxSize)
+                                    
+                                    InsetStateView(
+                                        stateName: "Hawaii",
+                                        fillColor: $stateFillColor,
+                                        strokeColor: $stateStrokeColor,
+                                        backgroundColor: $backgroundColor
+                                    )
+                                    .environmentObject(dependencies)
+                                    .frame(width: boxSize, height: boxSize)
                                 }
                                 .padding([.leading, .bottom], 8)
                             } else if showAlaska {
-                                InsetStateView(stateName: "Alaska")
-                                    .environmentObject(dependencies)
-                                    .frame(width: boxSize, height: boxSize)
-                                    .padding([.leading, .bottom], 8)
+                                InsetStateView(
+                                    stateName: "Alaska",
+                                    fillColor: $stateFillColor,
+                                    strokeColor: $stateStrokeColor,
+                                    backgroundColor: $backgroundColor
+                                )
+                                .environmentObject(dependencies)
+                                .frame(width: boxSize, height: boxSize)
+                                .padding([.leading, .bottom], 8)
                             } else if showHawaii {
-                                InsetStateView(stateName: "Hawaii")
-                                    .environmentObject(dependencies)
-                                    .frame(width: boxSize, height: boxSize)
-                                    .padding([.leading, .bottom], 8)
-
+                                InsetStateView(
+                                    stateName: "Hawaii",
+                                    fillColor: $stateFillColor,
+                                    strokeColor: $stateStrokeColor,
+                                    backgroundColor: $backgroundColor
+                                )
+                                .environmentObject(dependencies)
+                                .frame(width: boxSize, height: boxSize)
+                                .padding([.leading, .bottom], 8)
                             }
                         }
                     }
@@ -454,11 +485,21 @@ struct InsetStateView: View {
     let stateName: String
     @EnvironmentObject var dependencies: AppDependencies
     
+    // Colors received as environment values from parent
+    @Environment(\.colorScheme) var colorScheme
+    
     // Local state
-    @State private var fillColor: Color = .red
-    @State private var strokeColor: Color = .white
-    @State private var backgroundColor: Color = .white
-    @State private var cancellables = Set<AnyCancellable>()
+    @Binding var parentFillColor: Color
+    @Binding var parentStrokeColor: Color
+    @Binding var parentBackgroundColor: Color
+    
+    // Initialize with default colors to keep backward compatibility
+    init(stateName: String, fillColor: Binding<Color>? = nil, strokeColor: Binding<Color>? = nil, backgroundColor: Binding<Color>? = nil) {
+        self.stateName = stateName
+        self._parentFillColor = fillColor ?? .constant(.red)
+        self._parentStrokeColor = strokeColor ?? .constant(.white)
+        self._parentBackgroundColor = backgroundColor ?? .constant(.white)
+    }
     
     var body: some View {
         GeometryReader { geo in
@@ -470,46 +511,16 @@ struct InsetStateView: View {
                     drawState(mapRect: unionRect, size: size, context: &context)
                 }
             }
-            .background(backgroundColor)
+            .background(parentBackgroundColor)
         }
         .onAppear {
-            setupSubscriptions()
-            // Debug: Log inset view appearance
+            // Debug: Log inset view appearance with color information
             if stateName == "Alaska" {
-                print("🟢 Showing InsetStateView for Alaska")
+                print("🟢 Showing InsetStateView for Alaska with fillColor: \(parentFillColor)")
             } else if stateName == "Hawaii" {
-                print("🟢 Showing InsetStateView for Hawaii")
+                print("🟢 Showing InsetStateView for Hawaii with fillColor: \(parentFillColor)")
             }
         }
-        .onDisappear {
-            cancellables.removeAll()
-        }
-    }
-    
-    private func setupSubscriptions() {
-        // IMPORTANT FIX: Get current values first
-        fillColor = dependencies.settingsService.stateFillColor.value
-        strokeColor = dependencies.settingsService.stateStrokeColor.value
-        backgroundColor = dependencies.settingsService.backgroundColor.value
-        
-        // Then subscribe to future changes
-        dependencies.settingsService.stateFillColor
-            .sink { color in
-                self.fillColor = color
-            }
-            .store(in: &cancellables)
-            
-        dependencies.settingsService.stateStrokeColor
-            .sink { color in
-                self.strokeColor = color
-            }
-            .store(in: &cancellables)
-            
-        dependencies.settingsService.backgroundColor
-            .sink { color in
-                self.backgroundColor = color
-            }
-            .store(in: &cancellables)
     }
     
     private func computeUnionRect(for state: String) -> MKMapRect? {
@@ -556,8 +567,8 @@ struct InsetStateView: View {
                 }
                 path.closeSubpath()
                 
-                context.fill(path, with: .color(fillColor))
-                context.stroke(path, with: .color(strokeColor), lineWidth: MapView.borderLineWidth)
+                context.fill(path, with: .color(parentFillColor))
+                context.stroke(path, with: .color(parentStrokeColor), lineWidth: MapView.borderLineWidth)
             }
         }
     }
