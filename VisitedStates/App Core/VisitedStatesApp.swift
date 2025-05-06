@@ -20,17 +20,31 @@ struct VisitedStatesApp: App {
     @State private var isInitialSyncComplete = false
     @State private var syncInProgress = false
     
+    // Track app lifecycle for background sync
+    @Environment(\.scenePhase) var scenePhase
+    
     var body: some Scene {
         WindowGroup {
             // Show the IntroMapView directly
             IntroMapView()
                 .environmentObject(dependencies)
+                // Add environment values for scene phase monitoring
+                .environment(\.scenePhase, scenePhase)
                 .onAppear {
                     print("🟢 App is launching: VisitedStatesApp.swift")
                     
                     // Perform initial cloud sync to ensure data is up to date
                     // This is especially important for fresh installs
                     performInitialCloudSync()
+                    
+                    // Fetch settings from cloud
+                    dependencies.cloudSyncService.fetchSettingsFromCloud { result in
+                        if case .success = result {
+                            print("✅ Initial settings fetch successful")
+                        } else if case .failure(let error) = result {
+                            print("⚠️ Initial settings fetch failed: \(error.localizedDescription)")
+                        }
+                    }
                     
                     // Start the permission sequence
                     if !hasRequestedNotifications {
@@ -49,6 +63,20 @@ struct VisitedStatesApp: App {
                         dependencies.locationService.startLocationUpdates()
                         dependencies.stateDetectionService.startStateDetection()
                         print("✅ Successfully restarted location services after device reboot")
+                    }
+                }
+                // Add scene phase change handling
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .background {
+                        // Sync settings to cloud when app goes to background
+                        dependencies.cloudSyncService.syncSettingsToCloud { result in
+                            print("📤 App entering background - settings sync \(result.map { _ in "succeeded" } ?? "failed")")
+                        }
+                    } else if newPhase == .active {
+                        // Fetch settings from cloud when app becomes active
+                        dependencies.cloudSyncService.fetchSettingsFromCloud { result in
+                            print("📥 App became active - settings fetch \(result.map { _ in "succeeded" } ?? "failed")")
+                        }
                     }
                 }
         }

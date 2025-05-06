@@ -55,6 +55,12 @@ protocol CloudSyncServiceProtocol: AnyObject {
     /// Fetch states from CloudKit
     func fetchFromCloud(completion: @escaping (Result<[String], Error>) -> Void)
     
+    /// Sync user settings to CloudKit
+    func syncSettingsToCloud(completion: ((Result<Void, Error>) -> Void)?)
+    
+    /// Fetch user settings from CloudKit
+    func fetchSettingsFromCloud(completion: ((Result<Void, Error>) -> Void)?)
+    
     /// Current sync status
     var syncStatus: CurrentValueSubject<SyncStatus, Never> { get }
 }
@@ -279,6 +285,26 @@ class MockCloudSyncService: CloudSyncServiceProtocol {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.syncStatus.send(.succeeded)
             completion(.success(["California", "Nevada"]))
+        }
+    }
+    
+    func syncSettingsToCloud(completion: ((Result<Void, Error>) -> Void)?) {
+        syncStatus.send(.syncing)
+        // Simulate network delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.syncStatus.send(.succeeded)
+            print("📤 [MOCK] Synced settings to cloud")
+            completion?(.success(()))
+        }
+    }
+    
+    func fetchSettingsFromCloud(completion: ((Result<Void, Error>) -> Void)?) {
+        syncStatus.send(.syncing)
+        // Simulate network delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.syncStatus.send(.succeeded)
+            print("📥 [MOCK] Fetched settings from cloud")
+            completion?(.success(()))
         }
     }
 }

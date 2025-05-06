@@ -24,6 +24,10 @@ class CloudSyncService: CloudSyncServiceProtocol {
     private let badgesRecordType = "Badges"
     private let badgesRecordID = CKRecord.ID(recordName: "UserBadges")
     
+    // Settings record for user preferences
+    private let settingsRecordType = "UserSettings"
+    private let settingsRecordID = CKRecord.ID(recordName: "UserSettings")
+    
     private let syncQueue = DispatchQueue(label: "com.neils.VisitedStates.cloudSync", qos: .utility)
     private var isSyncing = false
     
@@ -33,6 +37,42 @@ class CloudSyncService: CloudSyncServiceProtocol {
         self.settings = settings
         self.cloudContainer = CKContainer(identifier: containerIdentifier)
         self.privateDatabase = cloudContainer.privateCloudDatabase
+        
+        // Setup notification observers for app lifecycle events to sync settings
+        setupAppStateObservers()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    // Setup app state observers for syncing at appropriate times
+    private func setupAppStateObservers() {
+        // Sync settings when app goes to background
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+        
+        // Fetch settings when app becomes active
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func appDidEnterBackground() {
+        print("☁️ App entering background - syncing settings to cloud")
+        syncSettingsToCloud(nil)
+    }
+    
+    @objc private func appDidBecomeActive() {
+        print("☁️ App became active - fetching settings from cloud")
+        fetchSettingsFromCloud(nil)
     }
     
     // MARK: - CloudSyncServiceProtocol
@@ -215,6 +255,255 @@ class CloudSyncService: CloudSyncServiceProtocol {
                 }
             }
         }
+    }
+    
+    // MARK: - Settings Synchronization
+    
+    /// Sync user settings to CloudKit
+    func syncSettingsToCloud(completion: ((Result<Void, Error>) -> Void)?) {
+        syncQueue.async { [weak self] in
+            guard let self = self else {
+                completion?(.failure(NSError(domain: "CloudSyncService", code: 1,
+                                          userInfo: [NSLocalizedDescriptionKey: "Service no longer exists"])))
+                return
+            }
+            
+            // Don't block state sync if we're already syncing
+            if self.isSyncing {
+                print("⚠️ Settings sync skipped - another sync already in progress")
+                completion?(.failure(NSError(domain: "CloudSyncService", code: 1,
+                                          userInfo: [NSLocalizedDescriptionKey: "Sync already in progress"])))
+                return
+            }
+            
+            self.isSyncing = true
+            print("📤 Syncing settings to cloud")
+            
+            // Create CloudSettings from current settings
+            let cloudSettings = CloudSettings.from(settingsService: self.settings)
+            
+            // Encode to JSON
+            do {
+                let settingsData = try JSONEncoder().encode(cloudSettings)
+                guard let settingsJSON = String(data: settingsData, encoding: .utf8) else {
+                    throw NSError(domain: "CloudSyncService", code: 3,
+                                userInfo: [NSLocalizedDescriptionKey: "Failed to encode settings as JSON"])
+                }
+                
+                // Save to CloudKit
+                self.saveSettingsToCloud(settingsJSON) { result in
+                    self.isSyncing = false
+                    
+                    switch result {
+                    case .success:
+                        print("✅ Successfully synced settings to cloud")
+                        self.syncStatus.send(.succeeded)
+                        completion?(.success(()))
+                        
+                    case .failure(let error):
+                        print("⚠️ Failed to sync settings to cloud: \(error.localizedDescription)")
+                        self.syncStatus.send(.failed(error))
+                        completion?(.failure(error))
+                    }
+                }
+            } catch {
+                self.isSyncing = false
+                print("⚠️ Error encoding settings: \(error.localizedDescription)")
+                self.syncStatus.send(.failed(error))
+                completion?(.failure(error))
+            }
+        }
+    }
+    
+    /// Fetch user settings from CloudKit
+    func fetchSettingsFromCloud(completion: ((Result<Void, Error>) -> Void)?) {
+        syncQueue.async { [weak self] in
+            guard let self = self else {
+                completion?(.failure(NSError(domain: "CloudSyncService", code: 1,
+                                          userInfo: [NSLocalizedDescriptionKey: "Service no longer exists"])))
+                return
+            }
+            
+            // Don't block state sync if we're already syncing
+            if self.isSyncing {
+                print("⚠️ Settings fetch skipped - another sync already in progress")
+                completion?(.failure(NSError(domain: "CloudSyncService", code: 1,
+                                          userInfo: [NSLocalizedDescriptionKey: "Sync already in progress"])))
+                return
+            }
+            
+            self.isSyncing = true
+            print("📥 Fetching settings from cloud")
+            
+            // Fetch settings from CloudKit
+            self.fetchSettingsFromCloudKit { result in
+                self.isSyncing = false
+                
+                switch result {
+                case .success(let cloudSettings):
+                    print("✅ Successfully fetched settings from cloud")
+                    
+                    // Apply settings to local service (on main thread for UI updates)
+                    DispatchQueue.main.async {
+                        cloudSettings.applyTo(settingsService: self.settings)
+                        print("✅ Applied cloud settings to local app")
+                    }
+                    
+                    self.syncStatus.send(.succeeded)
+                    completion?(.success(()))
+                    
+                case .failure(let error):
+                    // No settings found is not an error
+                    if let ckError = error as? CKError, ckError.code == .unknownItem {
+                        print("⚠️ No settings found in cloud - this is normal for first use")
+                        self.syncStatus.send(.succeeded)
+                        completion?(.success(()))
+                    } else {
+                        print("⚠️ Failed to fetch settings from cloud: \(error.localizedDescription)")
+                        self.syncStatus.send(.failed(error))
+                        completion?(.failure(error))
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Save settings to CloudKit
+    private func saveSettingsToCloud(_ settingsJSON: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        // Fetch or create the record
+        privateDatabase.fetch(withRecordID: settingsRecordID) { [weak self] record, error in
+            guard let self = self else { return }
+            
+            var recordToSave: CKRecord
+            
+            if let existingRecord = record {
+                recordToSave = existingRecord
+            } else if error != nil && (error as? CKError)?.code != .unknownItem {
+                completion(.failure(error!))
+                return
+            } else {
+                recordToSave = CKRecord(recordType: self.settingsRecordType, recordID: self.settingsRecordID)
+            }
+            
+            // Update the record with new data
+            recordToSave["settingsJSON"] = settingsJSON as CKRecordValue
+            recordToSave["lastUpdated"] = Date() as CKRecordValue
+            
+            // Save the record
+            self.privateDatabase.save(recordToSave) { _, error in
+                if let error = error {
+                    if let ckError = error as? CKError, ckError.code == .serverRecordChanged {
+                        self.handleSettingsRecordChanged(ckError, settingsJSON: settingsJSON, completion: completion)
+                    } else {
+                        completion(.failure(error))
+                    }
+                } else {
+                    completion(.success(()))
+                }
+            }
+        }
+    }
+    
+    /// Fetch settings from CloudKit
+    private func fetchSettingsFromCloudKit(completion: @escaping (Result<CloudSettings, Error>) -> Void) {
+        privateDatabase.fetch(withRecordID: settingsRecordID) { record, error in
+            if let error = error {
+                if (error as? CKError)?.code == .unknownItem {
+                    // No record found - not an error, just return empty settings
+                    print("📥 No settings record found in CloudKit")
+                    completion(.failure(error))
+                    return
+                } else {
+                    print("⚠️ Error fetching settings: \(error.localizedDescription)")
+                    completion(.failure(error))
+                    return
+                }
+            }
+            
+            guard let record = record, let settingsJSON = record["settingsJSON"] as? String else {
+                print("📥 Settings record exists but contains no data")
+                completion(.failure(NSError(domain: "CloudSyncService", code: 5,
+                                         userInfo: [NSLocalizedDescriptionKey: "Settings record has no data"])))
+                return
+            }
+            
+            // Decode the JSON data
+            guard let data = settingsJSON.data(using: .utf8) else {
+                completion(.failure(NSError(domain: "CloudSyncService", code: 5,
+                                         userInfo: [NSLocalizedDescriptionKey: "Failed to convert JSON to data"])))
+                return
+            }
+            
+            do {
+                let settings = try JSONDecoder().decode(CloudSettings.self, from: data)
+                print("📥 Successfully decoded settings from CloudKit")
+                completion(.success(settings))
+            } catch {
+                print("⚠️ Error decoding settings JSON: \(error.localizedDescription)")
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    /// Handle conflicts with server-side changes for settings data
+    private func handleSettingsRecordChanged(_ error: CKError, settingsJSON: String,
+                                            completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let serverRecord = error.serverRecord else {
+            completion(.failure(error))
+            return
+        }
+        
+        // Get server data
+        guard let serverSettingsJSON = serverRecord["settingsJSON"] as? String,
+              let serverData = serverSettingsJSON.data(using: .utf8),
+              let localData = settingsJSON.data(using: .utf8) else {
+            // If server data can't be parsed, overwrite it with our data
+            saveSettingsToCloud(settingsJSON, completion: completion)
+            return
+        }
+        
+        // Try to decode server and local data
+        do {
+            let serverSettings = try JSONDecoder().decode(CloudSettings.self, from: serverData)
+            let localSettings = try JSONDecoder().decode(CloudSettings.self, from: localData)
+            
+            // Merge server and local settings
+            let mergedSettings = mergeCloudSettings(local: localSettings, cloud: serverSettings)
+            
+            // Encode the merged data
+            let mergedData = try JSONEncoder().encode(mergedSettings)
+            guard let mergedJSON = String(data: mergedData, encoding: .utf8) else {
+                completion(.failure(NSError(domain: "CloudSyncService", code: 6,
+                                         userInfo: [NSLocalizedDescriptionKey: "Failed to encode merged settings"])))
+                return
+            }
+            
+            // Save the merged data
+            saveSettingsToCloud(mergedJSON, completion: completion)
+            
+        } catch {
+            // If data can't be decoded, use our local data
+            saveSettingsToCloud(settingsJSON, completion: completion)
+        }
+    }
+    
+    /// Merge local and cloud settings
+    private func mergeCloudSettings(local: CloudSettings, cloud: CloudSettings) -> CloudSettings {
+        // Create a new settings object based on the newest data
+        let useLocalSettings = local.lastUpdated > cloud.lastUpdated
+        var result = useLocalSettings ? local : cloud
+        
+        // If local settings are newer, use them
+        if useLocalSettings {
+            print("📥 Using local settings (newer than cloud)")
+        } else {
+            print("📥 Using cloud settings (newer than local)")
+        }
+        
+        // Update lastUpdated
+        result.lastUpdated = Date()
+        
+        return result
     }
     
     // MARK: - Enhanced Model Sync
