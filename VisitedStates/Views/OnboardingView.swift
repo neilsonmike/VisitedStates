@@ -33,9 +33,13 @@ struct OnboardingView: View {
         self._isPresented = isPresented
         self.isExistingUser = isExistingUser
         
-        // For existing users, we start on the location permission page
-        if isExistingUser {
+        // For existing users who are just seeing permission explanations,
+        // we start on the location permission page.
+        // BUT for brand new installs, start at the welcome page.
+        if isExistingUser && UserDefaults.standard.bool(forKey: "appPreviouslyLaunched") {
             _currentPage = State(initialValue: 2) // Start at location permission page
+        } else {
+            _currentPage = State(initialValue: 0) // Start at welcome page for new installs
         }
         
         // Initialize with no auto-prompts
