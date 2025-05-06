@@ -21,6 +21,7 @@ struct VisitedStatesApp: App {
     // Track cloud sync status
     @State private var isInitialSyncComplete = false
     @State private var syncInProgress = false
+    @State private var areSettingsSynced = false
     
     // Track app lifecycle for background sync
     @Environment(\.scenePhase) var scenePhase
@@ -31,10 +32,13 @@ struct VisitedStatesApp: App {
         WindowGroup {
             // Show the IntroMapView directly
             ZStack {
-                IntroMapView()
-                    .environmentObject(dependencies)
-                    // Add environment values for scene phase monitoring
-                    .environment(\.scenePhase, scenePhase)
+                IntroMapView(
+                    cloudSyncComplete: $isInitialSyncComplete,
+                    settingsSyncComplete: $areSettingsSynced
+                )
+                .environmentObject(dependencies)
+                // Add environment values for scene phase monitoring
+                .environment(\.scenePhase, scenePhase)
                     .onAppear {
                         print("🟢 App is launching: VisitedStatesApp.swift")
                         
@@ -46,8 +50,11 @@ struct VisitedStatesApp: App {
                         dependencies.cloudSyncService.fetchSettingsFromCloud { result in
                             if case .success = result {
                                 print("✅ Initial settings fetch successful")
+                                self.areSettingsSynced = true
                             } else if case .failure(let error) = result {
                                 print("⚠️ Initial settings fetch failed: \(error.localizedDescription)")
+                                // Still mark as synced even if it failed to avoid blocking UI
+                                self.areSettingsSynced = true
                             }
                         }
                         
@@ -93,8 +100,11 @@ struct VisitedStatesApp: App {
                             switch result {
                             case .success:
                                 print("📥 App became active - settings fetch succeeded")
+                                self.areSettingsSynced = true
                             case .failure(let error):
                                 print("📥 App became active - settings fetch failed: \(error.localizedDescription)")
+                                // Still mark as synced after failure to avoid blocking UI
+                                self.areSettingsSynced = true
                             }
                         }
                     }

@@ -8,13 +8,30 @@ struct IntroMapView: View {
     @State private var navigateToMain = false
     @State private var fadeIn = false
     @State private var needsOnboarding = false
+    @State private var showLoadingIndicator = false
     
     // Access the app dependencies
     @EnvironmentObject var dependencies: AppDependencies
     
+    // Access app-wide cloud status
+    @Binding var cloudSyncComplete: Bool
+    @Binding var settingsSyncComplete: Bool
+    
     // Access app-wide onboarding state
     @AppStorage("hasRequestedNotifications") private var hasRequestedNotifications = false
     @AppStorage("hasRequestedLocation") private var hasRequestedLocation = false
+    
+    // Default initializer for SwiftUI preview
+    init() {
+        self._cloudSyncComplete = .constant(true)
+        self._settingsSyncComplete = .constant(true)
+    }
+    
+    // Real initializer with bindings
+    init(cloudSyncComplete: Binding<Bool>, settingsSyncComplete: Binding<Bool>) {
+        self._cloudSyncComplete = cloudSyncComplete
+        self._settingsSyncComplete = settingsSyncComplete
+    }
     
     private let stateSequence: [String] = [
         "Pennsylvania", "New York", "Ohio", "West Virginia",
@@ -58,6 +75,31 @@ struct IntroMapView: View {
                 Spacer()
             }
             .animation(.easeOut(duration: 1.5), value: fadeOutIntro)
+            
+            // Cloud sync loading indicator
+            if showLoadingIndicator {
+                VStack {
+                    Spacer()
+                    
+                    HStack {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(1.5)
+                        
+                        Text("Loading your settings...")
+                            .font(.system(.headline, design: .rounded))
+                            .padding(.leading, 8)
+                    }
+                    .padding()
+                    .background(Color(UIColor.systemBackground).opacity(0.8))
+                    .cornerRadius(10)
+                    .shadow(radius: 2)
+                    
+                    Spacer()
+                }
+                .transition(.opacity)
+                .animation(.easeIn, value: showLoadingIndicator)
+            }
         }
         .opacity(fadeIn ? 1 : 0)
         .animation(.easeIn(duration: 0.6), value: fadeIn)
@@ -105,28 +147,52 @@ struct IntroMapView: View {
             // Debug log to ensure this is triggered
             print("Fading out intro logo")
             withAnimation { fadeOutIntro = true }
+            
+            // Show loading indicator if cloud sync isn't complete
+            if !cloudSyncComplete || !settingsSyncComplete {
+                print("⏳ Showing loading indicator while waiting for cloud sync")
+                showLoadingIndicator = true
+            }
         }
         
-        // Before navigating to main view, check if onboarding is needed
+        // Wait a bit and then check cloud sync status before continuing
         DispatchQueue.main.asyncAfter(deadline: .now() + (stateFadeInterval * Double(stateSequence.count)) + navigateDelay) {
-            
-            let isExistingUser = UserDefaults.standard.bool(forKey: "appPreviouslyLaunched")
-            
-            // Simplified logic: Only show onboarding for new users
-            if !isExistingUser {
-                // New user - always show full onboarding
-                print("🆕 New user - showing full onboarding")
-                self.needsOnboarding = true
-            } else {
-                // Existing user - skip onboarding and go straight to main view
-                // They can use the badge on settings if they need to change permissions
-                print("👤 Existing user - skipping onboarding, going to main view")
-                navigateToMain = true
-            }
-            
-            // Mark that the app has been launched
-            UserDefaults.standard.set(true, forKey: "appPreviouslyLaunched")
+            // For reinstalls (iCloud data exists), ensure cloud settings are loaded before proceeding
+            checkCloudAndProceed()
         }
+    }
+    
+    // Helper method to check cloud status and proceed when ready
+    private func checkCloudAndProceed() {
+        // Wait for both syncs to complete
+        if !cloudSyncComplete || !settingsSyncComplete {
+            print("⏳ Waiting for cloud sync to complete before continuing...")
+            // Check again after a delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                checkCloudAndProceed()
+            }
+            return
+        }
+        
+        // Cloud sync is complete, continue with navigation
+        showLoadingIndicator = false
+            
+        let isExistingUser = UserDefaults.standard.bool(forKey: "appPreviouslyLaunched")
+        
+        // Simplified logic: Only show onboarding for new users
+        if !isExistingUser {
+            // New user - always show full onboarding
+            print("🆕 New user - showing full onboarding")
+            self.needsOnboarding = true
+        } else {
+            // Existing user - skip onboarding and go straight to main view
+            // They can use the badge on settings if they need to change permissions
+            print("👤 Existing user - skipping onboarding, going to main view")
+            navigateToMain = true
+        }
+        
+        // Mark that the app has been launched
+        UserDefaults.standard.set(true, forKey: "appPreviouslyLaunched")
     }
 
     private func drawState(context: inout GraphicsContext, stateName: String, size: CGSize) {
