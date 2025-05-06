@@ -33,14 +33,9 @@ struct OnboardingView: View {
         self._isPresented = isPresented
         self.isExistingUser = isExistingUser
         
-        // For existing users who are just seeing permission explanations,
-        // we start on the location permission page.
-        // BUT for brand new installs, start at the welcome page.
-        if isExistingUser && UserDefaults.standard.bool(forKey: "appPreviouslyLaunched") {
-            _currentPage = State(initialValue: 2) // Start at location permission page
-        } else {
-            _currentPage = State(initialValue: 0) // Start at welcome page for new installs
-        }
+        // Always start at the welcome page - we won't show onboarding to existing users at all,
+        // so this code is now simplified. The IntroMapView will only show onboarding to new users.
+        _currentPage = State(initialValue: 0) // Start at welcome page
         
         // Initialize with no auto-prompts
         _showAlwaysAccessButton = State(initialValue: false)

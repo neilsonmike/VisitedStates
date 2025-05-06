@@ -110,36 +110,17 @@ struct IntroMapView: View {
         // Before navigating to main view, check if onboarding is needed
         DispatchQueue.main.asyncAfter(deadline: .now() + (stateFadeInterval * Double(stateSequence.count)) + navigateDelay) {
             
-            // Check if we need onboarding first
-            let needsOnboarding = !hasRequestedNotifications || !hasRequestedLocation
             let isExistingUser = UserDefaults.standard.bool(forKey: "appPreviouslyLaunched")
             
-            // Determine if we need to show onboarding
-            if needsOnboarding {
-                // For existing users, do an additional permission check
-                if isExistingUser {
-                    let locationStatus = dependencies.locationService.authorizationStatus.value
-                    let notificationsEnabled = dependencies.notificationService.isNotificationsAuthorized.value
-                    
-                    if (locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse) && 
-                       notificationsEnabled {
-                        // User already has good enough permissions
-                        print("✅ User has sufficient permissions - going straight to main view")
-                        self.needsOnboarding = false
-                        navigateToMain = true
-                    } else {
-                        // Need to show onboarding first - DON'T navigate to main yet
-                        print("⚠️ Existing user needs onboarding - NOT going to main view")
-                        self.needsOnboarding = true
-                    }
-                } else {
-                    // New user needs onboarding
-                    print("🆕 New user needs onboarding - NOT going to main view")
-                    self.needsOnboarding = true
-                }
+            // Simplified logic: Only show onboarding for new users
+            if !isExistingUser {
+                // New user - always show full onboarding
+                print("🆕 New user - showing full onboarding")
+                self.needsOnboarding = true
             } else {
-                // No onboarding needed, go straight to main view
-                print("✅ No onboarding needed - going straight to main view")
+                // Existing user - skip onboarding and go straight to main view
+                // They can use the badge on settings if they need to change permissions
+                print("👤 Existing user - skipping onboarding, going to main view")
                 navigateToMain = true
             }
             
