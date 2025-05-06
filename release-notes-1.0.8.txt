@@ -1,0 +1,8 @@
+What's New in Version 1.0.8:
+
+• Fixed issues with color synchronization across map views
+• Improved onboarding experience for new users
+• Fixed notification handling during background transitions
+• Enhanced iCloud synchronization reliability
+• Fixed issue where custom colors weren't immediately shown after reinstalling
+• General performance and stability improvements
