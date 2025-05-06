@@ -249,6 +249,11 @@ struct ContiguousStatesCanvas: View {
     }
     
     private func setupSubscriptions() {
+        // IMPORTANT FIX: Get current values first
+        fillColor = dependencies.settingsService.stateFillColor.value
+        strokeColor = dependencies.settingsService.stateStrokeColor.value
+        backgroundColor = dependencies.settingsService.backgroundColor.value
+        
         // Subscribe to color changes
         dependencies.settingsService.stateFillColor
             .sink { color in
