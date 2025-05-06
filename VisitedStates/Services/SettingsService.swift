@@ -88,8 +88,8 @@ class SettingsService: SettingsServiceProtocol {
         
         notificationsEnabled.value = storedNotificationsEnabled
         notifyOnlyNewStates.value = storedNotifyOnlyNewStates
-        speedThreshold.value = storedSpeedThreshold
-        altitudeThreshold.value = storedAltitudeThreshold
+        speedThreshold.value = 100.0  // Hardcoded internal value (no longer user-configurable)
+        altitudeThreshold.value = 10000.0  // Hardcoded internal value (no longer user-configurable)
         lastVisitedState.value = storedLastVisitedState.isEmpty ? nil : storedLastVisitedState
         
         // Load enhanced model states
