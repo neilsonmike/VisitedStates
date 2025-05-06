@@ -38,11 +38,26 @@ struct CloudSettings: Codable {
     
     // Apply these cloud settings to the local settings service
     func applyTo(settingsService: SettingsServiceProtocol) {
+        // First check if the user has customized colors since app launch
+        let stateFillIsDefault = settingsService.stateFillColor.value == .red
+        let stateStrokeIsDefault = settingsService.stateStrokeColor.value == .white
+        let backgroundIsDefault = settingsService.backgroundColor.value == .white
+        
+        // Only apply cloud color settings if the user has not customized them locally
         settingsService.notificationsEnabled.send(notificationsEnabled)
         settingsService.notifyOnlyNewStates.send(notifyOnlyNewStates)
-        settingsService.stateFillColor.send(stateFillColor.toSwiftUIColor())
-        settingsService.stateStrokeColor.send(stateStrokeColor.toSwiftUIColor())
-        settingsService.backgroundColor.send(backgroundColor.toSwiftUIColor())
+        
+        // Preserve custom colors unless they're still at default values
+        if stateFillIsDefault {
+            settingsService.stateFillColor.send(stateFillColor.toSwiftUIColor())
+        }
+        if stateStrokeIsDefault {
+            settingsService.stateStrokeColor.send(stateStrokeColor.toSwiftUIColor())
+        }
+        if backgroundIsDefault {
+            settingsService.backgroundColor.send(backgroundColor.toSwiftUIColor())
+        }
+        
         settingsService.speedThreshold.send(speedThreshold)
         settingsService.altitudeThreshold.send(altitudeThreshold)
     }
