@@ -13,9 +13,7 @@ struct VisitedStatesApp: App {
     @AppStorage("hasRequestedNotifications") private var hasRequestedNotifications = false
     @AppStorage("hasRequestedLocation") private var hasRequestedLocation = false
     
-    // State for showing onboarding
-    @State private var showOnboarding = false
-    @State private var isExistingUser = false
+    // Onboarding flow is now managed in IntroMapView
     
     // Store the cancellable for notification subscription
     @State private var notificationSubscription: AnyCancellable? = nil
@@ -53,18 +51,8 @@ struct VisitedStatesApp: App {
                             }
                         }
                         
-                        // Simple check for onboarding - we'll make this smarter later
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            // For now, just check if we've requested permissions
-                            let needsOnboarding = !hasRequestedNotifications || !hasRequestedLocation
-                            
-                            // For testing: always show onboarding
-                            showOnboarding = true
-                            isExistingUser = UserDefaults.standard.bool(forKey: "appPreviouslyLaunched")
-                            
-                            // Mark that the app has been launched
-                            UserDefaults.standard.set(true, forKey: "appPreviouslyLaunched")
-                        }
+                        // We've moved the onboarding check to IntroMapView
+                        // This is where the app launches and does initial setup
                         
                         // Note: We're NOT automatically requesting permissions here anymore
                         // as that will be handled by the onboarding flow
@@ -72,16 +60,19 @@ struct VisitedStatesApp: App {
                 
                 // Show onboarding flow as a sheet when needed
             }
-            .fullScreenCover(isPresented: $showOnboarding) {
-                OnboardingView(isPresented: $showOnboarding, isExistingUser: isExistingUser)
-                    .environmentObject(dependencies)
-            }
+            // Removed onboarding presentation from here - moved to IntroMapView
             .onAppear {
-                // If app was launched by location services, start them
+                // If app was launched by location services, check permissions before starting
                 if appDelegate.launchedByLocationServices {
-                    dependencies.locationService.startLocationUpdates()
-                    dependencies.stateDetectionService.startStateDetection()
-                    print("✅ Successfully restarted location services after device reboot")
+                    // Only start if we already have authorization
+                    let authStatus = dependencies.locationService.authorizationStatus.value
+                    if authStatus == .authorizedWhenInUse || authStatus == .authorizedAlways {
+                        dependencies.locationService.startLocationUpdates()
+                        dependencies.stateDetectionService.startStateDetection()
+                        print("✅ Successfully restarted location services after device reboot")
+                    } else {
+                        print("⚠️ App launched by location services but permissions not granted - waiting for onboarding flow")
+                    }
                 }
             }
             // Add scene phase change handling

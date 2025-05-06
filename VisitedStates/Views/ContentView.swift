@@ -13,9 +13,13 @@ struct ContentView: View {
     @State private var showEditStates = false
     @State private var shareItems: [Any] = []
     @AppStorage("hasShownAlwaysAlert") private var hasShownAlwaysAlert = false
-    @State private var showLocationPermissionAlert = false
+    // Removed automatic location prompt - using onboarding instead
+    @State private var showLocationPermissionAlert = false // Kept for backward compatibility
     @State private var cancellables = Set<AnyCancellable>()
     @State private var visitedStates: [String] = []
+    
+    // Track if we need to show a badge on settings button
+    @State private var needsLocationUpgrade = false
     
     // New state variables for speed and altitude
     @State private var currentSpeed: Double = 0.0
@@ -103,16 +107,32 @@ struct ContentView: View {
                                 .clipShape(Circle())
                         }
                         
-                        // Settings Button
+                        // Settings Button with badge indicator for permissions
                         Button(action: {
                             showingSettings.toggle()
                         }) {
-                            Image(systemName: "ellipsis")
-                                .font(.system(size: 20))
-                                .frame(width: 40, height: 40)
-                                .background(Color.gray.opacity(0.3))
-                                .foregroundColor(.white)
-                                .clipShape(Circle())
+                            ZStack {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 20))
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.gray.opacity(0.3))
+                                    .foregroundColor(.white)
+                                    .clipShape(Circle())
+                                
+                                // Show upgrade badge if needed
+                                if needsLocationUpgrade {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.red)
+                                            .frame(width: 18, height: 18)
+                                        
+                                        Image(systemName: "location.fill")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.white)
+                                    }
+                                    .offset(x: 14, y: -14)
+                                }
+                            }
                         }
                     }
                     .padding(.bottom, 16)
@@ -146,20 +166,7 @@ struct ContentView: View {
             EditStatesView()
                 .environmentObject(dependencies)
         }
-        // Show location permission alert
-        .alert("Enable 'Always' Location Access", isPresented: $showLocationPermissionAlert) {
-            Button("Open Settings", role: .none) {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("Later", role: .cancel) {
-                // Mark as shown so we don't nag the user again
-                hasShownAlwaysAlert = true
-            }
-        } message: {
-            Text("For the best experience, VisitedStates needs 'Always' location access to detect state crossings even when the app is closed or the device is restarted.")
-        }
+        // Removed automatic 'Always' location permission alert - using onboarding instead
     }
     
     private func setupSubscriptions() {
@@ -198,6 +205,20 @@ struct ContentView: View {
         dependencies.settingsService.altitudeThreshold
             .sink { threshold in
                 self.altitudeThreshold = threshold
+            }
+            .store(in: &cancellables)
+            
+        // Subscribe to location authorization status changes
+        dependencies.locationService.authorizationStatus
+            .sink { status in
+                // Update the badge state based on authorization status
+                // Show badge for any permission state that isn't "Always"
+                // This includes "While Using App", "Never", and "Not Determined"
+                if status != .authorizedAlways {
+                    self.needsLocationUpgrade = true
+                } else {
+                    self.needsLocationUpgrade = false
+                }
             }
             .store(in: &cancellables)
         
@@ -280,13 +301,22 @@ struct ContentView: View {
     }
     
     private func checkLocationPermission() {
-        let status = dependencies.locationService.authorizationStatus.value
+        // The automatic 'Always' location permission alert has been removed
+        // We're now using the Settings view to promote permission upgrades in a less intrusive way
         
-        // If this is the first launch and we don't have Always permission,
-        // show the alert requesting it (but only once)
-        if !hasShownAlwaysAlert && status != .authorizedAlways {
-            // Check if we need to show the prompt
-            showLocationPermissionAlert = true
+        // Mark as shown to prevent any future attempts with the old system
+        hasShownAlwaysAlert = true
+        showLocationPermissionAlert = false
+        
+        // Check if we should show a badge on the Settings button to encourage upgrade
+        let locationStatus = dependencies.locationService.authorizationStatus.value
+        if locationStatus != .authorizedAlways {
+            // Any permission state other than "Always" should show the badge
+            // This includes "While Using App", "Never", and "Not Determined"
+            needsLocationUpgrade = true
+        } else {
+            // Only "Always" permission is optimal, so no badge needed
+            needsLocationUpgrade = false
         }
     }
 }

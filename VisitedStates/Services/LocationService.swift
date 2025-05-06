@@ -108,8 +108,9 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
                 print("🔍 Started significant location changes")
             }
         case .notDetermined:
-            // Use our thread-safe method
-            requestWhenInUseAuthorization()
+            // Do NOT automatically request permission
+            // Permissions should only be requested through the onboarding flow
+            print("🔍 Location permissions not determined. Need to request through onboarding first.")
         case .restricted, .denied:
             print("🔍 Location services are restricted or denied")
         @unknown default:
@@ -151,8 +152,16 @@ class LocationService: NSObject, LocationServiceProtocol, CLLocationManagerDeleg
         locationManager.pausesLocationUpdatesAutomatically = true
         locationManager.activityType = .other
         
-        // This tells iOS to restart your app for location updates after reboot
-        locationManager.startMonitoringSignificantLocationChanges()
+        // Don't automatically start monitoring - this will be done after permission is granted
+        // Only start if we already have authorization
+        if authorizationStatus.value == .authorizedWhenInUse || 
+           authorizationStatus.value == .authorizedAlways {
+            // This tells iOS to restart your app for location updates after reboot
+            locationManager.startMonitoringSignificantLocationChanges()
+            print("🔧 Starting significant location monitoring with existing permissions")
+        } else {
+            print("🔧 Configured location manager but waiting for permissions before monitoring")
+        }
         
         print("🔧 Configured location manager with standard settings")
     }

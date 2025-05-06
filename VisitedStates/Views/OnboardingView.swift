@@ -11,11 +11,16 @@ struct OnboardingView: View {
     // Binding to control visibility from parent
     @Binding var isPresented: Bool
     
+    // Add a state to control direct navigation to ContentView
+    @State private var showContentView = false
+    
     // State variables for tracking onboarding progress
     @State private var currentPage = 0
     @State private var locationPermissionRequested = false
     @State private var notificationPermissionRequested = false
     @State private var showingLocationSettingsInfo = false
+    @State private var showAlwaysAccessButton = false
+    @State private var lastPermissionRequestTime = Date()
     
     // Tracks whether this is an existing user or a new user
     var isExistingUser: Bool
@@ -29,10 +34,13 @@ struct OnboardingView: View {
         self.isExistingUser = isExistingUser
         
         // For existing users, we start on the location permission page
-        // unless they already have optimal permissions
         if isExistingUser {
             _currentPage = State(initialValue: 2) // Start at location permission page
         }
+        
+        // Initialize with no auto-prompts
+        _showAlwaysAccessButton = State(initialValue: false)
+        _showingLocationSettingsInfo = State(initialValue: false)
     }
     
     // Computed properties for permissions status
@@ -120,7 +128,7 @@ struct OnboardingView: View {
                     .padding(.horizontal)
                     .padding(.bottom)
                 } else {
-                    Button(isExistingUser ? "Return to App" : "Start Exploring") {
+                    Button("Let's Go!") {
                         // Mark onboarding as complete for new users
                         if !isExistingUser {
                             UserDefaults.standard.set(true, forKey: onboardingCompleteKey)
@@ -129,8 +137,8 @@ struct OnboardingView: View {
                         // For both new and existing users, mark that permission explanation has been shown
                         UserDefaults.standard.set(true, forKey: permissionOnboardingShownKey)
                         
-                        // Dismiss onboarding
-                        isPresented = false
+                        // IMPORTANT: Go directly to ContentView without going back to IntroMapView
+                        showContentView = true
                     }
                     .buttonStyle(PrimaryButtonStyle())
                     .padding(.bottom)
@@ -138,8 +146,10 @@ struct OnboardingView: View {
             }
             .padding()
         }
-        .sheet(isPresented: $showingLocationSettingsInfo) {
-            LocationSettingsInfoView()
+        // Direct fullScreenCover to ContentView (skipping IntroMapView altogether)
+        .fullScreenCover(isPresented: $showContentView) {
+            ContentView()
+                .environmentObject(dependencies)
         }
     }
     
@@ -217,42 +227,64 @@ struct OnboardingView: View {
                 .bold()
                 .multilineTextAlignment(.center)
             
-            Text("VisitedStates needs access to your location in the background to detect when you cross state lines.")
+            Text("Location access lets us track the states you visit.")
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             
             VStack(alignment: .leading, spacing: 10) {
-                LocationPermissionOption(
-                    title: "Always",
-                    description: "Detects states even when the app is closed",
-                    isRecommended: true,
-                    isSelected: locationStatus == .authorizedAlways
-                )
-                
+                // Only show options the user can actually select at this stage
                 LocationPermissionOption(
                     title: "While Using App",
-                    description: "Only detects states when the app is open",
-                    isRecommended: false,
+                    description: "Track states when app is open",
+                    isRecommended: true, // Now the recommended option for initial setup
                     isSelected: locationStatus == .authorizedWhenInUse
                 )
                 
                 LocationPermissionOption(
-                    title: "Never",
-                    description: "You'll need to add states manually",
+                    title: "Don't Allow",
+                    description: "Add states manually",
                     isRecommended: false,
                     isSelected: locationStatus == .denied || locationStatus == .restricted
                 )
+                
+                // Add note about "Always" option
+                HStack(alignment: .top, spacing: 4) {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                        .padding(.top, 2)
+                    
+                    Text("For best experience, visit Settings after setup to enable 'Always' permission.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true) // Forces text to wrap
+                }
+                .padding(.top, 8)
             }
             .padding()
             .background(Color.gray.opacity(0.1))
             .cornerRadius(12)
             
-            if locationStatus == .authorizedWhenInUse {
-                Button("How to Enable 'Always' Access") {
-                    showingLocationSettingsInfo = true
-                }
-                .font(.system(.footnote, design: .rounded))
-                .foregroundColor(.blue)
+            // We're completely removing the automatic "Always" access option from the onboarding flow
+        // Users can find this information in the Settings screen after completing onboarding
+        }
+        // Set up this screen
+        .onAppear {
+            // No automatic prompts for 'Always' permission during onboarding
+            showingLocationSettingsInfo = false
+            showAlwaysAccessButton = false
+        }
+        // Monitor when app becomes active again (returning from Settings)
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            // Force UI refresh by triggering objectWillChange
+            let currentStatus = dependencies.locationService.authorizationStatus.value
+            print("📍 Returned to onboarding - Location status: \(currentStatus)")
+            
+            // Force view update - we need to use StateObject to trigger a view update
+            // Here we use a simpler approach just to force the view to refresh
+            withAnimation {
+                // Toggling any @State property will cause view to refresh
+                showingLocationSettingsInfo = false
+                showAlwaysAccessButton = false
             }
         }
     }
@@ -354,12 +386,58 @@ struct OnboardingView: View {
             .background(Color.gray.opacity(0.1))
             .cornerRadius(12)
             
+            // Add note about Always permissions if they have when in use
+            if locationStatus == .authorizedWhenInUse {
+                VStack(spacing: 6) {
+                    Text("Need background tracking?")
+                        .font(.system(.headline, design: .rounded))
+                        .foregroundColor(.primary)
+                    
+                    Text("To track states when app is closed, enable 'Always' access in Settings.")
+                        .font(.system(.caption, design: .rounded))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(12)
+            }
+            
+            // Add upgrade button if they have "When In Use" but not "Always" permission
+            if locationStatus == .authorizedWhenInUse {
+                Button(action: {
+                    // UIApplication.openSettingsURLString opens directly to this app's settings page
+                    // This is the Apple-approved way to link to app settings
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 14))
+                        
+                        Text("Enable 'Always' in Settings")
+                            .font(.system(.subheadline, design: .rounded))
+                            .lineLimit(1)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 14)
+                    .background(Color.blue.opacity(0.1))
+                    .foregroundColor(.blue)
+                    .cornerRadius(8)
+                }
+                .padding(.top, 8)
+            }
+            
             // Settings info
-            Text("You can change these settings later in the app's Settings page or in your device Settings.")
-                .font(.system(.footnote, design: .rounded))
+            Text("Settings can be changed anytime in the app.")
+                .font(.system(.caption, design: .rounded))
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
-                .padding(.top)
+                .padding(.top, 4)
         }
     }
     
@@ -383,7 +461,13 @@ struct OnboardingView: View {
         case "locationPermission":
             if !locationPermissionRequested {
                 locationPermissionRequested = true
+                lastPermissionRequestTime = Date()
+                
+                // Mark that we've explicitly requested location permission through onboarding
+                UserDefaults.standard.set(true, forKey: "hasRequestedLocation")
                 dependencies.locationService.requestWhenInUseAuthorization()
+                
+                // NO automatic prompts for "Always" permissions - user can handle that in Settings later
             } else {
                 withAnimation {
                     currentPage += 1
@@ -392,6 +476,8 @@ struct OnboardingView: View {
         case "notificationPermission":
             if !notificationPermissionRequested {
                 notificationPermissionRequested = true
+                // Mark that we've explicitly requested notification permission through onboarding
+                UserDefaults.standard.set(true, forKey: "hasRequestedNotifications")
                 dependencies.notificationService.requestNotificationPermissions()
             } else {
                 withAnimation {
@@ -495,35 +581,44 @@ struct LocationPermissionOption: View {
     let isSelected: Bool
     
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
+        HStack(alignment: .top) {
+            // Left side - Text content
+            VStack(alignment: .leading, spacing: 2) {
+                // Title row
+                HStack(spacing: 4) {
                     Text(title)
                         .font(.system(.headline, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     
                     if isRecommended {
-                        Text("Recommended")
-                            .font(.system(.caption, design: .rounded))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
+                        Text("Best")
+                            .font(.system(.caption2, design: .rounded))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
                             .background(Color.green.opacity(0.2))
                             .foregroundColor(.green)
-                            .cornerRadius(4)
+                            .cornerRadius(3)
                     }
                 }
                 
+                // Description
                 Text(description)
-                    .font(.system(.subheadline, design: .rounded))
+                    .font(.system(.caption, design: .rounded))
                     .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
             }
             
             Spacer()
             
+            // Right side - Selection indicator
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                 .foregroundColor(isSelected ? .blue : .gray.opacity(0.5))
-                .font(.title2)
+                .font(.body)
+                .frame(width: 20)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
     }
 }
 

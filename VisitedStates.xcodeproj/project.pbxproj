@@ -19,6 +19,7 @@
 		423B20A22C0BB21C00EE7FEF /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B20A12C0BB21C00EE7FEF /* MapView.swift */; };
 		4284837C2C0D301B0021DDAE /* us_states.geojson in Resources */ = {isa = PBXBuildFile; fileRef = 4284837B2C0D301B0021DDAE /* us_states.geojson */; };
 		42AA80262D7DF0EF008AF2DE /* AlaskaHawaiiSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */; };
+		42B08B7F2DC9C74A00EF756F /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B08B7E2DC9C74A00EF756F /* OnboardingView.swift */; };
 		42B9C8052D8000BB0012B018 /* USStates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B9C8042D8000B70012B018 /* USStates.swift */; };
 		42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B9C8062D8000CB0012B018 /* EditStatesView.swift */; };
 		42DD5A682DB29693005AC7E8 /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DD5A672DB2968F005AC7E8 /* AppDependencies.swift */; };
@@ -58,6 +59,7 @@
 		423B20A12C0BB21C00EE7FEF /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		4284837B2C0D301B0021DDAE /* us_states.geojson */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; lineEnding = 0; path = us_states.geojson; sourceTree = "<group>"; };
 		42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlaskaHawaiiSplitView.swift; sourceTree = "<group>"; };
+		42B08B7E2DC9C74A00EF756F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		42B9C8042D8000B70012B018 /* USStates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USStates.swift; sourceTree = "<group>"; };
 		42B9C8062D8000CB0012B018 /* EditStatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditStatesView.swift; sourceTree = "<group>"; };
 		42DD5A672DB2968F005AC7E8 /* AppDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencies.swift; sourceTree = "<group>"; };
@@ -178,6 +180,7 @@
 		42EF55FB2DBE883E009684CE /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				42B08B7E2DC9C74A00EF756F /* OnboardingView.swift */,
 				4221270E2D8277020033E461 /* AboutView.swift */,
 				42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */,
 				423B20742C0BAE9100EE7FEF /* ContentView.swift */,
@@ -359,6 +362,7 @@
 				42B9C8052D8000BB0012B018 /* USStates.swift in Sources */,
 				42E4E37F2DB408AD002D8FAD /* VisitedStateModel.swift in Sources */,
 				42DD5A782DB33488005AC7E8 /* AppDelegate.swift in Sources */,
+				42B08B7F2DC9C74A00EF756F /* OnboardingView.swift in Sources */,
 				42DD5A6C2DB296CE005AC7E8 /* LocationService.swift in Sources */,
 				423B20732C0BAE9100EE7FEF /* VisitedStates.xcdatamodeld in Sources */,
 			);

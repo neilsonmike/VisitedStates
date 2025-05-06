@@ -128,18 +128,106 @@ struct SettingsView: View {
                                 .foregroundColor(locationStatusColor)
                         }
                         
-                        Text("VisitedStates uses location to detect when you cross state lines, even when the app is closed. For full functionality after device restarts, 'Always' permission is recommended.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.vertical, 4)
-                        
-                        Button("Open Location Settings") {
-                            if let url = URL(string: UIApplication.openSettingsURLString) {
-                                UIApplication.shared.open(url)
+                        // Show contextual message based on current permission
+                        if locationStatus == .authorizedAlways {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("Optimal setting for state detection")
+                                    .font(.subheadline)
+                                    .foregroundColor(.green)
                             }
+                            .padding(.top, 2)
+                            
+                            Text("You have granted 'Always' permission, which allows VisitedStates to detect state crossings even when the app is closed.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.vertical, 4)
+                        } else if locationStatus == .authorizedWhenInUse {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text("Background detection limited")
+                                    .font(.subheadline)
+                                    .foregroundColor(.orange)
+                            }
+                            .padding(.top, 2)
+                            
+                            Text("To detect state crossings in the background, VisitedStates needs 'Always' location access. Currently, states will only be detected when the app is open.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.vertical, 4)
+                            
+                            // Upgrade prompt with clearer iOS limitations explanation
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("About 'Always' permission:")
+                                    .font(.subheadline)
+                                    .bold()
+                                
+                                Text("Due to Apple's privacy system, 'Always' location permission is a two-step process. You must first grant 'While Using' permission here, then visit the iOS Settings app to upgrade to 'Always'.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .padding(.bottom, 4)
+                                
+                                Text("To upgrade to 'Always' permission:")
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("1. Tap 'Open iOS Settings' below")
+                                        .font(.caption)
+                                    Text("2. You'll see the Settings app open")
+                                        .font(.caption)
+                                    Text("3. Scroll down and tap 'VisitedStates'")
+                                        .font(.caption)
+                                    Text("4. Tap 'Location'")
+                                        .font(.caption)
+                                    Text("5. Select 'Always'")
+                                        .font(.caption)
+                                    Text("6. Return to VisitedStates app")
+                                        .font(.caption)
+                                }
+                                .padding(.leading, 8)
+                            }
+                            .padding(8)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(8)
+                        } else {
+                            // For denied, restricted, or not determined
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.red)
+                                Text("State detection unavailable")
+                                    .font(.subheadline)
+                                    .foregroundColor(.red)
+                            }
+                            .padding(.top, 2)
+                            
+                            Text("VisitedStates cannot automatically detect state crossings without location permission. Please grant location access in Settings to enable this feature.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.vertical, 4)
                         }
-                        .padding(.vertical, 4)
+                        
+                        Button(action: {
+                            // UIApplication.openSettingsURLString opens directly to this app's settings page
+                            // This is the Apple-approved way to deep link to app settings
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "gear")
+                                Text("Open iOS Settings")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .padding(.top, 8)
                     }
                 }
                 
@@ -314,8 +402,9 @@ struct SettingsView: View {
     }
     
     private func openNotificationSettings() {
+        // UIApplication.openSettingsURLString opens directly to this app's settings page in iOS Settings
         if let url = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(url)
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
     }
 }

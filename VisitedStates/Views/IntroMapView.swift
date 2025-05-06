@@ -7,9 +7,14 @@ struct IntroMapView: View {
     @State private var fadeOutIntro = false
     @State private var navigateToMain = false
     @State private var fadeIn = false
+    @State private var needsOnboarding = false
     
     // Access the app dependencies
     @EnvironmentObject var dependencies: AppDependencies
+    
+    // Access app-wide onboarding state
+    @AppStorage("hasRequestedNotifications") private var hasRequestedNotifications = false
+    @AppStorage("hasRequestedLocation") private var hasRequestedLocation = false
     
     private let stateSequence: [String] = [
         "Pennsylvania", "New York", "Ohio", "West Virginia",
@@ -19,7 +24,7 @@ struct IntroMapView: View {
     
     private let stateFadeInterval: TimeInterval = 0.15
     private let fadeOutDelay: TimeInterval = 0.3
-    private let navigateDelay: TimeInterval = 0
+    private let navigateDelay: TimeInterval = 1.0 // Increased to give time for onboarding check
 
     var body: some View {
         ZStack {
@@ -67,6 +72,18 @@ struct IntroMapView: View {
 
             startAnimation()
         }
+        // First use fullScreenCover for onboarding if needed
+        .fullScreenCover(isPresented: $needsOnboarding) {
+            OnboardingView(isPresented: $needsOnboarding, isExistingUser: UserDefaults.standard.bool(forKey: "appPreviouslyLaunched"))
+                .environmentObject(dependencies)
+                .onDisappear {
+                    // When onboarding is dismissed normally (not via the direct route)
+                    // we'll still navigate to main view for compatibility
+                    print("🚀 Onboarding completed - navigating to main view")
+                    navigateToMain = true
+                }
+        }
+        // Then use fullScreenCover for main content view
         .fullScreenCover(isPresented: $navigateToMain) {
             ContentView()
                 .environmentObject(dependencies)
@@ -90,11 +107,44 @@ struct IntroMapView: View {
             withAnimation { fadeOutIntro = true }
         }
         
-        // Delay before navigating to the main view
+        // Before navigating to main view, check if onboarding is needed
         DispatchQueue.main.asyncAfter(deadline: .now() + (stateFadeInterval * Double(stateSequence.count)) + navigateDelay) {
-            // Debug log to ensure this is triggered
-            print("Navigating to main view")
-            navigateToMain = true
+            
+            // Check if we need onboarding first
+            let needsOnboarding = !hasRequestedNotifications || !hasRequestedLocation
+            let isExistingUser = UserDefaults.standard.bool(forKey: "appPreviouslyLaunched")
+            
+            // Determine if we need to show onboarding
+            if needsOnboarding {
+                // For existing users, do an additional permission check
+                if isExistingUser {
+                    let locationStatus = dependencies.locationService.authorizationStatus.value
+                    let notificationsEnabled = dependencies.notificationService.isNotificationsAuthorized.value
+                    
+                    if (locationStatus == .authorizedAlways || locationStatus == .authorizedWhenInUse) && 
+                       notificationsEnabled {
+                        // User already has good enough permissions
+                        print("✅ User has sufficient permissions - going straight to main view")
+                        self.needsOnboarding = false
+                        navigateToMain = true
+                    } else {
+                        // Need to show onboarding first - DON'T navigate to main yet
+                        print("⚠️ Existing user needs onboarding - NOT going to main view")
+                        self.needsOnboarding = true
+                    }
+                } else {
+                    // New user needs onboarding
+                    print("🆕 New user needs onboarding - NOT going to main view")
+                    self.needsOnboarding = true
+                }
+            } else {
+                // No onboarding needed, go straight to main view
+                print("✅ No onboarding needed - going straight to main view")
+                navigateToMain = true
+            }
+            
+            // Mark that the app has been launched
+            UserDefaults.standard.set(true, forKey: "appPreviouslyLaunched")
         }
     }
 

@@ -231,11 +231,16 @@ class StateDetectionService: StateDetectionServiceProtocol {
                 
                 switch status {
                 case .authorizedWhenInUse, .authorizedAlways:
-                    if self?.isDetecting == true {
-                        // FIXED: Move to background thread but don't access UI APIs directly
+                    // Only start location updates if we have set the flag to indicate
+                    // the user has gone through the onboarding flow
+                    let hasRequestedLocation = UserDefaults.standard.bool(forKey: "hasRequestedLocation")
+                    if self?.isDetecting == true && hasRequestedLocation {
+                        // Start on background thread but don't access UI APIs directly
                         DispatchQueue.global(qos: .userInitiated).async {
                             self?.locationService.startLocationUpdates()
                         }
+                    } else {
+                        print("🔑 Got authorization but isDetecting=\(String(describing: self?.isDetecting)) or hasRequestedLocation=\(hasRequestedLocation)")
                     }
                 default:
                     break
