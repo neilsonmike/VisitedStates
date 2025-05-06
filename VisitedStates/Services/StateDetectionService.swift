@@ -19,6 +19,8 @@ class StateDetectionService: StateDetectionServiceProtocol {
     private var cancellables = Set<AnyCancellable>()
     private var processingQueue = DispatchQueue(label: "com.neils.VisitedStates.stateDetection", qos: .utility)
     private var isDetecting = false
+    private var cachedApplicationState: UIApplication.State = .active
+    private var didJustEnterForeground = false
     
     // State detection parameters
     private var consecutiveFailedDetections = 0
@@ -29,6 +31,7 @@ class StateDetectionService: StateDetectionServiceProtocol {
     private var stateDetectionCache: [String: Date] = [:]
     private let stateCacheDuration: TimeInterval = 3600 * 24 // 24 hours
     private let minimumDistanceForNewDetection: CLLocationDistance = 50 // Reduced for testing
+    private var lastStateUpdateTime: Date? // Track when state was last updated
     
     // MARK: - Initialization
     
@@ -47,6 +50,59 @@ class StateDetectionService: StateDetectionServiceProtocol {
         
         print("🚀 StateDetectionService initialized")
         setupSubscriptions()
+        setupAppStateObservers()
+    }
+    
+    deinit {
+        // Clean up notification observers
+        NotificationCenter.default.removeObserver(self)
+        cancellables.removeAll()
+        print("💀 StateDetectionService deinitialized")
+    }
+    
+    // Setup app state observers
+    private func setupAppStateObservers() {
+        // Store initial app state
+        if Thread.isMainThread {
+            cachedApplicationState = UIApplication.shared.applicationState
+        } else {
+            DispatchQueue.main.sync {
+                cachedApplicationState = UIApplication.shared.applicationState
+            }
+        }
+        
+        // Register for foreground/background notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification, 
+            object: nil
+        )
+    }
+    
+    @objc private func appDidEnterBackground() {
+        cachedApplicationState = .background
+        didJustEnterForeground = false
+        print("🔄 StateDetectionService: App did enter background")
+    }
+    
+    @objc private func appDidBecomeActive() {
+        cachedApplicationState = .active
+        didJustEnterForeground = true
+        print("🔄 StateDetectionService: App did become active")
+        
+        // Create a timer to reset the flag after 5 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            self?.didJustEnterForeground = false
+            print("🔄 StateDetectionService: Reset foreground transition flag")
+        }
     }
     
     // MARK: - StateDetectionServiceProtocol
@@ -111,10 +167,16 @@ class StateDetectionService: StateDetectionServiceProtocol {
                 // Only send if the state has changed
                 if previousState != stateName {
                     print("✨ NEW STATE DETECTED: \(stateName) (previous: \(previousState ?? "none"))")
+                    self.lastStateUpdateTime = Date()
                     self.currentDetectedState.send(stateName)
                     
-                    // Only notify on state change
-                    self.notifyStateChange(stateName)
+                    // Check if we just entered foreground (using our explicit flag)
+                    if self.didJustEnterForeground {
+                        print("🔕 Suppressing notification for \(stateName) - app just returned to foreground")
+                    } else {
+                        // Only notify if this isn't just the app coming back to foreground
+                        self.notifyStateChange(stateName)
+                    }
                 }
                 
                 // Keep track of last known location in this state

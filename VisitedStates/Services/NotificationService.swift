@@ -340,8 +340,15 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     
     @objc private func appDidBecomeActive() {
         // Synchronize the last notified state from UserDefaults
-        // No action needed since our property directly reads from UserDefaults
-        logDebug("🔔 App became active - synchronized last notified state: \(lastNotifiedState ?? "none")")
+        // Explicitly refresh our cached view of the last notification state
+        let refreshedLastNotified = UserDefaults.standard.string(forKey: "lastNotifiedState")
+        logDebug("🔔 App became active - synchronized last notified state: \(refreshedLastNotified ?? "none")")
+        
+        // Force refresh cooldown timestamps too
+        for state in statesVisitedBeforeCurrentSession {
+            let key = cooldownKeyPrefix + state
+            _ = UserDefaults.standard.object(forKey: key) as? Date
+        }
     }
     
     // Clear the factoid cache to force fresh fetches
