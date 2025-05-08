@@ -102,8 +102,14 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         // Register notification categories and actions
         registerNotificationCategories()
         
-        // Clear existing factoid cache on startup (to prioritize fresh fetches)
-        clearFactoidCache()
+        // IMPROVED: Only clear factoid cache if it's older than a week
+        if let lastFetch = UserDefaults.standard.object(forKey: "lastFactoidFetchTime") as? Date,
+           Date().timeIntervalSince(lastFetch) > 7 * 24 * 3600 {
+            logDebug("📚 Factoid cache is older than a week - clearing to get fresh factoids")
+            clearFactoidCache()
+        } else {
+            logDebug("📚 Keeping existing factoid cache on startup for reliability")
+        }
         
         // Load initial states for proper "new state" detection
         loadInitialVisitedStates()
@@ -643,7 +649,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         let query = CKQuery(recordType: "StateFactoids", predicate: NSPredicate(value: true))
         
         let operation = CKQueryOperation(query: query)
-        operation.resultsLimit = 100 // Get a good batch
+        operation.resultsLimit = 500 // Increased to fetch ALL possible factoids for all states
         
         var fetchedRecords = [CKRecord]()
         
@@ -703,15 +709,39 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                     self.logDebug("⚠️ No factoids found in CloudKit, this is unusual")
                 }
                 
-                // If we got records from CloudKit, clear any existing cache first
-                if !fetchedRecords.isEmpty {
-                    self.cachedFactoids.removeAll()
+                // IMPROVED: Only clear cache for states that were successfully fetched
+                // First make a copy of the current cache
+                let previousCache = self.cachedFactoids
+                
+                // Store info on what we're updating for logging
+                var updatedStates: Set<String> = []
+                var preservedStates: Set<String> = []
+                var totalFactoids = 0
+                
+                // Now add the fresh factoids to the cache, replacing only those states we got new data for
+                for (state, facts) in newFactoids {
+                    if !facts.isEmpty {
+                        self.cachedFactoids[state] = facts
+                        updatedStates.insert(state)
+                        totalFactoids += facts.count
+                    }
                 }
                 
-                // Now add the fresh factoids to the cache
-                for (state, facts) in newFactoids {
-                    self.cachedFactoids[state] = facts
+                // Preserve any states in the previous cache that weren't updated
+                for (state, facts) in previousCache {
+                    if (self.cachedFactoids[state] == nil || self.cachedFactoids[state]?.isEmpty == true) && !facts.isEmpty {
+                        self.cachedFactoids[state] = facts
+                        preservedStates.insert(state)
+                        totalFactoids += facts.count
+                    }
                 }
+                
+                // Log what happened for debugging
+                self.logDebug("📚 Updated factoids for \(updatedStates.count) states: \(updatedStates.sorted().joined(separator: ", "))")
+                if !preservedStates.isEmpty {
+                    self.logDebug("📚 Preserved factoids for \(preservedStates.count) states: \(preservedStates.sorted().joined(separator: ", "))")
+                }
+                self.logDebug("📚 Total factoids in cache: \(totalFactoids) for \(self.cachedFactoids.count) states")
                 
                 self.logDebug("✅ Preloaded \(fetchedRecords.count) factoids for offline use")
                 
@@ -761,17 +791,106 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         publicDatabase.add(operation)
     }
     
+    // Generate a reasonable default factoid for any US state
+    private func getDefaultFactoidForState(_ state: String) -> String {
+        // Dictionary of basic but informative state factoids
+        let stateFactoids: [String: String] = [
+            "Alabama": "Welcome to Alabama, known as the Heart of Dixie and home to significant civil rights history.",
+            "Alaska": "Welcome to Alaska, the largest U.S. state with more coastline than all other states combined!",
+            "Arizona": "Welcome to Arizona, home of the Grand Canyon and stunning desert landscapes.",
+            "Arkansas": "Welcome to Arkansas, known as The Natural State for its beautiful mountains, rivers, and hot springs.",
+            "California": "Welcome to California, the most populous US state and home to Hollywood, Silicon Valley, and stunning coastlines.",
+            "Colorado": "Welcome to Colorado, known for the Rocky Mountains and having the highest average elevation of any state.",
+            "Connecticut": "Welcome to Connecticut, one of the original 13 colonies and known as the Constitution State.",
+            "Delaware": "Welcome to Delaware, the First State to ratify the U.S. Constitution in 1787.",
+            "Florida": "Welcome to Florida, known for its beaches, theme parks, and being home to the Kennedy Space Center.",
+            "Georgia": "Welcome to Georgia, the Peach State, founded in 1732 as the last of the original 13 colonies.",
+            "Hawaii": "Welcome to Hawaii, the only U.S. state made up entirely of islands and home to active volcanoes.",
+            "Idaho": "Welcome to Idaho, famous for its potatoes and home to part of Yellowstone National Park.",
+            "Illinois": "Welcome to Illinois, home to Chicago, one of America's largest cities, and Abraham Lincoln's home state.",
+            "Indiana": "Welcome to Indiana, the Hoosier State and home to the famous Indianapolis 500 race.",
+            "Iowa": "Welcome to Iowa, a leading agricultural producer known for its rolling plains and farmland.",
+            "Kansas": "Welcome to Kansas, the Sunflower State located in the heart of America's breadbasket.",
+            "Kentucky": "Welcome to Kentucky, famous for bourbon, horse racing, and the Kentucky Derby.",
+            "Louisiana": "Welcome to Louisiana, known for its unique Creole and Cajun culture, cuisine, and Mardi Gras celebrations.",
+            "Maine": "Welcome to Maine, known for its rocky coastline, maritime history, and delicious lobster.",
+            "Maryland": "Welcome to Maryland, home to the Chesapeake Bay and the city of Baltimore.",
+            "Massachusetts": "Welcome to Massachusetts, a state rich in American history and home to Harvard University.",
+            "Michigan": "Welcome to Michigan, surrounded by four of the five Great Lakes and divided into two peninsulas.",
+            "Minnesota": "Welcome to Minnesota, Land of 10,000 Lakes and home to the headwaters of the Mississippi River.",
+            "Mississippi": "Welcome to Mississippi, named after the Mississippi River forming its western boundary.",
+            "Missouri": "Welcome to Missouri, known as the Gateway to the West and home to the iconic St. Louis Arch.",
+            "Montana": "Welcome to Montana, Big Sky Country with more species of mammals than any other state.",
+            "Nebraska": "Welcome to Nebraska, where the tree-planting holiday of Arbor Day originated in 1872.",
+            "Nevada": "Welcome to Nevada, home to Las Vegas and more mountain ranges than any other lower 48 state.",
+            "New Hampshire": "Welcome to New Hampshire, whose motto 'Live Free or Die' reflects its independent spirit.",
+            "New Jersey": "Welcome to New Jersey, one of the original 13 colonies with more than 130 miles of Atlantic coastline.",
+            "New Mexico": "Welcome to New Mexico, Land of Enchantment with unique adobe architecture and rich Native American heritage.",
+            "New York": "Welcome to New York, home to New York City, the most populous city in the United States.",
+            "North Carolina": "Welcome to North Carolina, home to the Wright Brothers' first flight and the Great Smoky Mountains.",
+            "North Dakota": "Welcome to North Dakota, known for its badlands, agriculture, and the geographic center of North America.",
+            "Ohio": "Welcome to Ohio, the Buckeye State and birthplace of seven U.S. presidents.",
+            "Oklahoma": "Welcome to Oklahoma, where the wind comes sweepin' down the plain and Native American culture thrives.",
+            "Oregon": "Welcome to Oregon, known for diverse landscapes from Pacific coastline to mountains and high desert.",
+            "Pennsylvania": "Welcome to Pennsylvania, where the Declaration of Independence and Constitution were signed.",
+            "Rhode Island": "Welcome to Rhode Island, the smallest U.S. state with a big maritime heritage.",
+            "South Carolina": "Welcome to South Carolina, known for its palmetto trees, historic Charleston, and beautiful beaches.",
+            "South Dakota": "Welcome to South Dakota, home to Mount Rushmore and Badlands National Park.",
+            "Tennessee": "Welcome to Tennessee, birthplace of country music and home to the Great Smoky Mountains.",
+            "Texas": "Welcome to Texas, the Lone Star State and the second largest state in both area and population.",
+            "Utah": "Welcome to Utah, home to stunning national parks including Zion, Bryce Canyon, and Arches.",
+            "Vermont": "Welcome to Vermont, known for its maple syrup, beautiful fall foliage, and Green Mountains.",
+            "Virginia": "Welcome to Virginia, birthplace of eight U.S. Presidents and home to historic Jamestown.",
+            "Washington": "Welcome to Washington, known for its evergreen forests, Mount Rainier, and tech industry.",
+            "West Virginia": "Welcome to West Virginia, the Mountain State completely within the Appalachian Mountains.",
+            "Wisconsin": "Welcome to Wisconsin, America's Dairyland and home to over 15,000 lakes.",
+            "Wyoming": "Welcome to Wyoming, home to Yellowstone, the first national park in the United States."
+        ]
+        
+        // If we have a factoid for this state, use it
+        if let factoid = stateFactoids[state] {
+            return factoid
+        }
+        
+        // If we don't have a specific factoid, create a generic one for the state
+        return "Welcome to \(state)! You've added another state to your collection."
+    }
+    
     // Create minimal fallback factoids for offline use
     private func createFallbackFactoids() {
-        logDebug("📚 Creating minimal fallback factoids for offline use")
+        logDebug("📚 Creating basic factoids cache for offline use")
         
         // Flag that we're using default factoids
         usedDefaultFactoids = true
         
-        // Create just one generic factoid
+        // Create generic factoid
         cachedFactoids["Generic"] = [
-            "You've entered a new state!"
+            "You've entered a new state!",
+            "Welcome to a new state on your journey!",
+            "Another state to add to your collection!"
         ]
+        
+        // Add default factoids for all 50 states to ensure we always have content
+        let allStates = [
+            "Alabama", "Alaska", "Arizona", "Arkansas", "California", 
+            "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", 
+            "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", 
+            "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", 
+            "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", 
+            "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", 
+            "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", 
+            "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", 
+            "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", 
+            "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
+        ]
+        
+        for state in allStates {
+            if cachedFactoids[state] == nil {
+                cachedFactoids[state] = [getDefaultFactoidForState(state)]
+            }
+        }
+        
+        logDebug("📚 Created default factoids for \(cachedFactoids.count) states")
         
         // Save the fallback factoids
         saveCachedFactoids()
@@ -839,18 +958,40 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         
         if isOnline {
             // Try to get state-specific factoid from CloudKit
-            let timeoutDuration: TimeInterval = 6.0
+            // IMPROVED: Increased timeout for better chances of getting specific factoids for all states
+            let timeoutDuration: TimeInterval = 12.0 // 12 seconds gives more time for slow connections
             
+            // Log factoid fetch attempt details
+            let hasCachedFactoids = cachedFactoids[state] != nil && !(cachedFactoids[state]?.isEmpty ?? true)
             logDebug("☁️ Attempting CloudKit fetch for state: \(state) with \(timeoutDuration)s timeout")
+            logDebug("📡 Network info: Available=\(isNetworkAvailable), Interfaces=\(getNetworkInterfaces())")
+            logDebug("📚 Cache status: Has \(state) factoids=\(hasCachedFactoids ? "YES" : "NO"), Count=\(cachedFactoids[state]?.count ?? 0)")
             
             let timeoutWorkItem = DispatchWorkItem { [weak self] in
-                self?.logDebug("⏰ CloudKit fetch timed out after \(timeoutDuration)s, falling back to cache")
+                self?.logDebug("⏰ CloudKit fetch for \(state) timed out after \(timeoutDuration)s, falling back to cache")
                 
                 // Try cached state-specific factoid first
                 if let cachedStateFactoid = self?.getCachedFactoid(for: state) {
-                    self?.logDebug("💾 Using cached state-specific factoid after timeout")
+                    self?.logDebug("💾 Using cached state-specific factoid for \(state) after CloudKit timeout")
                     self?.factoidOriginLog[state] = "cache_state_specific_after_timeout"
                     completion(cachedStateFactoid)
+                    return
+                }
+                
+                // Create a default state factoid if needed
+                if let self = self {
+                    // Make sure we have at least one factoid for this state
+                    let defaultFactoid = self.getDefaultFactoidForState(state)
+                    self.logDebug("📝 No cached factoid found for \(state), using generated default factoid")
+                    self.factoidOriginLog[state] = "generated_default_factoid"
+                    
+                    // Save this factoid to the cache for future use
+                    if self.cachedFactoids[state] == nil {
+                        self.cachedFactoids[state] = [defaultFactoid]
+                        self.saveCachedFactoids()
+                    }
+                    
+                    completion(defaultFactoid)
                     return
                 }
                 
@@ -864,7 +1005,7 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 
                 // Last resort - basic message
                 self?.logDebug("💬 Using basic welcome message after timeout")
-                self?.factoidOriginLog[state] = "basic_message_after_timeout"
+                self?.factoidOriginLog[state] = "basic_message_last_resort"
                 completion("You've entered a new state!")
             }
             
@@ -954,12 +1095,8 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     private func getCachedFactoid(for state: String) -> String? {
         // Check if we have cached factoids for this state
         if let stateFactoids = cachedFactoids[state], !stateFactoids.isEmpty {
-            // Skip default factoids if we know they're not from CloudKit
-            if usedDefaultFactoids && (state == "New York" || state == "California" ||
-                                      state == "Texas" || state == "Florida") {
-                logDebug("📚 Skipping default hardcoded factoid for \(state)")
-                return nil
-            }
+            // Always use any available factoids, regardless of source
+            // We've improved our default factoids to be state-specific
             
             // Log what we found in the cache
             logDebug("📚 Found \(stateFactoids.count) factoids in cache for \(state)")
@@ -987,6 +1124,15 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         }
         
         factoidFetchTasks[state] = taskId
+        
+        // Ensure we have a fallback factoid for this state
+        if cachedFactoids[state] == nil || cachedFactoids[state]?.isEmpty == true {
+            // Create a default factoid for this state
+            let defaultFactoid = getDefaultFactoidForState(state)
+            cachedFactoids[state] = [defaultFactoid]
+            saveCachedFactoids()
+            logDebug("📚 Created fallback factoid for \(state) before CloudKit query")
+        }
         
         // Create query for state-specific factoids only
         let predicate = NSPredicate(format: "state == %@", state)
@@ -1028,8 +1174,16 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                     query: "StateFactoids with state==\(state)",
                     result: "success: \(fetchedFactoids.count) records")
                 
-                // Log success with detailed count
+                // Log success with detailed count 
                 self.logDebug("☁️ CloudKit query complete for \(state) - Found \(fetchedFactoids.count) factoids")
+                
+                // Log detailed factoid info if we have any
+                if !fetchedFactoids.isEmpty && fetchedFactoids.count <= 3 {
+                    // Only log full details for small numbers of factoids
+                    for (index, fact) in fetchedFactoids.enumerated() {
+                        self.logDebug("📄 State factoid[\(index)]: \(fact.prefix(50))...")
+                    }
+                }
                 
                 // Update cache with any fetched factoids
                 if !fetchedFactoids.isEmpty {
@@ -1283,6 +1437,26 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     }
     
     // MARK: - Debug Information
+    
+    // Helper method to get current network interfaces
+    private func getNetworkInterfaces() -> String {
+        guard let networkMonitor = networkMonitor else { return "No monitor" }
+        
+        var interfaces = ""
+        if networkMonitor.currentPath.usesInterfaceType(.wifi) {
+            interfaces += "WiFi "
+        }
+        if networkMonitor.currentPath.usesInterfaceType(.cellular) {
+            interfaces += "Cellular "
+        }
+        if networkMonitor.currentPath.usesInterfaceType(.wiredEthernet) {
+            interfaces += "Ethernet "
+        }
+        if interfaces.isEmpty {
+            interfaces = "None"
+        }
+        return interfaces
+    }
     
     // Get diagnostic information for debugging
     func getDiagnosticInfo() -> String {
