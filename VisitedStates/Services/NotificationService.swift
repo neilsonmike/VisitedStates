@@ -915,8 +915,15 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     private func saveCachedFactoids() {
         guard !cachedFactoids.isEmpty else { return }
         
-        // Check if we're in background mode
-        let isInBackground = UIApplication.shared.applicationState == .background
+        // Thread-safe way to check if we're in background mode
+        // Never access UIApplication from background threads
+        var isInBackground = false
+        if Thread.isMainThread {
+            isInBackground = UIApplication.shared.applicationState == .background
+        } else {
+            // When on background thread, just be conservative with logging
+            isInBackground = true
+        }
         
         // Save to UserDefaults for offline access
         if let encodedData = try? JSONEncoder().encode(cachedFactoids) {
@@ -1216,11 +1223,12 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                     // Add fresh factoids to the cache in memory
                     self.cachedFactoids[state] = fetchedFactoids
                     
-                    // Use the more efficient single-state update method when in background
-                    if UIApplication.shared.applicationState == .background {
+                    // Thread-safe handling of UI state
+                    if Thread.isMainThread && UIApplication.shared.applicationState == .background {
+                        // If we're on main thread and can safely check, use the efficient method
                         self.saveSpecificStateFactoid(state: state, factoids: fetchedFactoids)
                     } else {
-                        // Only save full cache when in foreground
+                        // Otherwise, use the safe method that handles thread context internally
                         self.saveCachedFactoids()
                     }
                     
@@ -1318,11 +1326,12 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                     // Add fresh factoids to the cache in memory
                     self.cachedFactoids["Generic"] = fetchedFactoids
                     
-                    // Use the more efficient single-state update method when in background
-                    if UIApplication.shared.applicationState == .background {
+                    // Thread-safe handling of UI state
+                    if Thread.isMainThread && UIApplication.shared.applicationState == .background {
+                        // If we're on main thread and can safely check, use the efficient method
                         self.saveSpecificStateFactoid(state: "Generic", factoids: fetchedFactoids)
                     } else {
-                        // Only save full cache when in foreground
+                        // Otherwise, use the safe method that handles thread context internally
                         self.saveCachedFactoids()
                     }
                     
@@ -1451,8 +1460,14 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         pendingStateDetections.removeAll()
         
         // Only preload all factoids when app is in foreground to save background processing time
-        let isInBackground = UIApplication.shared.applicationState == .background
-        if !isInBackground {
+        // Use thread-safe approach to check app state
+        var skipPreload = true
+        
+        if Thread.isMainThread {
+            skipPreload = UIApplication.shared.applicationState == .background
+        }
+        
+        if !skipPreload {
             logDebug("📚 App in foreground - preloading all factoids")
             DispatchQueue.global(qos: .utility).async { [weak self] in
                 self?.preloadFactoids(forceRefresh: true)
