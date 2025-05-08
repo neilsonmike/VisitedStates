@@ -364,21 +364,14 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
     }
     
     @objc private func appDidBecomeActive() {
-        // Explicitly refresh our cached view of the last notification state
+        // Log the last notified state for debugging
         let lastNotifiedState = UserDefaults.standard.string(forKey: "lastNotifiedState")
         logDebug("🔔 App became active - last notified state: \(lastNotifiedState ?? "none")")
         
-        // Set a flag indicating the app just became active
-        // We'll use this flag to prevent duplicate notifications when app comes to foreground
-        UserDefaults.standard.set(true, forKey: "didJustBecomeActive")
+        // We rely on the StateDetectionService's didJustEnterForeground flag
+        // The notification logic is now handled directly in that service
+        // We only need to ensure the last notified state is in sync
         UserDefaults.standard.synchronize()
-        
-        // Schedule removal of the flag after a short period
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-            UserDefaults.standard.removeObject(forKey: "didJustBecomeActive")
-            UserDefaults.standard.synchronize()
-            self.logDebug("🔔 Cleared app activation flag")
-        }
     }
     
     @objc private func appDidEnterBackground() {

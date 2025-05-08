@@ -187,22 +187,23 @@ class StateDetectionService: StateDetectionServiceProtocol {
                     self.lastStateUpdateTime = Date()
                     self.currentDetectedState.send(stateName)
                     
-                    // Enhanced foreground detection logic:
-                    // 1. Check our explicit foreground flag
-                    // 2. Also check if this is the same state as the last notified state (via NotificationService)
+                    // CORRECTED NOTIFICATION LOGIC:
+                    // Only suppress notifications if the app just became active AND 
+                    // this state matches the last state we notified about
+                    let lastNotifiedState = UserDefaults.standard.string(forKey: "lastNotifiedState")
+                    
+                    // Debug log regardless of what we decide
                     if self.didJustEnterForeground {
-                        print("🔕 Suppressing notification for \(stateName) - app just returned to foreground")
-                            
-                        // Extra safety: Let's log the last notified state from UserDefaults for debugging
-                        let lastNotifiedState = UserDefaults.standard.string(forKey: "lastNotifiedState")
+                        print("🔍 App just returned to foreground, current state: \(stateName)")
                         print("🔔 DEBUG: Last notified state in UserDefaults: \(lastNotifiedState ?? "none")")
-                            
-                        // If this state matches the last notified state, it's very likely a duplicate
-                        if lastNotifiedState == stateName {
-                            print("🔕 Confirmed duplicate - this state matches the last notified state")
-                        }
+                    }
+                    
+                    if self.didJustEnterForeground && lastNotifiedState == stateName {
+                        // Only suppress notifications if this is the SAME state that was last notified
+                        print("🔕 Suppressing duplicate notification - app just returned to foreground with SAME last notified state: \(stateName)")
                     } else {
-                        // Only notify if this isn't just the app coming back to foreground
+                        // Notify about all other state changes
+                        print("🔔 Sending notification for \(stateName) - new state or not a duplicate")
                         self.notifyStateChange(stateName)
                     }
                 }
