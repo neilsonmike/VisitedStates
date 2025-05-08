@@ -26,9 +26,12 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
             UserDefaults.standard.set(newValue, forKey: "lastNotifiedState")
         }
     }
+    // We've removed the cooldown-based approach in favor of direct state matching
+    // These variables are kept but no longer used
     private var notificationCooldowns: [String: Date] = [:]
-    private let cooldownInterval: TimeInterval = 1 // 5 minutes
     private let cooldownKeyPrefix = "lastNotified_"
+    // Define this for compilation purposes even though we're no longer using it
+    private let cooldownInterval: TimeInterval = 1
     private var notificationBackgroundTasks: [String: UIBackgroundTaskIdentifier] = [:]
     private var cloudSyncComplete = false
     private var pendingStateDetections: [String] = []
@@ -186,36 +189,50 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
             return
         }
         
+        // CRITICAL FIX: Check if app just became active AND this is the last notified state
+        let didJustBecomeActive = UserDefaults.standard.bool(forKey: "didJustBecomeActive")
+        let lastNotifiedState = UserDefaults.standard.string(forKey: "lastNotifiedState")
+        
+        if didJustBecomeActive && lastNotifiedState == state {
+            logDebug("⚠️ DUPLICATE NOTIFICATION PREVENTED: App just became active and detected state \(state) matches last notified state")
+            logDebug("🔕 Suppressing duplicate notification for \(state)")
+            
+            // Still update tracking
+            statesVisitedBeforeCurrentSession.insert(state)
+            return
+        }
+        
+        // Check if we should notify for this state
+        if state == lastNotifiedState {
+            logDebug("🔔 Skip notification - matches last notified state: \(state)")
+            statesVisitedBeforeCurrentSession.insert(state)
+            return
+        }
+        
         // Always notify for state changes, regardless of whether the state has been visited before
         // UNLESS the user has set notifyOnlyNewStates to true
-        if shouldNotifyForState(state) {
-            // Check if we should notify only for new states
-            if settings.notifyOnlyNewStates.value {
-                // Check if this state was visited BEFORE the current detection
-                let isNewState = !statesVisitedBeforeCurrentSession.contains(state)
-                
-                logDebug("🔍 DEBUG: Previously visited states: \(statesVisitedBeforeCurrentSession.sorted().joined(separator: ", "))")
-                logDebug("🔍 DEBUG: Is \(state) a new state? \(isNewState ? "YES" : "NO")")
-                
-                if isNewState {
-                    logDebug("🔔 Notification allowed for \(state) - not previously visited and notify only new states is enabled")
-                    scheduleStateEntryNotification(for: state)
-                    
-                    // Add to our tracking set after notification decision
-                    statesVisitedBeforeCurrentSession.insert(state)
-                } else {
-                    logDebug("🔔 Skipping notification for already visited state: \(state) (notify only new states is enabled)")
-                }
-            } else {
-                // Notify for all state changes
-                logDebug("🔔 Will notify for state: \(state)")
-                scheduleStateEntryNotification(for: state)
-            }
+        if settings.notifyOnlyNewStates.value {
+            // Check if this state was visited BEFORE the current detection
+            let isNewState = !statesVisitedBeforeCurrentSession.contains(state)
             
-            // Always add to our session tracking
-            statesVisitedBeforeCurrentSession.insert(state)
+            logDebug("🔍 DEBUG: Previously visited states: \(statesVisitedBeforeCurrentSession.sorted().joined(separator: ", "))")
+            logDebug("🔍 DEBUG: Is \(state) a new state? \(isNewState ? "YES" : "NO")")
+            
+            if isNewState {
+                logDebug("🔔 Notification allowed for \(state) - not previously visited and notify only new states is enabled")
+                scheduleStateEntryNotification(for: state)
+                
+                // Add to our tracking set after notification decision
+                statesVisitedBeforeCurrentSession.insert(state)
+            } else {
+                logDebug("🔔 Skipping notification for already visited state: \(state) (notify only new states is enabled)")
+                statesVisitedBeforeCurrentSession.insert(state)
+            }
         } else {
-            logDebug("🔔 Skipping notification for \(state) - cooldown or same as last state")
+            // Notify for all state changes
+            logDebug("🔔 Will notify for state: \(state)")
+            scheduleStateEntryNotification(for: state)
+            statesVisitedBeforeCurrentSession.insert(state)
         }
     }
     
@@ -242,16 +259,10 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
             return
         }
         
-        // Check cooldown
+        // We no longer use cooldown-based approach, but we'll record when this state was last notified
+        // for debugging purposes
         let key = cooldownKeyPrefix + state
-        if let lastNotified = UserDefaults.standard.object(forKey: key) as? Date {
-            let timeSince = Date().timeIntervalSince(lastNotified)
-            if timeSince < cooldownInterval {
-                logDebug("🔔 Notification for \(state) is on cooldown. Time since last: \(timeSince)s")
-                endBackgroundTask(for: state)
-                return
-            }
-        }
+        UserDefaults.standard.set(Date(), forKey: key)
         
         logDebug("🔔 Starting notification process for \(state)")
         
@@ -336,19 +347,41 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
             name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
+        
+        // Add notification observer for when app enters background
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
     }
     
     @objc private func appDidBecomeActive() {
-        // Synchronize the last notified state from UserDefaults
         // Explicitly refresh our cached view of the last notification state
-        let refreshedLastNotified = UserDefaults.standard.string(forKey: "lastNotifiedState")
-        logDebug("🔔 App became active - synchronized last notified state: \(refreshedLastNotified ?? "none")")
+        let lastNotifiedState = UserDefaults.standard.string(forKey: "lastNotifiedState")
+        logDebug("🔔 App became active - last notified state: \(lastNotifiedState ?? "none")")
         
-        // Force refresh cooldown timestamps too
-        for state in statesVisitedBeforeCurrentSession {
-            let key = cooldownKeyPrefix + state
-            _ = UserDefaults.standard.object(forKey: key) as? Date
+        // Set a flag indicating the app just became active
+        // We'll use this flag to prevent duplicate notifications when app comes to foreground
+        UserDefaults.standard.set(true, forKey: "didJustBecomeActive")
+        UserDefaults.standard.synchronize()
+        
+        // Schedule removal of the flag after a short period
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            UserDefaults.standard.removeObject(forKey: "didJustBecomeActive")
+            UserDefaults.standard.synchronize()
+            self.logDebug("🔔 Cleared app activation flag")
         }
+    }
+    
+    @objc private func appDidEnterBackground() {
+        // Ensure UserDefaults are synchronized when app enters background
+        UserDefaults.standard.synchronize()
+        
+        // Log the current lastNotifiedState
+        let currentLastNotified = UserDefaults.standard.string(forKey: "lastNotifiedState")
+        logDebug("🔔 App entered background - last notified state: \(currentLastNotified ?? "none")")
     }
     
     // Clear the factoid cache to force fresh fetches
@@ -511,29 +544,10 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         userNotificationCenter.setNotificationCategories([stateEntryCategory])
     }
     
+    // We've removed this method entirely since we now handle the logic directly in handleDetectedState
+    // This is just a placeholder to satisfy Swift compilation - it's no longer used
     private func shouldNotifyForState(_ state: String) -> Bool {
-        // Check for persistent last notified state match first
-        // This handles the app kill/relaunch scenario
-        if state == lastNotifiedState {
-            logDebug("🔔 Skip notification - matches persistent last notified state: \(state)")
-            return false
-        }
-        
-        // Check cooldown period
-        let key = cooldownKeyPrefix + state
-        if let lastNotified = UserDefaults.standard.object(forKey: key) as? Date {
-            let timeSince = abs(Date().timeIntervalSince(lastNotified))
-            let shouldNotify = timeSince >= cooldownInterval
-            
-            if !shouldNotify {
-                logDebug("🔔 Skip notification - cooldown period active for \(state): \(Int(timeSince))s of \(Int(cooldownInterval))s")
-            }
-            
-            return shouldNotify
-        }
-        
-        logDebug("🔔 Notification allowed for \(state) - not last notified state and no cooldown active")
-        // No previous notification for this state
+        // This method has been replaced with direct logic in handleDetectedState
         return true
     }
     

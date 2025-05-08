@@ -98,9 +98,26 @@ class StateDetectionService: StateDetectionServiceProtocol {
         didJustEnterForeground = true
         print("🔄 StateDetectionService: App did become active")
         
+        // Check if we have a recently detected state to temporarily suppress
+        if let currentState = currentDetectedState.value {
+            // Check what the last notified state was from UserDefaults
+            let lastNotifiedState = UserDefaults.standard.string(forKey: "lastNotifiedState")
+            print("🔄 StateDetectionService: Current detected state on app activation: \(currentState)")
+            print("🔄 StateDetectionService: Last notified state from UserDefaults: \(lastNotifiedState ?? "none")")
+            
+            // Log if they match - this would indicate a potential duplicate
+            if currentState == lastNotifiedState {
+                print("⚠️ StateDetectionService: POTENTIAL DUPLICATE DETECTED - current state matches last notified state")
+            }
+        }
+        
+        // Record that the app became active - use a plain timestamp as a marker
+        UserDefaults.standard.set(true, forKey: "didJustBecomeActive")
+        
         // Create a timer to reset the flag after 5 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
             self?.didJustEnterForeground = false
+            UserDefaults.standard.removeObject(forKey: "didJustBecomeActive")
             print("🔄 StateDetectionService: Reset foreground transition flag")
         }
     }
@@ -170,9 +187,20 @@ class StateDetectionService: StateDetectionServiceProtocol {
                     self.lastStateUpdateTime = Date()
                     self.currentDetectedState.send(stateName)
                     
-                    // Check if we just entered foreground (using our explicit flag)
+                    // Enhanced foreground detection logic:
+                    // 1. Check our explicit foreground flag
+                    // 2. Also check if this is the same state as the last notified state (via NotificationService)
                     if self.didJustEnterForeground {
                         print("🔕 Suppressing notification for \(stateName) - app just returned to foreground")
+                            
+                        // Extra safety: Let's log the last notified state from UserDefaults for debugging
+                        let lastNotifiedState = UserDefaults.standard.string(forKey: "lastNotifiedState")
+                        print("🔔 DEBUG: Last notified state in UserDefaults: \(lastNotifiedState ?? "none")")
+                            
+                        // If this state matches the last notified state, it's very likely a duplicate
+                        if lastNotifiedState == stateName {
+                            print("🔕 Confirmed duplicate - this state matches the last notified state")
+                        }
                     } else {
                         // Only notify if this isn't just the app coming back to foreground
                         self.notifyStateChange(stateName)
