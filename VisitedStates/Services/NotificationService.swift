@@ -889,20 +889,53 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         saveCachedFactoids()
     }
     
+    private func saveSpecificStateFactoid(state: String, factoids: [String]) {
+        // This method updates a single state's factoids in UserDefaults without saving the entire cache
+        // Much more efficient for background operation
+        
+        // First retrieve existing cache from UserDefaults
+        if let savedData = UserDefaults.standard.data(forKey: "CachedFactoids"),
+           var existingCache = try? JSONDecoder().decode([String: [String]].self, from: savedData) {
+            
+            // Update just this state
+            existingCache[state] = factoids
+            
+            // Save back the updated cache
+            if let encodedData = try? JSONEncoder().encode(existingCache) {
+                UserDefaults.standard.set(encodedData, forKey: "CachedFactoids")
+                logDebug("💾 Updated factoids for \(state) in UserDefaults (\(factoids.count) factoids)")
+                return
+            }
+        }
+        
+        // If we can't update existing, fall back to full save
+        saveCachedFactoids()
+    }
+    
     private func saveCachedFactoids() {
         guard !cachedFactoids.isEmpty else { return }
+        
+        // Check if we're in background mode
+        let isInBackground = UIApplication.shared.applicationState == .background
         
         // Save to UserDefaults for offline access
         if let encodedData = try? JSONEncoder().encode(cachedFactoids) {
             UserDefaults.standard.set(encodedData, forKey: "CachedFactoids")
-            logDebug("💾 Saved \(cachedFactoids.count) state factoid categories to UserDefaults")
             
-            // DEBUG: Log summary of what's in the cache
-            var cacheSummary = ""
-            for (state, facts) in cachedFactoids {
-                cacheSummary += "\(state): \(facts.count) factoids, "
+            // Simplified logging for background mode
+            if isInBackground {
+                logDebug("💾 Saved factoid cache to UserDefaults (background mode)")
+            } else {
+                // Full logging in foreground
+                logDebug("💾 Saved \(cachedFactoids.count) state factoid categories to UserDefaults")
+                
+                // DEBUG: Log summary of what's in the cache
+                var cacheSummary = ""
+                for (state, facts) in cachedFactoids {
+                    cacheSummary += "\(state): \(facts.count) factoids, "
+                }
+                logDebug("💾 Cache contents: \(cacheSummary)")
             }
-            logDebug("💾 Cache contents: \(cacheSummary)")
         } else {
             logDebug("⚠️ Failed to encode factoids for UserDefaults")
         }
@@ -1180,19 +1213,16 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 
                 // Update cache with any fetched factoids
                 if !fetchedFactoids.isEmpty {
-                    // Update the cache
-                    if self.cachedFactoids[state] == nil {
-                        self.cachedFactoids[state] = []
-                    } else {
-                        // Clear existing factoids for this state to ensure fresh data
-                        self.cachedFactoids[state]?.removeAll()
-                    }
-                    
-                    // Add fresh factoids to the cache
+                    // Add fresh factoids to the cache in memory
                     self.cachedFactoids[state] = fetchedFactoids
                     
-                    // Save updated cache
-                    self.saveCachedFactoids()
+                    // Use the more efficient single-state update method when in background
+                    if UIApplication.shared.applicationState == .background {
+                        self.saveSpecificStateFactoid(state: state, factoids: fetchedFactoids)
+                    } else {
+                        // Only save full cache when in foreground
+                        self.saveCachedFactoids()
+                    }
                     
                     // Return a random factoid from the results
                     if let selectedFactoid = fetchedFactoids.randomElement() {
@@ -1285,19 +1315,16 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
                 
                 // Update cache with any fetched factoids
                 if !fetchedFactoids.isEmpty {
-                    // Update the cache
-                    if self.cachedFactoids["Generic"] == nil {
-                        self.cachedFactoids["Generic"] = []
-                    } else {
-                        // Clear existing generic factoids to ensure fresh data
-                        self.cachedFactoids["Generic"]?.removeAll()
-                    }
-                    
-                    // Add fresh factoids to the cache
+                    // Add fresh factoids to the cache in memory
                     self.cachedFactoids["Generic"] = fetchedFactoids
                     
-                    // Save updated cache
-                    self.saveCachedFactoids()
+                    // Use the more efficient single-state update method when in background
+                    if UIApplication.shared.applicationState == .background {
+                        self.saveSpecificStateFactoid(state: "Generic", factoids: fetchedFactoids)
+                    } else {
+                        // Only save full cache when in foreground
+                        self.saveCachedFactoids()
+                    }
                     
                     // Return a random factoid from the results
                     let selectedFactoid = fetchedFactoids.randomElement()
@@ -1423,9 +1450,15 @@ class NotificationService: NSObject, NotificationServiceProtocol, UNUserNotifica
         }
         pendingStateDetections.removeAll()
         
-        // Preload factoids after cloud sync completes
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            self?.preloadFactoids(forceRefresh: true)
+        // Only preload all factoids when app is in foreground to save background processing time
+        let isInBackground = UIApplication.shared.applicationState == .background
+        if !isInBackground {
+            logDebug("📚 App in foreground - preloading all factoids")
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                self?.preloadFactoids(forceRefresh: true)
+            }
+        } else {
+            logDebug("📚 App in background - skipping full factoid preload to conserve resources")
         }
     }
     
