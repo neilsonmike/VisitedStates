@@ -10,6 +10,8 @@
 - [Data Models](#data-models)
 - [Settings and Preferences](#settings-and-preferences)
 - [App Architecture](#app-architecture)
+- [Development Environment](#development-environment)
+- [Testing Guide](#testing-guide)
 - [Version History](#version-history)
 
 ## User Customization Sync
@@ -1077,6 +1079,304 @@ NotificationCenter.default.addObserver(
 - Batch operations for CloudKit updates
 - Memory-efficient JSON handling
 - Delayed operations for battery conservation
+
+## Development Environment
+
+### 1. System Requirements
+
+#### 1.1 Development Requirements
+- Xcode 14.0 or later
+- macOS 14.5 or later
+- Swift 5.0 or later
+- Apple Developer account for iCloud and push notifications
+
+#### 1.2 Runtime Requirements
+- iOS 17.5 or later
+- iPhone devices only (no iPad-specific design)
+- Internet connection for CloudKit synchronization
+- iCloud account for cross-device syncing
+- Location Services capability
+
+#### 1.3 Project Configuration
+- Bundle ID: me.neils.VisitedStates
+- TARGETED_DEVICE_FAMILY = 1 (iPhone only)
+- Portrait orientation only
+- No Mac Catalyst support
+
+### 2. Dependencies and Frameworks
+
+#### 2.1 Built-in Frameworks
+- SwiftUI (UI framework)
+- CoreLocation (location services)
+- MapKit (map rendering and spatial calculations)
+- CloudKit (cloud synchronization)
+- UserNotifications (local notifications)
+- CoreData (for data model, partial implementation)
+
+#### 2.2 Third-party Dependencies
+- None - app uses only Apple frameworks
+
+#### 2.3 Custom Fonts
+- DoHyeon-Regular.ttf (included in Resources/Fonts)
+
+### 3. Capabilities and Entitlements
+
+#### 3.1 Required Capabilities
+- iCloud with CloudKit
+- Push Notifications
+- Background Modes:
+  - Location updates
+  - Background fetch
+  - Background processing
+- Location when in use and always usage descriptions
+
+#### 3.2 Entitlements
+```xml
+<key>com.apple.developer.icloud-container-identifiers</key>
+<array>
+    <string>iCloud.me.neils.VisitedStates</string>
+</array>
+<key>com.apple.developer.icloud-services</key>
+<array>
+    <string>CloudKit</string>
+</array>
+<key>com.apple.developer.usernotifications.time-sensitive</key>
+<true/>
+```
+
+### 4. Map Rendering Implementation
+
+#### 4.1 Canvas-Based Drawing
+- Uses SwiftUI Canvas API for custom map rendering
+- State polygons drawn directly to canvas context
+- Separate views for contiguous states and Alaska/Hawaii
+- Custom coordinate transformation system
+
+#### 4.2 Coordinate System
+- Uses MKMapRect for the coordinate system
+- Custom transformation for geo to screen coordinates:
+```swift
+// Scale calculation based on a reference scale
+let scaleX = size.width / paddedRect.size.width
+let scaleY = size.height / paddedRect.size.height
+let scale = min(scaleX, scaleY)
+
+func transformedX(_ point: MKMapPoint) -> CGFloat {
+    return CGFloat((point.x - paddedRect.origin.x) * scale + offsetX)
+}
+
+func transformedY(_ point: MKMapPoint) -> CGFloat {
+    return CGFloat((point.y - paddedRect.origin.y) * scale + offsetY)
+}
+```
+
+#### 4.3 Alaska and Hawaii Display
+- Three display modes depending on visited states:
+  1. Full screen Alaska or Hawaii (when only one is visited)
+  2. Split view of Alaska and Hawaii (when only these two are visited)
+  3. Inset views (when contiguous states are also visited)
+- Custom map rectangles for proper viewing:
+  - Alaska: lat 64.0, lon -152.0, with span 275.0 degrees
+  - Hawaii: lat 20.7, lon -156.5, with span 4.0 by 30.0 degrees
+
+#### 4.4 Layout Specifications
+- Contiguous states map: 60% of view height 
+- State counter: positioned at 20% of the view height
+- Inset box size: 37.5% of view width
+- Border line width: 0.5 points
+- Padding around map: 2% of the view size
+
+## Testing Guide
+
+### 1. Test Environment Setup Requirements
+
+#### 1.1 Hardware Requirements
+- iPhone with GPS capabilities and iOS 17.5 or later
+- Devices with various screen sizes for UI testing
+- Physical devices for full location testing
+
+#### 1.2 Software Requirements
+- Xcode 14.0 or later for development and simulator testing
+- iOS 17.5+ test devices
+- GPX files for simulating GPS movement (e.g., Ohio_WV_PA_Test.gpx)
+
+#### 1.3 Account Requirements
+- Apple Developer account for TestFlight distribution
+- iCloud account for testing cloud sync functionality
+
+#### 1.4 Network Requirements
+- Stable internet connection for cloud sync testing
+- Controlled network with varied connection speeds
+
+### 2. Manual Testing Procedures
+
+#### 2.1 Location Services Testing
+- Verify location permission request during onboarding
+- Test location permission upgrade from "While Using" to "Always"
+- Verify location tracking functions correctly in foreground
+- Verify location tracking functions correctly in background
+- Test location updates when app transitions between foreground/background
+
+#### 2.2 State Detection Testing
+- Test detection of current state based on GPS coordinates
+- Verify state boundaries are correctly identified
+- Test detection accuracy near state borders
+- Verify states are correctly marked as visited when detected
+- Test fallback detection methods for difficult locations
+
+#### 2.3 Map Functionality Testing
+- Test map rendering of visited vs. unvisited states
+- Verify correct display of Alaska and Hawaii in different scenarios
+- Test map UI elements for responsiveness
+- Verify maps correctly display in different device orientations
+
+#### 2.4 Settings and Preferences Testing
+- Test saving and loading user preferences
+- Verify color settings correctly apply to the map
+- Test notification settings functionality
+- Verify settings persist between app launches
+
+#### 2.5 Sharing Functionality Testing
+- Test generating a shareable image
+- Verify social sharing options work correctly
+- Test share sheet functionality
+
+#### 2.6 Edit Mode Testing
+- Test manual addition of states
+- Test manual removal of states
+- Verify edited states are correctly flagged in the system
+
+#### 2.7 Cloud Sync Testing
+- Test sync of visited states to iCloud
+- Verify sync between multiple devices
+- Test sync behavior with poor network conditions
+- Verify sync conflict resolution
+
+### 3. Critical User Flow Test Cases
+
+#### 3.1 First-Time User Flow
+1. Install and launch app for first time
+2. Complete onboarding process
+3. Grant location permissions
+4. Verify initial map view is correct
+5. Test initial state detection
+
+#### 3.2 State Detection Flow
+1. Simulate movement into a new state
+2. Verify state detection occurs
+3. Confirm notification is received
+4. Check that state is marked as visited
+5. Verify map is updated
+6. Ensure cloud sync is triggered
+
+#### 3.3 Sharing Flow
+1. Navigate to share functionality
+2. Generate shareable image
+3. Verify image quality and content
+4. Complete share process
+5. Verify share includes correct text and image
+
+#### 3.4 Settings Adjustment Flow
+1. Navigate to settings
+2. Modify notification settings
+3. Adjust map colors
+4. Return to main view
+5. Verify settings changes are applied correctly
+
+#### 3.5 Edit States Flow
+1. Navigate to edit states view
+2. Add states manually
+3. Remove states
+4. Verify changes reflect on map
+5. Ensure cloud sync occurs
+
+### 4. Edge Case Testing Scenarios
+
+#### 4.1 Location Edge Cases
+- Test behavior when GPS signal is lost
+- Test at complex state boundaries (e.g., Four Corners)
+- Test behavior with simulated rapid state changes
+- Test with very high speeds (airplane/train)
+- Test with high altitudes (mountains, flights)
+- Test when device is in airplane mode
+- Test with location services disabled
+
+#### 4.2 App Lifecycle Edge Cases
+- Test behavior when app crashes during state detection
+- Test background operation limits
+- Test behavior after device restart
+- Test after iOS updates
+- Test with low battery conditions
+- Test during incoming calls/notifications
+
+#### 4.3 Data Edge Cases
+- Test with all 50 states visited
+- Test with no states visited
+- Test with only Alaska and Hawaii visited
+- Test with corrupted local data
+- Test with conflicting cloud data
+
+#### 4.4 Device Edge Cases
+- Test with low storage space
+- Test with low memory conditions
+- Test with battery optimization features enabled
+- Test with VPN connections
+
+### 5. Performance Testing Guidelines
+
+#### 5.1 Resource Usage
+- Measure CPU usage during active state detection
+- Measure memory usage during extended operation
+- Monitor battery consumption in background tracking mode
+- Test performance with extended background operation
+
+#### 5.2 Location Accuracy
+- Measure state detection accuracy at various distances from borders
+- Test detection latency at different movement speeds
+- Compare GPS accuracy in urban vs. rural environments
+
+#### 5.3 App Responsiveness
+- Measure app launch time
+- Test UI responsiveness during active tracking
+- Measure time to generate share images
+- Test map rendering performance with all states visited
+
+#### 5.4 Network Performance
+- Measure cloud sync speeds under various network conditions
+- Test sync reliability with intermittent connectivity
+- Measure data usage during normal operation
+
+### 6. Regression Testing Guidelines
+
+#### 6.1 When to Perform Regression Testing
+- After adding new features
+- After fixing bugs
+- Before major version releases
+- After significant iOS updates
+
+#### 6.2 Critical Areas for Regression Testing
+1. **Core Functionality**
+   - State detection accuracy
+   - Location permission handling
+   - Background tracking capability
+
+2. **User-Facing Features**
+   - Map rendering
+   - Share functionality
+   - UI responsiveness
+
+3. **Data Integrity**
+   - Visited state persistence
+   - Cloud sync reliability
+   - Notification delivery
+
+#### 6.3 Regression Test Procedure
+1. Create a baseline test suite covering all critical functionality
+2. Automate where possible using UI testing framework
+3. Document manual test cases for features not suitable for automation
+4. Maintain test data including GPX routes for consistent testing
+5. Compare test results against baseline after each code change
+6. Prioritize testing based on areas affected by changes
 
 ## Version History
 
