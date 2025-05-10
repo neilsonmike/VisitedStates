@@ -1,0 +1,24 @@
+EDIT STATES VIEW SCREENSHOT
+
+Caption: "Easy Customization"
+
+Content:
+- iPhone 13 Pro mockup frame
+- Edit States view showing the alphabetical list of all US states
+- Several states should have checkmarks indicating they've been visited
+- Some state names should appear in bold to indicate GPS detection
+- "Edit States" should appear at the top as the screen title
+- "Done" button visible in the top left
+- Text at top under the title: "States in bold were detected by GPS"
+
+Screenshot should be taken with the following specifications:
+- 1290 x 2796 pixels for iPhone 14 Pro Max
+- 1179 x 2556 pixels for iPhone 14 Pro
+- 1284 x 2778 pixels for iPhone 13 Pro Max
+- 1170 x 2532 pixels for iPhone 13 Pro
+
+Design notes:
+- Show enough states to demonstrate the list functionality (at least 15-20 states)
+- Make sure the bold states (GPS detected) are clearly distinguishable
+- The checkmarks should be in the app's accent color (blue)
+- This screenshot demonstrates how users can manually edit their visited states

@@ -1,0 +1,26 @@
+SHARE PREVIEW SCREENSHOT
+
+Caption: "Share Your Journey"
+
+Content:
+- iPhone 13 Pro mockup frame
+- Share Preview view showing a formatted image ready to be shared
+- The preview should contain:
+  * The VisitedStates logo at the top
+  * A map of the United States with several states highlighted
+  * Text showing the number of states visited (e.g., "32/50 States Visited")
+- iOS share sheet partially visible at the bottom showing sharing options
+- "Share" should appear at the top as the screen title
+
+Screenshot should be taken with the following specifications:
+- 1290 x 2796 pixels for iPhone 14 Pro Max
+- 1179 x 2556 pixels for iPhone 14 Pro
+- 1284 x 2778 pixels for iPhone 13 Pro Max
+- 1170 x 2532 pixels for iPhone 13 Pro
+
+Design notes:
+- Make sure the share preview is the focal point and looks high-quality
+- The map colors should match those from previous screenshots for consistency
+- Include enough of the share sheet to show that sharing is possible
+- This screenshot demonstrates the social sharing functionality of the app
+- The preview should look polished and ready to be posted on social media

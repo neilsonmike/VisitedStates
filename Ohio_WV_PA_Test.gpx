@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Xcode">
+    <wpt lat="39.2800" lon="-81.6000">
+        <name>Start in Ohio</name>
+        <time>2025-03-15T12:00:00Z</time>
+        <speed>26.8224</speed>
+    </wpt>
+    <wpt lat="39.3200" lon="-81.5300">
+        <name>Approach West Virginia</name>
+        <time>2025-03-15T12:03:00Z</time>
+        <speed>26.8224</speed>
+    </wpt>
+    <wpt lat="39.3600" lon="-81.4600">
+        <name>Enter West Virginia</name>
+        <time>2025-03-15T12:06:00Z</time>
+        <speed>26.8224</speed>
+    </wpt>
+    <wpt lat="39.4100" lon="-81.3800">
+        <name>Middle of West Virginia</name>
+        <time>2025-03-15T12:10:00Z</time>
+        <speed>26.8224</speed>
+    </wpt>
+    <wpt lat="39.4700" lon="-81.2800">
+        <name>Approach Pennsylvania</name>
+        <time>2025-03-15T12:14:00Z</time>
+        <speed>26.8224</speed>
+    </wpt>
+    <wpt lat="39.5200" lon="-81.2000">
+        <name>Enter Pennsylvania</name>
+        <time>2025-03-15T12:18:00Z</time>
+        <speed>26.8224</speed>
+    </wpt>
+</gpx>
