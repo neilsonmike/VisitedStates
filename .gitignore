@@ -91,6 +91,9 @@ iOSInjectionProject/
 
 # API Keys
 VisitedStates/Utilities/APIKeys.plist
+**/APIKeys.plist
+**/*api-key*.swift
+**/*api_key*.swift
 
 # Ignore Info.plist changes to protect API keys
 # Use git update-index --skip-worktree VisitedStates/Info.plist
@@ -100,6 +103,9 @@ VisitedStates/Utilities/APIKeys.plist
 VisitedStates_backup*/
 VisitedStates_fresh/
 TestBackup/
+
+# History cleaning scripts
+remove_api_key_from_history.sh
 
 # Migration tools
 *MigrationTool*
