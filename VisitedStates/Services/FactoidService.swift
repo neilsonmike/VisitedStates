@@ -3,7 +3,10 @@ import Foundation
 class FactoidService {
     // Constants for Google Sheets API
     private let sheetID = "1Gg0bGks2nimjX3CEtl4dpfoVSPfG2MWqTqaAe096Jbo"
-    private let apiKey = "AIzaSyDvIBPG13RRZs6qYL-3CQX3f3ypsNdWFDE"
+    // API key should be stored in a secure location, not hardcoded
+    private let apiKey: String = {
+        return getAPIKey()
+    }()
     private var sheetsURL: String {
         return "https://sheets.googleapis.com/v4/spreadsheets/\(sheetID)/values/Sheet1!A:C?key=\(apiKey)"
     }

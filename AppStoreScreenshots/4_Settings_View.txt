@@ -1,0 +1,26 @@
+SETTINGS VIEW SCREENSHOT
+
+Caption: "Personalize Your Map"
+
+Content:
+- iPhone 13 Pro mockup frame
+- Settings view showing color customization options
+- Color pickers for:
+  * State Fill Color (showing a vibrant blue or other distinctive color)
+  * State Border Color (showing white or black for contrast)
+  * Background Color (showing a neutral color like white or light gray)
+- "Settings" should appear at the top as the screen title
+- Toggle switches for notification preferences should be visible
+
+Screenshot should be taken with the following specifications:
+- 1290 x 2796 pixels for iPhone 14 Pro Max
+- 1179 x 2556 pixels for iPhone 14 Pro
+- 1284 x 2778 pixels for iPhone 13 Pro Max
+- 1170 x 2532 pixels for iPhone 13 Pro
+
+Design notes:
+- Make sure the color pickers are expanded enough to be visually interesting
+- The colors chosen should be aesthetically pleasing and demonstrate good contrast
+- Ensure toggles and other UI elements are clearly visible
+- This screenshot demonstrates the app's customization features
+- If possible, show the "Restore Defaults" button at the bottom

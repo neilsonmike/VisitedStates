@@ -16,7 +16,8 @@ extension NotificationService {
         if shouldUseGoogleSheets() {
             // Make direct Google Sheets request without FactoidService
             let sheetID = "1Gg0bGks2nimjX3CEtl4dpfoVSPfG2MWqTqaAe096Jbo" // Use your Sheet ID
-            let apiKey = "AIzaSyDvIBPG13RRZs6qYL-3CQX3f3ypsNdWFDE"
+            // API key should be stored in a secure location, not hardcoded
+            let apiKey = getAPIKey()
             let url = URL(string: "https://sheets.googleapis.com/v4/spreadsheets/\(sheetID)/values/Sheet1!A:C?key=\(apiKey)")!
             
             print("🔄 Making direct Google Sheets request for \(state)")

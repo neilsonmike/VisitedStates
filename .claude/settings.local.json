@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(find:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(cat:*)",
+      "Bash(sed:*)",
+      "Bash(git commit:*)",
+      "Bash(git rm:*)",
+      "Bash(swift --version)",
+      "Bash(xcrun agvtool:*)",
+      "WebFetch(domain:developer.apple.com)",
+      "Bash(mkdir:*)",
+      "Bash(swift:*)",
+      "Bash(chmod:*)",
+      "Bash('/^    private func fetchFactoidWithNetworkPriority/ {\n   r notificationservice_fetch.txt\n   d\n  }\n  /^        \\/\\/ Always use Google Sheets now/,/^    }/ {\n   d\n  }' VisitedStates/Services/NotificationService.swift)",
+      "Bash(git checkout:*)",
+      "Bash(touch:*)"
+    ],
+    "deny": []
+  }
+}
