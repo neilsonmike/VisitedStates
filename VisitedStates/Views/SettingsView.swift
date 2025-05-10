@@ -1,6 +1,9 @@
 import SwiftUI
 import Combine
 import CoreLocation
+import UserNotifications
+
+// No special import needed as FactoidDebugView should be in the same module
 
 struct SettingsView: View {
     // Access app dependencies
@@ -26,7 +29,9 @@ struct SettingsView: View {
     // New state for showing AboutView as sheet
     @State private var showingAboutView = false
     
-    var body: some View {
+    // Break up the view to avoid complex type-checking
+    @ViewBuilder 
+    func settingsContent() -> some View {
         NavigationView {
             Form {
                 // Notifications Section - Now as the first section
@@ -236,6 +241,8 @@ struct SettingsView: View {
                     Button("About VisitedStates") {
                         showingAboutView = true
                     }
+                    
+                    // Debug tools section removed - factoid migration is complete
                 }
             }
             .navigationTitle("Settings")
@@ -406,5 +413,10 @@ struct SettingsView: View {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
+    }
+    
+    // Define the actual body property that uses our content function
+    var body: some View {
+        settingsContent()
     }
 }

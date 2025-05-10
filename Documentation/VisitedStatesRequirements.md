@@ -558,21 +558,25 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
 - Helps ensure delivery in background mode
 - Prevents rapid notification bursts when crossing multiple state lines
 
-### 2. State Factoid System
+### 2. State Factoid System (v1.0.10+)
 
 #### 2.1 Factoid Sources (Priority Order)
-1. **CloudKit State-Specific**: Factoids tailored to the specific state
-2. **CloudKit Generic**: General factoids that work for any state
-3. **Cached State-Specific**: Previously downloaded state factoids
-4. **Default State Factoids**: Built-in factoids for each state
-5. **Generic Fallback**: Basic messages that work for any state
+1. **Google Sheets API**: Real-time factoids from configured spreadsheet
+2. **Cached Factoids**: Previously downloaded factoids from Google Sheets
+3. **Simple Welcome Message**: Basic "Welcome to [state]!" as final fallback
 
-#### 2.2 CloudKit Factoid Structure
-- **Record Type**: "StateFactoids"
-- **Fields**:
-  - "state": String (state name or "Generic")
+#### 2.2 Google Sheets Structure
+- **Format**: Simple spreadsheet with two columns
+- **Headers**:
+  - "state": String (state name)
   - "fact": String (the factoid text)
-  - "dateAdded": Date (for sorting/filtering)
+- **Access**: Public read-only via Google Sheets API v4
+- **Configuration**: Sheet ID and API key stored in FactoidService
+
+#### 2.3 Backward Compatibility (v1.0.9 and earlier)
+- Single "Generic" factoid in CloudKit production environment
+- Message prompts users to update to latest version
+- Ensures smooth transition for users of older app versions
 
 #### 2.3 Factoid Selection Logic
 - Random selection from available factoids for variety
@@ -728,14 +732,15 @@ struct EncodableColor: Codable {
   - Last notified state for duplicate prevention
   - App state tracking flags
 
-#### 2.2 CloudKit Storage
-- **Private Database**: Stores user-specific data
-- Record Types:
+#### 2.2 CloudKit and Cloud Storage
+- **CloudKit Private Database**: Stores user-specific data
+- **Google Sheets API**: Stores factoid data (as of v1.0.10)
+- CloudKit Record Types:
   - **EnhancedVisitedStates**: Primary state record
   - **Badges**: User achievements record
   - **UserSettings**: Preferences record
   - **VisitedStates**: Legacy format (backward compatibility)
-  - **StateFactoids**: Collection of state facts (in public database)
+  - **StateFactoids**: Legacy factoid storage (v1.0.9 and earlier)
 
 #### 2.3 JSON Serialization
 - All complex models serialized as JSON strings in CloudKit
@@ -1380,7 +1385,19 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 
 ## Version History
 
-### Version 1.0.9 (Current Version)
+### Version 1.0.10 (Current Version)
+**Release Date:** June 2024
+**Changes:**
+- Migrated factoid system from CloudKit to Google Sheets
+- Added caching for factoids to improve offline functionality
+- Simplified fallback logic for factoid retrieval
+- Removed all factoid migration tools from the codebase
+- Improved error handling for network connectivity issues
+- Added smooth transition for users of older app versions
+- Updated documentation to reflect completed migration
+- Improved state notification system reliability
+
+### Version 1.0.9
 **Release Date:** May 2024
 **Changes:**
 - Fixed duplicate notifications issue when opening app after background notifications

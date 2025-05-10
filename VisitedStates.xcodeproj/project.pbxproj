@@ -22,6 +22,8 @@
 		42B08B7F2DC9C74A00EF756F /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B08B7E2DC9C74A00EF756F /* OnboardingView.swift */; };
 		42B9C8052D8000BB0012B018 /* USStates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B9C8042D8000B70012B018 /* USStates.swift */; };
 		42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B9C8062D8000CB0012B018 /* EditStatesView.swift */; };
+		42D174E42DCF96D200A760A6 /* NotificationService+GoogleSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D174E32DCF96D200A760A6 /* NotificationService+GoogleSheets.swift */; };
+		42D174E52DCF96D200A760A6 /* FactoidService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D174E22DCF96D200A760A6 /* FactoidService.swift */; };
 		42DD5A682DB29693005AC7E8 /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DD5A672DB2968F005AC7E8 /* AppDependencies.swift */; };
 		42DD5A6A2DB296B5005AC7E8 /* ServiceProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DD5A692DB296AF005AC7E8 /* ServiceProtocols.swift */; };
 		42DD5A6C2DB296CE005AC7E8 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DD5A6B2DB296CB005AC7E8 /* LocationService.swift */; };
@@ -62,6 +64,8 @@
 		42B08B7E2DC9C74A00EF756F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		42B9C8042D8000B70012B018 /* USStates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USStates.swift; sourceTree = "<group>"; };
 		42B9C8062D8000CB0012B018 /* EditStatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditStatesView.swift; sourceTree = "<group>"; };
+		42D174E22DCF96D200A760A6 /* FactoidService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FactoidService.swift; sourceTree = "<group>"; };
+		42D174E32DCF96D200A760A6 /* NotificationService+GoogleSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NotificationService+GoogleSheets.swift"; sourceTree = "<group>"; };
 		42DD5A672DB2968F005AC7E8 /* AppDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencies.swift; sourceTree = "<group>"; };
 		42DD5A692DB296AF005AC7E8 /* ServiceProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceProtocols.swift; sourceTree = "<group>"; };
 		42DD5A6B2DB296CB005AC7E8 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
@@ -167,6 +171,8 @@
 		42EF55FA2DBE8827009684CE /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				42D174E22DCF96D200A760A6 /* FactoidService.swift */,
+				42D174E32DCF96D200A760A6 /* NotificationService+GoogleSheets.swift */,
 				42DD5A712DB296F9005AC7E8 /* CloudSyncService.swift */,
 				42DD5A6B2DB296CB005AC7E8 /* LocationService.swift */,
 				42DD5A752DB2970F005AC7E8 /* NotificationService.swift */,
@@ -347,6 +353,8 @@
 				42DD5A702DB296ED005AC7E8 /* StateBoundaryService.swift in Sources */,
 				42DD5A6A2DB296B5005AC7E8 /* ServiceProtocols.swift in Sources */,
 				42F0FE952DAF0A0400D9963B /* Constraints.swift in Sources */,
+				42D174E42DCF96D200A760A6 /* NotificationService+GoogleSheets.swift in Sources */,
+				42D174E52DCF96D200A760A6 /* FactoidService.swift in Sources */,
 				4221270F2D8277080033E461 /* AboutView.swift in Sources */,
 				423B20A22C0BB21C00EE7FEF /* MapView.swift in Sources */,
 				42B9C8072D8000CE0012B018 /* EditStatesView.swift in Sources */,
