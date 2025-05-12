@@ -23,9 +23,18 @@ struct AboutView: View {
                             .scaledToFit()
                             .frame(width: geometry.size.width * 0.7) // 70% of screen width
 
-                        Text("Version \(appVersion)")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+                        VStack(spacing: 4) {
+                            Text("Version \(appVersion)")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+
+                            #if DEBUG
+                            // This will ONLY show in debug/development builds
+                            Text("Development Build")
+                                .font(.subheadline)
+                                .foregroundColor(.red)
+                            #endif
+                        }
 
                         Divider()
                             .padding(.vertical, 10)

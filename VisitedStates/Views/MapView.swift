@@ -165,10 +165,19 @@ struct MapView: View {
                 }
                 
                 let labelText = "\(visitedCount)/50 States Visited"
-                Text(labelText)
-                    .foregroundColor(.gray)
-                    .font(.custom("DoHyeon-Regular", size: 20))
-                    .position(x: geometry.size.width / 2, y: geometry.size.height * 0.2)
+                VStack(spacing: 2) {
+                    Text(labelText)
+                        .foregroundColor(.gray)
+                        .font(.custom("DoHyeon-Regular", size: 20))
+
+                    #if DEBUG
+                    // This will ONLY show in debug/development builds
+                    Text("Development Build")
+                        .foregroundColor(.red)
+                        .font(.custom("DoHyeon-Regular", size: 20))
+                    #endif
+                }
+                .position(x: geometry.size.width / 2, y: geometry.size.height * 0.2)
             }
         }
         .onAppear {

@@ -18,8 +18,9 @@ struct ContentView: View {
     @State private var cancellables = Set<AnyCancellable>()
     @State private var visitedStates: [String] = []
     
-    // Track if we need to show a badge on settings button
+    // Track if we need to show badges on settings button
     @State private var needsLocationUpgrade = false
+    @State private var needsOptimalSettings = false // For Background App Refresh and Precise Location
     
     // New state variables for speed and altitude
     @State private var currentSpeed: Double = 0.0
@@ -121,12 +122,25 @@ struct ContentView: View {
                                 
                                 // Show upgrade badge if needed
                                 if needsLocationUpgrade {
+                                    // Red location badge for main permission issue
                                     ZStack {
                                         Circle()
                                             .fill(Color.red)
                                             .frame(width: 18, height: 18)
-                                        
+
                                         Image(systemName: "location.fill")
+                                            .font(.system(size: 10))
+                                            .foregroundColor(.white)
+                                    }
+                                    .offset(x: 14, y: -14)
+                                } else if needsOptimalSettings {
+                                    // Orange compass badge for secondary settings issues
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.orange)
+                                            .frame(width: 18, height: 18)
+
+                                        Image(systemName: "location.north.fill")
                                             .font(.system(size: 10))
                                             .foregroundColor(.white)
                                     }
@@ -216,8 +230,21 @@ struct ContentView: View {
                 // This includes "While Using App", "Never", and "Not Determined"
                 if status != .authorizedAlways {
                     self.needsLocationUpgrade = true
+                    self.needsOptimalSettings = false // Hide the other badge if location is not "Always"
                 } else {
                     self.needsLocationUpgrade = false
+                    // If we have "Always" permission, check other settings
+                    self.checkOptimalSettings()
+                }
+            }
+            .store(in: &cancellables)
+
+        // Subscribe to scene phase changes to refresh settings status
+        NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+            .sink { _ in
+                // When app becomes active, recheck settings
+                if self.dependencies.locationService.authorizationStatus.value == .authorizedAlways {
+                    self.checkOptimalSettings()
                 }
             }
             .store(in: &cancellables)
@@ -303,11 +330,11 @@ struct ContentView: View {
     private func checkLocationPermission() {
         // The automatic 'Always' location permission alert has been removed
         // We're now using the Settings view to promote permission upgrades in a less intrusive way
-        
+
         // Mark as shown to prevent any future attempts with the old system
         hasShownAlwaysAlert = true
         showLocationPermissionAlert = false
-        
+
         // Check if we should show a badge on the Settings button to encourage upgrade
         let locationStatus = dependencies.locationService.authorizationStatus.value
         if locationStatus != .authorizedAlways {
@@ -317,6 +344,24 @@ struct ContentView: View {
         } else {
             // Only "Always" permission is optimal, so no badge needed
             needsLocationUpgrade = false
+
+            // If we have "Always" permission, check other optimal settings
+            checkOptimalSettings()
         }
+    }
+
+    private func checkOptimalSettings() {
+        // Check Background App Refresh status
+        let backgroundRefreshStatus = UIApplication.shared.backgroundRefreshStatus
+        let isBackgroundRefreshEnabled = (backgroundRefreshStatus == .available)
+
+        // Check Precise Location status
+        let locationManager = CLLocationManager()
+        let isPreciseLocationEnabled = locationManager.accuracyAuthorization == .fullAccuracy
+
+        // Update indicator state - show if either setting is not optimal
+        needsOptimalSettings = !isBackgroundRefreshEnabled || !isPreciseLocationEnabled
+
+        print("🔍 Optimal settings check - Background Refresh: \(isBackgroundRefreshEnabled), Precise Location: \(isPreciseLocationEnabled)")
     }
 }

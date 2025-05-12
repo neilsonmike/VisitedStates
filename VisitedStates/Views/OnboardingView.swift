@@ -192,8 +192,8 @@ struct OnboardingView: View {
                 
                 FeatureRow(
                     iconName: "bell.fill",
-                    title: "Instant Notifications",
-                    description: "Get notified the moment you enter a new state"
+                    title: "State Entry Notifications",
+                    description: "Get notified when you cross state borders"
                 )
                 
                 FeatureRow(
@@ -252,7 +252,7 @@ struct OnboardingView: View {
                         .foregroundColor(.blue)
                         .padding(.top, 2)
                     
-                    Text("For best experience, visit Settings after setup to enable 'Always' permission.")
+                    Text("For background tracking, visit Settings after setup to enable 'Always' permission.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true) // Forces text to wrap
@@ -308,22 +308,24 @@ struct OnboardingView: View {
             
             VStack(alignment: .leading, spacing: 15) {
                 HStack(spacing: 12) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    
+                    Image(systemName: "bell.badge")
+                        .foregroundColor(.blue)
+                        .font(.system(size: 18))
+
                     VStack(alignment: .leading) {
-                        Text("Know instantly when you cross a state line")
+                        Text("Be informed when you cross state lines")
                             .font(.system(.headline, design: .rounded))
-                        Text("Perfect for road trips and travel")
+                        Text("Great for road trips and travel")
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 HStack(spacing: 12) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                    
+                    Image(systemName: "map.fill")
+                        .foregroundColor(.blue)
+                        .font(.system(size: 18))
+
                     VStack(alignment: .leading) {
                         Text("Never miss a state you've visited")
                             .font(.system(.headline, design: .rounded))
@@ -388,20 +390,20 @@ struct OnboardingView: View {
             // Add note about Always permissions if they have when in use
             if locationStatus == .authorizedWhenInUse {
                 VStack(spacing: 6) {
-                    Text("Need background tracking?")
+                    Text("Optional: Background Tracking")
                         .font(.system(.headline, design: .rounded))
                         .foregroundColor(.primary)
-                    
-                    Text("To track states when app is closed, enable 'Always' access in Settings.")
+
+                    Text("To track states when the app is closed, you can enable the 'Always' location permission later from your device settings.")
                         .font(.system(.caption, design: .rounded))
-                        .lineLimit(2)
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.center)
                         .foregroundColor(.secondary)
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(Color.gray.opacity(0.1))
+                .padding(.vertical, 10)
+                .padding(.horizontal, 14)
+                .background(Color(UIColor.secondarySystemBackground))
                 .cornerRadius(12)
             }
             
@@ -418,7 +420,7 @@ struct OnboardingView: View {
                         Image(systemName: "location.fill")
                             .font(.system(size: 14))
                         
-                        Text("Enable 'Always' in Settings")
+                        Text("Open Settings (Optional)")
                             .font(.system(.subheadline, design: .rounded))
                             .lineLimit(1)
                     }
@@ -591,12 +593,12 @@ struct LocationPermissionOption: View {
                         .minimumScaleFactor(0.8)
                     
                     if isRecommended {
-                        Text("Best")
+                        Text("Recommended")
                             .font(.system(.caption2, design: .rounded))
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
-                            .background(Color.green.opacity(0.2))
-                            .foregroundColor(.green)
+                            .background(Color.blue.opacity(0.2))
+                            .foregroundColor(.blue)
                             .cornerRadius(3)
                     }
                 }
@@ -611,11 +613,21 @@ struct LocationPermissionOption: View {
             
             Spacer()
             
-            // Right side - Selection indicator
+            // Right side - Status indicator (not a clickable control)
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(isSelected ? .blue : .gray.opacity(0.5))
+                .foregroundColor(isSelected ? .blue : .gray.opacity(0.3))
                 .font(.body)
                 .frame(width: 20)
+                .overlay(
+                    Text("Status")
+                        .font(.system(size: 6))
+                        .padding(.horizontal, 2)
+                        .padding(.vertical, 1)
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(2)
+                        .offset(y: 16)
+                        .opacity(0) // Hidden by default - just for accessibility
+                )
         }
         .padding(.vertical, 6)
     }

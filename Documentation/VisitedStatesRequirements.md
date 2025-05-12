@@ -461,7 +461,17 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
   - Copyright notices
   - Credits for AI assistance
 
-#### 2.6 IntroMapView
+#### 2.6 OnboardingView
+- **Primary Function**: Guide new users through setup process
+- **Key Components**:
+  - Welcome screen with app description
+  - Feature explanation with more realistic descriptions
+  - Permission request screens (location, notifications)
+  - Guided instructions for optimal settings
+  - Setup completion confirmation
+  - Optional setting explanations
+
+#### 2.7 IntroMapView
 - **Primary Function**: Animated intro sequence
 - **Key Components**:
   - Sequential animation of state outlines
@@ -469,7 +479,7 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
   - Cloud sync status indicators
   - Loading indicators during initialization
 
-#### 2.7 SharePreviewView
+#### 2.8 SharePreviewView
 - **Primary Function**: Generate shareable map image
 - **Key Components**:
   - Formatted image with app branding
@@ -873,7 +883,7 @@ let speedThreshold = CurrentValueSubject<Double, Never>(100.0)
 let altitudeThreshold = CurrentValueSubject<Double, Never>(10000.0)
 ```
 
-### 3. Settings UI 
+### 3. Settings UI
 
 #### 3.1 Settings View Organization
 - Organized into logical sections:
@@ -896,6 +906,19 @@ let altitudeThreshold = CurrentValueSubject<Double, Never>(10000.0)
 - Detailed instructions for permission upgrades
 - Direct link to iOS Settings via deep link
 - Visual feedback about current permission level
+- Warning indicators for suboptimal settings:
+  - Background App Refresh status monitoring
+  - Precise Location status monitoring
+  - Orange warning indicators for disabled settings
+
+#### 3.4 Visual Permission Indicators
+- Red location dot on Settings button when location permission is not "Always"
+- Orange compass indicator when permission is "Always" but:
+  - Background App Refresh is disabled OR
+  - Precise Location is disabled
+- No indicator when all settings are optimal
+- Indicators update when app returns from background
+- Development build indicators in debug builds only
 
 ### 4. Settings Validation
 
@@ -1385,7 +1408,22 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 
 ## Version History
 
-### Version 1.0.10 (Current Version)
+### Version 1.0.11 (Current Version)
+**Release Date:** June 2024
+**Changes:**
+- Added visual indicators for optimal permission settings
+- Added orange compass indicator when Background App Refresh or Precise Location are disabled
+- Redesigned Location Access section in Settings with clearer permission status displays
+- Added informative warnings for disabled Background App Refresh and Precise Location
+- Simplified explanatory text for permissions with more concise wording
+- Improved onboarding flow with more realistic feature descriptions
+- Changed "Instant Notifications" to "State Entry Notifications" with more accurate description
+- Added clear "Development Build" indicators in debug builds
+- Fixed build error related to API key access in FactoidService.swift
+- Improved permission detection for Background App Refresh and Precise Location
+- Enhanced permission UI to accurately reflect iOS system behaviors
+
+### Version 1.0.10
 **Release Date:** June 2024
 **Changes:**
 - Migrated factoid system from CloudKit to Google Sheets

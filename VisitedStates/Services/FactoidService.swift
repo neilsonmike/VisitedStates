@@ -1,11 +1,14 @@
 import Foundation
 
+// Import for API key functions
+import UIKit
+
 class FactoidService {
     // Constants for Google Sheets API
     private let sheetID = "1Gg0bGks2nimjX3CEtl4dpfoVSPfG2MWqTqaAe096Jbo"
     // API key should be stored in a secure location, not hardcoded
     private let apiKey: String = {
-        return getAPIKey()
+        return Bundle.main.googleSheetsAPIKey()
     }()
     private var sheetsURL: String {
         return "https://sheets.googleapis.com/v4/spreadsheets/\(sheetID)/values/Sheet1!A:C?key=\(apiKey)"

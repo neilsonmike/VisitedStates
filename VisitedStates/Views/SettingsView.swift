@@ -28,7 +28,11 @@ struct SettingsView: View {
     
     // New state for showing AboutView as sheet
     @State private var showingAboutView = false
-    
+
+    // Track background refresh and precise location status
+    @State private var isBackgroundRefreshEnabled = false
+    @State private var isPreciseLocationEnabled = true
+
     // Break up the view to avoid complex type-checking
     @ViewBuilder 
     func settingsContent() -> some View {
@@ -130,7 +134,7 @@ struct SettingsView: View {
                             Text("Current Permission:")
                             Spacer()
                             Text(locationStatusText)
-                                .foregroundColor(locationStatusColor)
+                                .foregroundColor(.primary)
                         }
                         
                         // Show contextual message based on current permission
@@ -143,12 +147,46 @@ struct SettingsView: View {
                                     .foregroundColor(.green)
                             }
                             .padding(.top, 2)
-                            
+
                             Text("You have granted 'Always' permission, which allows VisitedStates to detect state crossings even when the app is closed.")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .padding(.vertical, 4)
+
+                            // Add warning about Background App Refresh if disabled
+                            if !isBackgroundRefreshEnabled {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.orange)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Background App Refresh is disabled")
+                                            .font(.subheadline)
+                                            .foregroundColor(.orange)
+                                        Text("For optimal background tracking, please enable Background App Refresh in iOS Settings.")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+
+                            // Add warning about Precise Location if disabled
+                            if !isPreciseLocationEnabled {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.orange)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Precise Location is disabled")
+                                            .font(.subheadline)
+                                            .foregroundColor(.orange)
+                                        Text("For accurate state border detection, please enable Precise Location in iOS Settings.")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
                         } else if locationStatus == .authorizedWhenInUse {
                             HStack(spacing: 4) {
                                 Image(systemName: "exclamationmark.triangle.fill")
@@ -170,8 +208,8 @@ struct SettingsView: View {
                                 Text("About 'Always' permission:")
                                     .font(.subheadline)
                                     .bold()
-                                
-                                Text("Due to Apple's privacy system, 'Always' location permission is a two-step process. You must first grant 'While Using' permission here, then visit the iOS Settings app to upgrade to 'Always'.")
+
+                                Text("Due to Apple's Privacy system, 'Always' location permission must be set manually.")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                     .padding(.bottom, 4)
@@ -183,15 +221,13 @@ struct SettingsView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("1. Tap 'Open iOS Settings' below")
                                         .font(.caption)
-                                    Text("2. You'll see the Settings app open")
+                                    Text("2. Scroll down and tap 'VisitedStates'")
                                         .font(.caption)
-                                    Text("3. Scroll down and tap 'VisitedStates'")
+                                    Text("3. Tap 'Location'")
                                         .font(.caption)
-                                    Text("4. Tap 'Location'")
+                                    Text("4. Select 'Always'")
                                         .font(.caption)
-                                    Text("5. Select 'Always'")
-                                        .font(.caption)
-                                    Text("6. Return to VisitedStates app")
+                                    Text("5. Return to VisitedStates app")
                                         .font(.caption)
                                 }
                                 .padding(.leading, 8)
@@ -279,6 +315,8 @@ struct SettingsView: View {
             setupSubscriptions()
             updateLocationStatus()
             checkNotificationStatus()
+            checkBackgroundRefreshStatus()
+            checkPreciseLocationStatus()
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
@@ -287,7 +325,11 @@ struct SettingsView: View {
                 
                 // Also refresh location status
                 updateLocationStatus()
-                
+
+                // Check background refresh and precise location status
+                checkBackgroundRefreshStatus()
+                checkPreciseLocationStatus()
+
                 print("🔄 App became active - refreshing permissions status")
             }
         }
@@ -311,7 +353,7 @@ struct SettingsView: View {
     private var locationStatusText: String {
         switch locationStatus {
         case .authorizedAlways:
-            return "Always (Optimal)"
+            return "Always"
         case .authorizedWhenInUse:
             return "While Using App"
         case .denied:
@@ -412,6 +454,24 @@ struct SettingsView: View {
         // UIApplication.openSettingsURLString opens directly to this app's settings page in iOS Settings
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
+        }
+    }
+
+    private func checkBackgroundRefreshStatus() {
+        // Check if background refresh is enabled for the app
+        let status = UIApplication.shared.backgroundRefreshStatus
+        DispatchQueue.main.async {
+            self.isBackgroundRefreshEnabled = (status == .available)
+            print("🔄 Background App Refresh status: \(status == .available ? "Enabled" : "Disabled")")
+        }
+    }
+
+    private func checkPreciseLocationStatus() {
+        // Check if precise location is enabled
+        let locationManager = CLLocationManager()
+        DispatchQueue.main.async {
+            self.isPreciseLocationEnabled = locationManager.accuracyAuthorization == .fullAccuracy
+            print("📍 Precise Location status: \(locationManager.accuracyAuthorization == .fullAccuracy ? "Enabled" : "Disabled")")
         }
     }
     
