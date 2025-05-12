@@ -25,6 +25,7 @@ struct VisitedState: Codable, Equatable {
     }
 }
 
+//Test comment for pushing a new build
 // Badge structure for achievements
 struct Badge: Codable, Equatable {
     let identifier: String
