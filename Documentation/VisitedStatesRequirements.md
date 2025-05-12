@@ -1409,7 +1409,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 ## Version History
 
 ### Version 1.0.11 (Current Version)
-**Release Date:** June 2024
+**Release Date:** November 2023
 **Changes:**
 - Added visual indicators for optimal permission settings
 - Added orange compass indicator when Background App Refresh or Precise Location are disabled
@@ -1424,7 +1424,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Enhanced permission UI to accurately reflect iOS system behaviors
 
 ### Version 1.0.10
-**Release Date:** June 2024
+**Release Date:** October 2023
 **Changes:**
 - Migrated factoid system from CloudKit to Google Sheets
 - Added caching for factoids to improve offline functionality
@@ -1436,7 +1436,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Improved state notification system reliability
 
 ### Version 1.0.9
-**Release Date:** May 2024
+**Release Date:** September 2023
 **Changes:**
 - Fixed duplicate notifications issue when opening app after background notifications
 - Improved state factoid system with better CloudKit integration
@@ -1448,8 +1448,8 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Added Dark and Tinted Mode App Icons
 - Fixed negative speed display in debug telemetry overlay
 
-### Version 1.0.8 
-**Release Date:** April 2024
+### Version 1.0.8
+**Release Date:** August 2023
 **Changes:**
 - Added improved location accuracy
 - Enhanced state boundary detection
