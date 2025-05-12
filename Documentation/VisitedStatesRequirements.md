@@ -1424,7 +1424,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Enhanced permission UI to accurately reflect iOS system behaviors
 
 ### Version 1.0.10
-**Release Date:** April 2025
+**Release Date:** May 2025
 **Changes:**
 - Migrated factoid system from CloudKit to Google Sheets
 - Added caching for factoids to improve offline functionality
@@ -1436,7 +1436,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Improved state notification system reliability
 
 ### Version 1.0.9
-**Release Date:** March 2025
+**Release Date:** April 2025
 **Changes:**
 - Fixed duplicate notifications issue when opening app after background notifications
 - Improved state factoid system with better CloudKit integration
@@ -1449,7 +1449,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Fixed negative speed display in debug telemetry overlay
 
 ### Version 1.0.8
-**Release Date:** February 2025
+**Release Date:** April 2025
 **Changes:**
 - Added improved location accuracy
 - Enhanced state boundary detection
