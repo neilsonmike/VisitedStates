@@ -1409,7 +1409,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 ## Version History
 
 ### Version 1.0.11 (Current Version)
-**Release Date:** May 2025 (Current)
+**Release Date:** May 12, 2025
 **Changes:**
 - Added visual indicators for optimal permission settings
 - Added orange compass indicator when Background App Refresh or Precise Location are disabled
@@ -1424,7 +1424,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Enhanced permission UI to accurately reflect iOS system behaviors
 
 ### Version 1.0.10
-**Release Date:** May 2025 (3 hours ago)
+**Release Date:** May 12, 2025
 **Changes:**
 - Catch and release program for bugs has been eliminated, back to squishing those things
 - Migrated factoid system from CloudKit to Google Sheets
@@ -1436,7 +1436,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Updated documentation to reflect completed migration
 
 ### Version 1.0.9
-**Release Date:** May 2025 (3 days ago)
+**Release Date:** May 8, 2025
 **Changes:**
 - Thoughtfully, methodically, artfully, and respectfully annihilated a few code goblins
 - Fixed duplicate notifications issue when opening app after background notifications
@@ -1447,7 +1447,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Improved background processing efficiency
 
 ### Version 1.0.8
-**Release Date:** May 2025 (5 days ago)
+**Release Date:** May 6, 2025
 **Changes:**
 - Fed all of the bugs to Moe the Leopard Gecko
 - Added improved location accuracy
@@ -1457,21 +1457,21 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Added telemetry debug overlay (hidden feature)
 
 ### Version 1.0.7
-**Release Date:** May 2025 (6 days ago)
+**Release Date:** May 6, 2025
 **Changes:**
 - Added improved onboarding flow for location and notification permissions
 - Implemented cloud synchronization for app settings
 - Fixed various minor bugs and performance issues
 
 ### Version 1.0.6
-**Release Date:** May 2025 (1 week ago)
+**Release Date:** April 29, 2025
 **Changes:**
 - Added Dark Mode and Tinted Mode app icons
 - Smooshed some big old hairy bugs
 - Various stability improvements
 
 ### Version 1.0.5
-**Release Date:** April 2025 (2 weeks ago)
+**Release Date:** April 26, 2025
 **Changes:**
 - Intro map animation now respects dark mode
 - Removed erroneous altitude and velocity thresholds
@@ -1479,13 +1479,13 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Performance optimizations
 
 ### Version 1.0.4
-**Release Date:** April 2025 (2 weeks ago)
+**Release Date:** April 24, 2025
 **Changes:**
 - Bug fixes and stability improvements
 - Performance enhancements
 
 ### Version 1.0.3
-**Release Date:** April 2025 (2 weeks ago)
+**Release Date:** April 23, 2025
 **Changes:**
 - Moved "Edit States" button directly to Map View for easier editing
 - Switched share sheet image to a custom image
@@ -1493,7 +1493,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Bug fixes
 
 ### Version 1.0.2
-**Release Date:** April 2025 (2 weeks ago)
+**Release Date:** April 22, 2025
 **Changes:**
 - Initial public release
 - Core functionality implemented
