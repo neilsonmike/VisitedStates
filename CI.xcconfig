@@ -1,0 +1,5 @@
+// Configuration settings for CI builds
+// This file is used by Xcode Cloud to substitute environment variables
+
+// API Keys - these will be replaced by actual values from environment variables
+GOOGLE_SHEETS_API_KEY = $(GOOGLE_SHEETS_API_KEY)
