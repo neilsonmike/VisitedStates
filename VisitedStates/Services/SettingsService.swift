@@ -206,7 +206,42 @@ class SettingsService: SettingsServiceProtocol {
     
     /// Get all earned badges
     func getEarnedBadges() -> [Badge] {
-        return badges.filter { $0.isEarned }
+        // First get simple badges from old storage
+        let oldBadges = badges.filter { $0.isEarned }
+        
+        // Now get badges from the BadgeTrackingService
+        let badgeTrackingService = BadgeTrackingService()
+        let earnedBadgeDates = badgeTrackingService.getEarnedBadges()
+        
+        // Convert achievement badges to the Badge format expected by CloudKit
+        var achievementBadges: [Badge] = []
+        
+        // For each earned badge ID and date, create a proper Badge object
+        for (badgeId, earnedDate) in earnedBadgeDates {
+            // Create a CloudKit-compatible Badge object
+            let badge = Badge(
+                identifier: badgeId,
+                earnedDate: earnedDate,
+                isEarned: true
+            )
+            achievementBadges.append(badge)
+        }
+        
+        // Add logging to help troubleshoot
+        print("🏆 Syncing \(achievementBadges.count) achievement badges and \(oldBadges.count) legacy badges to CloudKit")
+        
+        // Combine old and new badge systems
+        var combinedBadges = oldBadges
+        
+        // Add achievement badges that aren't already in the combined list
+        for achievementBadge in achievementBadges {
+            if !combinedBadges.contains(where: { $0.identifier == achievementBadge.identifier }) {
+                combinedBadges.append(achievementBadge)
+            }
+        }
+        
+        print("🏆 Total badges for CloudKit sync: \(combinedBadges.count)")
+        return combinedBadges
     }
     
     // MARK: - Private methods
@@ -437,7 +472,10 @@ class SettingsService: SettingsServiceProtocol {
         if let data = try? JSONEncoder().encode(badges),
            let json = String(data: data, encoding: .utf8) {
             storedBadgesJSON = json
-            print("💾 Saved \(badges.count) badges")
+            // Only log in debug mode
+            if isDebugMode {
+                print("💾 Saved \(badges.count) badges")
+            }
         } else {
             print("❌ Failed to encode badges")
         }

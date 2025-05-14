@@ -2,6 +2,7 @@ import Foundation
 import CoreLocation
 import Combine
 import UIKit
+import SwiftUI
 
 class StateDetectionService: StateDetectionServiceProtocol {
     // MARK: - Properties
@@ -217,6 +218,10 @@ class StateDetectionService: StateDetectionServiceProtocol {
                 // IMPORTANT: Add to visited states AFTER notification decision
                 // This ensures proper "new state" detection for notifications
                 self.settings.addStateViaGPS(stateName)
+                
+                // Track state visit timestamp for badge achievements
+                let badgeService = BadgeTrackingService()
+                badgeService.trackStateVisit(stateName)
                 
                 // Sync with cloud
                 self.syncToCloud()
@@ -462,6 +467,11 @@ class StateDetectionService: StateDetectionServiceProtocol {
             
             // Add using GPS method since this was detected via location - AFTER notification
             strongSelf.settings.addStateViaGPS(state)
+            
+            // Track state visit timestamp for badge achievements
+            let badgeService = BadgeTrackingService()
+            badgeService.trackStateVisit(state)
+            
             strongSelf.syncToCloud()
         }
     }
@@ -471,9 +481,133 @@ class StateDetectionService: StateDetectionServiceProtocol {
         // This is the single control point for notifications - BEFORE adding to visited states
         DispatchQueue.main.async { [weak self] in
             guard let strongSelf = self else { return }
-            
+
             print("🗺️ Notifying about state entry: \(state)")
+            
+            // Initiate the factoid fetch but don't wait for result yet
             strongSelf.notificationService.handleDetectedState(state)
+            
+            // Use a short delay for API completion - only 1 second to not be noticeable
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                // Check for badge achievements with the real badge logic
+                strongSelf.triggerBadgeNotification(for: state)
+            }
+        }
+    }
+
+    // Trigger a state notification with earned badges
+    private func triggerBadgeNotification(for state: String) {
+        print("🏆 Triggering notification for \(state)")
+        
+        // Check if we should suppress notifications for already visited states
+        let isNewState = !settings.hasVisitedState(state)
+        let notifyOnlyNewStates = settings.notifyOnlyNewStates.value
+        
+        // If notify only new states is enabled and this isn't a new state,
+        // skip the notifications but still process badges
+        let shouldSuppressNotification = notifyOnlyNewStates && !isNewState
+        
+        if shouldSuppressNotification {
+            print("🔕 Suppressing notification for already visited state: \(state) (notify only new states is enabled)")
+        } else {
+            // CRITICAL: Schedule the system notification first (for background operation)
+            // This needs to be done before the in-app notification
+            if let notificationService = self.notificationService as? NotificationService {
+                // Schedule the system notification via UNUserNotificationCenter
+                notificationService.scheduleStateEntryNotification(for: state)
+            }
+        }
+
+        // IMPORTANT: Use only GPS-verified states for badges
+        let gpsVerifiedStates = settings.getActiveGPSVerifiedStates().map { $0.stateName }
+
+        // Get factoid for the state - following proper priority
+        var factoid: String? = nil
+
+        // First check for a direct factoid from UserDefaults (set by Google Sheets)
+        // This is our highest priority - a fresh Google Sheets result stored directly
+        let directFactoidKey = "DIRECT_FACTOID_\(state)"
+        if let directFactoid = UserDefaults.standard.string(forKey: directFactoidKey) {
+            factoid = directFactoid
+
+            // Clear this one-time factoid once we've used it
+            UserDefaults.standard.removeObject(forKey: directFactoidKey)
+            UserDefaults.standard.synchronize()
+        }
+        // Second priority: cached factoid from previous Google Sheets calls
+        else if let notificationService = self.notificationService as? NotificationService {
+            factoid = notificationService.getCachedFactoid(for: state)
+        }
+
+        // No third priority - if no factoid is found, it will remain nil
+
+        // Create badge service instance
+        let badgeService = BadgeTrackingService()
+
+        // Check for newly earned badges - ONLY using GPS-verified states
+        let newlyEarnedBadges = badgeService.checkForNewBadges(
+            allBadges: AchievementBadgeProvider.allBadges,
+            visitedStates: gpsVerifiedStates // Use GPS states only
+        )
+
+        // Check for special cases to suppress the notification
+        let didJustBecomeActive = UserDefaults.standard.bool(forKey: "didJustBecomeActive")
+        let lastNotifiedState = UserDefaults.standard.string(forKey: "lastNotifiedState")
+        
+        // Handle duplicate suppression (app became active with already notified state)
+        let skipDueToDuplicate = didJustBecomeActive && lastNotifiedState == state
+        
+        // Handle suppression due to "notify only new states" setting
+        let skipDueToAlreadyVisited = shouldSuppressNotification
+        
+        // Combined skip flag - suppresses notification unless badges were earned
+        let skipStateNotification = (skipDueToDuplicate || skipDueToAlreadyVisited)
+        
+        // If we should skip the notification and there are no badges, exit completely
+        if skipStateNotification && newlyEarnedBadges.isEmpty {
+            if skipDueToDuplicate {
+                print("🏆 Skipping notification - app just became active and state was already notified")
+            } else {
+                print("🏆 Skipping notification - already visited state and notify only new states is enabled")
+            }
+            return
+        }
+
+        // Prepare notification contents
+        var notification: [String: Any] = [:]
+
+        if !skipStateNotification {
+            // Normal case: Include state information
+            notification["state"] = state
+            if let factoid = factoid {
+                notification["factoid"] = factoid
+            }
+        } else if !newlyEarnedBadges.isEmpty {
+            // Special case: Skip state welcome, but show badge notification
+            // only if there are badges to show
+            notification["state"] = state
+            notification["skipWelcome"] = true
+        }
+
+        // Add badges if any were earned
+        if !newlyEarnedBadges.isEmpty {
+            notification["badges"] = newlyEarnedBadges
+
+            // If there are more badges than we can reasonably display,
+            // include a total count to show "and X more" text
+            if newlyEarnedBadges.count > 3 {
+                notification["totalBadgeCount"] = newlyEarnedBadges.count
+            }
+        }
+
+        // Only post notification if we have something to show
+        if !notification.isEmpty {
+            // Post notification for real-time display
+            NotificationCenter.default.post(
+                name: NSNotification.Name("StateDetectionWithBadges"),
+                object: nil,
+                userInfo: notification
+            )
         }
     }
     

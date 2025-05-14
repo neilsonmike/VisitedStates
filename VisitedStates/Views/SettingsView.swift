@@ -16,6 +16,7 @@ struct SettingsView: View {
     // Local state
     @State private var showingSchemaAlert: Bool = false
     @State private var showRestoreAlert = false  // For restore defaults confirmation
+    @State private var showResetBadgesAlert = false  // For resetting badges confirmation
     @State private var notificationsEnabled = true
     @State private var notifyOnlyNewStates = false
     @State private var stateFillColor: Color = .red
@@ -272,19 +273,23 @@ struct SettingsView: View {
                     }
                 }
                 
-                // About Section - Changed to use button that presents sheet
+                // About and Debug Section
                 Section {
                     Button("About VisitedStates") {
                         showingAboutView = true
                     }
-                    
-                    // Debug tools section removed - factoid migration is complete
+
+                    // Debug tools - Always show this in development
+                    Button("Reset All Badges") {
+                        showResetBadgesAlert = true
+                    }
+                    .foregroundColor(.red)
                 }
             }
             .navigationTitle("Settings")
-            // Add Done button to navigation bar (left side)
+            // Add Done button to navigation bar (right side - iOS standard)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         presentationMode.wrappedValue.dismiss()
                     }
@@ -305,6 +310,17 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("Are you sure you want to restore the default color selections?")
+            }
+            .alert("Reset All Badges", isPresented: $showResetBadgesAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Reset", role: .destructive) {
+                    // Create a BadgeTrackingService and reset all badges
+                    let badgeService = BadgeTrackingService()
+                    badgeService.resetAllBadges()
+                    print("🏆 All badges have been reset")
+                }
+            } message: {
+                Text("Are you sure you want to reset all badge progress? This will remove all earned badges and cannot be undone.")
             }
             // Present AboutView as sheet instead of NavigationLink
             .sheet(isPresented: $showingAboutView) {

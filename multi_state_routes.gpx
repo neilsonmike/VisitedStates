@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="VisitedStates App Badge Testing" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Multi-State Routes for Badge Testing</name>
+    <desc>Contains predefined routes for testing multi-state badges in the VisitedStates app</desc>
+    <time>2025-05-13T12:00:00Z</time>
+  </metadata>
+
+  <!-- Route 1: Ohio-West Virginia-Pennsylvania -->
+  <rte>
+    <name>Ohio-WV-PA Route</name>
+    <desc>Test route through Ohio, West Virginia, and Pennsylvania for the "On the Road Again" badge</desc>
+    <rtept lat="40.5" lon="-82.5">
+      <ele>300</ele>
+      <name>Ohio</name>
+      <desc>Starting point in Ohio</desc>
+    </rtept>
+    <rtept lat="38.5" lon="-81">
+      <ele>400</ele>
+      <name>West Virginia</name>
+      <desc>Middle point in West Virginia</desc>
+    </rtept>
+    <rtept lat="41" lon="-77.5">
+      <ele>500</ele>
+      <name>Pennsylvania</name>
+      <desc>Ending point in Pennsylvania</desc>
+    </rtept>
+  </rte>
+
+  <!-- Route 2: Four Corners Route -->
+  <rte>
+    <name>Four Corners Exploration</name>
+    <desc>Route to visit all four states at the Four Corners monument</desc>
+    <rtept lat="36.998" lon="-109.046">
+      <ele>1500</ele>
+      <name>Arizona</name>
+      <desc>Southwest corner at Four Corners</desc>
+    </rtept>
+    <rtept lat="36.999" lon="-109.045">
+      <ele>1500</ele>
+      <name>Four Corners Monument</name>
+      <desc>The exact point where all four states meet</desc>
+    </rtept>
+    <rtept lat="37.001" lon="-109.044">
+      <ele>1500</ele>
+      <name>Colorado</name>
+      <desc>Northeast corner at Four Corners</desc>
+    </rtept>
+    <rtept lat="36.998" lon="-109.044">
+      <ele>1500</ele>
+      <name>New Mexico</name>
+      <desc>Southeast corner at Four Corners</desc>
+    </rtept>
+    <rtept lat="37.001" lon="-109.046">
+      <ele>1500</ele>
+      <name>Utah</name>
+      <desc>Northwest corner at Four Corners</desc>
+    </rtept>
+  </rte>
+  
+  <!-- Route 3: New England States -->
+  <rte>
+    <name>New England Tour</name>
+    <desc>Route through multiple New England states</desc>
+    <rtept lat="42" lon="-72">
+      <ele>100</ele>
+      <name>Massachusetts</name>
+      <desc>Starting in Massachusetts</desc>
+    </rtept>
+    <rtept lat="41.7" lon="-71.5">
+      <ele>50</ele>
+      <name>Rhode Island</name>
+      <desc>Rhode Island point</desc>
+    </rtept>
+    <rtept lat="41.5" lon="-73">
+      <ele>200</ele>
+      <name>Connecticut</name>
+      <desc>Connecticut point</desc>
+    </rtept>
+    <rtept lat="43.5" lon="-72">
+      <ele>300</ele>
+      <name>New Hampshire</name>
+      <desc>New Hampshire point</desc>
+    </rtept>
+    <rtept lat="44" lon="-73">
+      <ele>400</ele>
+      <name>Vermont</name>
+      <desc>Vermont point</desc>
+    </rtept>
+    <rtept lat="45" lon="-69">
+      <ele>150</ele>
+      <name>Maine</name>
+      <desc>Maine point</desc>
+    </rtept>
+  </rte>
+  
+  <!-- Route 4: Border Patrol South Route -->
+  <rte>
+    <name>Border Patrol South Route</name>
+    <desc>Route through all states bordering Mexico</desc>
+    <rtept lat="31" lon="-99">
+      <ele>300</ele>
+      <name>Texas</name>
+      <desc>Starting in Texas</desc>
+    </rtept>
+    <rtept lat="34.5" lon="-106">
+      <ele>1500</ele>
+      <name>New Mexico</name>
+      <desc>New Mexico point</desc>
+    </rtept>
+    <rtept lat="34" lon="-112">
+      <ele>1800</ele>
+      <name>Arizona</name>
+      <desc>Arizona point</desc>
+    </rtept>
+    <rtept lat="37" lon="-120">
+      <ele>500</ele>
+      <name>California</name>
+      <desc>California point</desc>
+    </rtept>
+  </rte>
+  
+  <!-- Route 5: Directional States Route -->
+  <rte>
+    <name>Directionally Impaired Route</name>
+    <desc>Route through all directional states</desc>
+    <rtept lat="35.5" lon="-80">
+      <ele>300</ele>
+      <name>North Carolina</name>
+      <desc>North Carolina point</desc>
+    </rtept>
+    <rtept lat="34" lon="-81">
+      <ele>250</ele>
+      <name>South Carolina</name>
+      <desc>South Carolina point</desc>
+    </rtept>
+    <rtept lat="38.5" lon="-81">
+      <ele>400</ele>
+      <name>West Virginia</name>
+      <desc>West Virginia point</desc>
+    </rtept>
+    <rtept lat="47.5" lon="-100.5">
+      <ele>500</ele>
+      <name>North Dakota</name>
+      <desc>North Dakota point</desc>
+    </rtept>
+    <rtept lat="44.5" lon="-100">
+      <ele>450</ele>
+      <name>South Dakota</name>
+      <desc>South Dakota point</desc>
+    </rtept>
+  </rte>
+  
+  <!-- Route 6: Four Letter Words Route -->
+  <rte>
+    <name>Four Letter Words Route</name>
+    <desc>Route through all states with 4-letter names</desc>
+    <rtept lat="40.5" lon="-82.5">
+      <ele>300</ele>
+      <name>Ohio</name>
+      <desc>Ohio point</desc>
+    </rtept>
+    <rtept lat="42" lon="-93">
+      <ele>300</ele>
+      <name>Iowa</name>
+      <desc>Iowa point</desc>
+    </rtept>
+    <rtept lat="39.5" lon="-111.5">
+      <ele>1500</ele>
+      <name>Utah</name>
+      <desc>Utah point</desc>
+    </rtept>
+  </rte>
+  
+  <!-- Route 7: Commonwealth Route -->
+  <rte>
+    <name>The Wealth is Common Route</name>
+    <desc>Route through all four commonwealth states</desc>
+    <rtept lat="37.5" lon="-79">
+      <ele>300</ele>
+      <name>Virginia</name>
+      <desc>Virginia point</desc>
+    </rtept>
+    <rtept lat="41" lon="-77.5">
+      <ele>400</ele>
+      <name>Pennsylvania</name>
+      <desc>Pennsylvania point</desc>
+    </rtept>
+    <rtept lat="37.5" lon="-85">
+      <ele>250</ele>
+      <name>Kentucky</name>
+      <desc>Kentucky point</desc>
+    </rtept>
+    <rtept lat="42" lon="-72">
+      <ele>100</ele>
+      <name>Massachusetts</name>
+      <desc>Massachusetts point</desc>
+    </rtept>
+  </rte>
+</gpx>

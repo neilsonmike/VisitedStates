@@ -6,7 +6,7 @@ import Combine
 struct ContentView: View {
     // Access app dependencies
     @EnvironmentObject var dependencies: AppDependencies
-    
+
     // Local state
     @State private var showingSettings = false
     @State private var showShareSheet = false
@@ -17,42 +17,96 @@ struct ContentView: View {
     @State private var showLocationPermissionAlert = false // Kept for backward compatibility
     @State private var cancellables = Set<AnyCancellable>()
     @State private var visitedStates: [String] = []
-    
+
     // Track if we need to show badges on settings button
     @State private var needsLocationUpgrade = false
     @State private var needsOptimalSettings = false // For Background App Refresh and Precise Location
-    
+
     // New state variables for speed and altitude
     @State private var currentSpeed: Double = 0.0
     @State private var currentAltitude: Double = 0.0
     @State private var speedThreshold: Double = 100.0 // Default, will be updated from settings
     @State private var altitudeThreshold: Double = 10000.0 // Default, will be updated from settings
-    
+
     // For sharing
     @State private var isSharePreparing = false
     @State private var shareImageReady = false
     
+    // For badge view
+    @State private var showBadges = false
+
+    // For badge notifications
+    @State private var newBadges: [AchievementBadge] = []
+    @State private var showBadgeSummary = false
+    @State private var newBadgeCount = 0
+    private let badgeService = BadgeTrackingService()
+
+    // For real-time state and badge notifications
+    @State private var showStateNotification = false
+    @State private var notificationState: String = ""
+    @State private var notificationBadges: [AchievementBadge] = []
+    @State private var notificationFactoid: String? = nil
+    @State private var skipWelcomeMessage: Bool = false
+    @State private var totalBadgeCount: Int? = nil
+
     var body: some View {
         ZStack {
             // Display the MapView with dependencies
             MapView()
                 .environmentObject(dependencies)
                 .edgesIgnoringSafeArea(.all)
-            
+
             // Debug indicator for current simulated location
             GeometryReader { geometry in
                 if let currentLocation = dependencies.locationService.currentLocation.value {
                     // Adjust coordinate transformation as needed.
                     let x = CGFloat(currentLocation.coordinate.longitude)
                     let y = CGFloat(currentLocation.coordinate.latitude)
-                    
+
                     Circle()
                         .fill(Color.red)
                         .frame(width: 10, height: 10)
                         .position(x: x, y: y)
                 }
             }
-            
+
+            // Badge celebration overlay
+            if showBadgeSummary {
+                Color.black.opacity(0.5)
+                    .edgesIgnoringSafeArea(.all)
+
+                BadgeSummaryView(
+                    newBadges: newBadges,
+                    isPresented: $showBadgeSummary,
+                    showBadges: $showBadges
+                )
+            }
+
+            // Top notification for state detection and badges
+            if showStateNotification {
+                VStack {
+                    StateNotificationView(
+                        stateName: notificationState,
+                        badges: notificationBadges,
+                        factoid: notificationFactoid,
+                        isPresented: $showStateNotification,
+                        skipWelcome: skipWelcomeMessage,
+                        totalBadgeCount: totalBadgeCount,
+                        onViewBadges: {
+                            // Show badges screen when tapped
+                            showBadges = true
+                        }
+                    )
+                    .transition(AnyTransition.move(edge: .top).combined(with: AnyTransition.opacity))
+                    .animation(.spring(), value: showStateNotification)
+
+                    Spacer()
+                }
+                .zIndex(3) // Ensure it's above other content
+                .padding(.top, 45) // Give some space from the top
+            }
+
+
 //            // Add speed and altitude indicators
 //            VStack {
 //                HStack {
@@ -62,7 +116,7 @@ struct ContentView: View {
 //                        Text("Detected Speed: \(Int(currentSpeed)) mph")
 //                            .font(.system(size: 10))
 //                            .foregroundColor(currentSpeed > speedThreshold ? .red : .gray)
-//                        
+//
 //                        // Altitude indicator
 //                        Text("Detected Altitude: \(Int(currentAltitude)) ft")
 //                            .font(.system(size: 10))
@@ -76,7 +130,7 @@ struct ContentView: View {
 //                }
 //                Spacer()
 //            }
-            
+
             // Settings and share buttons
             VStack {
                 Spacer()
@@ -96,6 +150,34 @@ struct ContentView: View {
                         }
                         .disabled(isSharePreparing)
                         
+                        // Badges Button
+                        Button(action: {
+                            showBadges.toggle()
+                        }) {
+                            ZStack {
+                                Image(systemName: "trophy.fill")
+                                    .font(.system(size: 20))
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.gray.opacity(0.3))
+                                    .foregroundColor(.white)
+                                    .clipShape(Circle())
+
+                                // Badge notification indicator
+                                if newBadgeCount > 0 {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.red)
+                                            .frame(width: 22, height: 22)
+
+                                        Text("\(newBadgeCount)")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundColor(.white)
+                                    }
+                                    .offset(x: 18, y: -18)
+                                }
+                            }
+                        }
+
                         // Edit States Button
                         Button(action: {
                             showEditStates.toggle()
@@ -107,7 +189,7 @@ struct ContentView: View {
                                 .foregroundColor(.white)
                                 .clipShape(Circle())
                         }
-                        
+
                         // Settings Button with badge indicator for permissions
                         Button(action: {
                             showingSettings.toggle()
@@ -119,7 +201,7 @@ struct ContentView: View {
                                     .background(Color.gray.opacity(0.3))
                                     .foregroundColor(.white)
                                     .clipShape(Circle())
-                                
+
                                 // Show upgrade badge if needed
                                 if needsLocationUpgrade {
                                     // Red location badge for main permission issue
@@ -159,8 +241,99 @@ struct ContentView: View {
             setupSubscriptions()
             // Start location tracking and state detection
             dependencies.stateDetectionService.startStateDetection()
+
+            // Check for new badges on app launch
+            checkForNewBadges()
+
+            // Listen for badge view notification
+            NotificationCenter.default.addObserver(
+                forName: NSNotification.Name("BadgesViewed"),
+                object: nil,
+                queue: .main
+            ) { _ in
+                // Clear the badge count when user views badges
+                self.newBadgeCount = 0
+            }
+            
+            // Listen for app activation to show badge summary
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                // When app becomes active, check if there are unviewed badges
+                let unviewedBadgeIds = self.badgeService.getNewBadges()
+                if !unviewedBadgeIds.isEmpty {
+                    self.newBadges = self.badgeService.getBadgeObjectsForIds(unviewedBadgeIds)
+                    self.newBadgeCount = unviewedBadgeIds.count
+                    
+                    // Show badge summary after a short delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.showBadgeSummary = true
+                        print("🏆 Showing badge summary from background activation for \(unviewedBadgeIds.count) badges")
+                    }
+                }
+            }
+
+            // Listen for real-time state and badge notifications
+            NotificationCenter.default.addObserver(
+                forName: NSNotification.Name("StateDetectionWithBadges"),
+                object: nil,
+                queue: .main
+            ) { notification in
+                let userInfo = notification.userInfo ?? [:]
+
+                // Extract state name
+                if let stateName = userInfo["state"] as? String {
+                    self.notificationState = stateName
+
+                    // Check if we should skip welcome message
+                    self.skipWelcomeMessage = userInfo["skipWelcome"] as? Bool ?? false
+
+                    // Extract factoid if available - first check in UserDefaults
+                    let directFactoidKey = "DIRECT_FACTOID_\(stateName)"
+                    if let directFactoid = UserDefaults.standard.string(forKey: directFactoidKey) {
+                        self.notificationFactoid = directFactoid
+
+                        // Clear it after use
+                        UserDefaults.standard.removeObject(forKey: directFactoidKey)
+                        UserDefaults.standard.synchronize()
+                    }
+                    // Then check notification payload
+                    else if let factoidValue = userInfo["factoid"] as? String {
+                        self.notificationFactoid = factoidValue
+                    } else {
+                        self.notificationFactoid = nil
+                    }
+
+                    // Extract badges if any
+                    if let badges = userInfo["badges"] as? [AchievementBadge] {
+                        self.notificationBadges = badges
+
+                        // TESTING: Only use the badges in the array, no additional total
+                        self.totalBadgeCount = nil
+
+                        if !badges.isEmpty {
+                            // Update badge counter with the actual badges shown
+                            self.newBadgeCount += badges.count
+
+                            // Add badges to our tracking list
+                            self.newBadges.append(contentsOf: badges)
+                        }
+                    } else {
+                        self.notificationBadges = []
+                        self.totalBadgeCount = nil
+                    }
+
+                    // Show state notification with animation
+                    withAnimation {
+                        self.showStateNotification = true
+                    }
+                }
+            }
         }
         .onDisappear {
+            NotificationCenter.default.removeObserver(self)
             cancellables.removeAll()
         }
         // Present the settings sheet
@@ -179,6 +352,15 @@ struct ContentView: View {
         .sheet(isPresented: $showEditStates) {
             EditStatesView()
                 .environmentObject(dependencies)
+        }
+        // Present the badges sheet
+        .sheet(isPresented: $showBadges) {
+            BadgesView()
+                .environmentObject(dependencies)
+                .onDisappear {
+                    // Clear new badge count after viewing badges
+                    newBadgeCount = 0
+                }
         }
         // Removed automatic 'Always' location permission alert - using onboarding instead
     }
@@ -363,5 +545,98 @@ struct ContentView: View {
         needsOptimalSettings = !isBackgroundRefreshEnabled || !isPreciseLocationEnabled
 
         print("🔍 Optimal settings check - Background Refresh: \(isBackgroundRefreshEnabled), Precise Location: \(isPreciseLocationEnabled)")
+    }
+
+    /// Check for newly earned badges
+    /// Check if this is the first launch after upgrading to a version with badges
+    private func checkForUpgradeToVersionWithBadges() {
+        // Key to track if we've shown the badge intro
+        let hasShownBadgeIntroKey = "hasShownBadgeIntro"
+        let hasShownBadgeIntro = UserDefaults.standard.bool(forKey: hasShownBadgeIntroKey)
+        
+        // Check if this is a first launch after upgrade (has states but hasn't seen badge intro)
+        let visitedStates = dependencies.settingsService.visitedStates.value
+        
+        if !hasShownBadgeIntro && visitedStates.count > 0 {
+            print("🏆 First launch after upgrade to version with badges")
+            
+            // Get all GPS verified states
+            let gpsStates = dependencies.settingsService.getActiveGPSVerifiedStates().map { $0.stateName }
+            
+            // Process all badges that would have been earned
+            // This is automatic now via settings service, but we need to show the badge intro
+            let allEarnedBadges = badgeService.checkForNewBadges(
+                allBadges: AchievementBadgeProvider.allBadges,
+                visitedStates: gpsStates
+            )
+            
+            if !allEarnedBadges.isEmpty {
+                // Update state with all earned badges for the summary view
+                self.newBadges = allEarnedBadges
+                self.newBadgeCount = allEarnedBadges.count
+                
+                // Show badge summary after a short delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    self.showBadgeSummary = true
+                    print("🏆 Showing upgrade badge summary for \(allEarnedBadges.count) badges")
+                }
+            }
+            
+            // Mark that we've shown the badge intro
+            UserDefaults.standard.set(true, forKey: hasShownBadgeIntroKey)
+        }
+    }
+    
+    private func checkForNewBadges() {
+        // TESTING ONLY: Remove this line in production
+        // badgeService.resetAllBadges()
+
+        print("🏆 Starting badge check on app launch")
+
+        // Check for first launch after upgrade to a version with badges
+        checkForUpgradeToVersionWithBadges()
+        
+        // Get visited states from settings service
+        let visitedStates = dependencies.settingsService.visitedStates.value
+        print("🏆 Found \(visitedStates.count) visited states from settings")
+
+        // Print the actual states for debugging
+        if !visitedStates.isEmpty {
+            print("🏆 Visited states: \(visitedStates.joined(separator: ", "))")
+        }
+
+        // Get GPS verified states
+        let gpsStates = dependencies.settingsService.getActiveGPSVerifiedStates().map { $0.stateName }
+        print("🏆 Found \(gpsStates.count) GPS-verified states")
+
+        // Print the GPS states for debugging
+        if !gpsStates.isEmpty {
+            print("🏆 GPS-verified states: \(gpsStates.joined(separator: ", "))")
+        }
+
+        // Check for newly earned badges - ONLY using GPS-verified states
+        let newlyEarnedBadges = badgeService.checkForNewBadges(
+            allBadges: AchievementBadgeProvider.allBadges,
+            visitedStates: gpsStates // Use GPS states only, not manually edited states
+        )
+
+        if !newlyEarnedBadges.isEmpty {
+            // Update state with the earned badges
+            self.newBadges = newlyEarnedBadges
+            self.newBadgeCount = newlyEarnedBadges.count
+
+            // Show badge summary after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.showBadgeSummary = true
+                print("🏆 Showing badge summary for \(newlyEarnedBadges.count) new badges")
+            }
+        } else {
+            // Check if there are any unviewed badges
+            let unviewedBadgeIds = badgeService.getNewBadges()
+            if !unviewedBadgeIds.isEmpty {
+                self.newBadgeCount = unviewedBadgeIds.count
+                self.newBadges = badgeService.getBadgeObjectsForIds(unviewedBadgeIds)
+            }
+        }
     }
 }

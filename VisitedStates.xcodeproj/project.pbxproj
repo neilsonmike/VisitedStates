@@ -17,6 +17,16 @@
 		423B20772C0BAE9200EE7FEF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 423B20762C0BAE9200EE7FEF /* Assets.xcassets */; };
 		423B207B2C0BAE9200EE7FEF /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 423B207A2C0BAE9200EE7FEF /* Preview Assets.xcassets */; };
 		423B20A22C0BB21C00EE7FEF /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423B20A12C0BB21C00EE7FEF /* MapView.swift */; };
+		423BA0732DD2E17B00DFBD9A /* BadgeNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423BA0712DD2E17B00DFBD9A /* BadgeNotifier.swift */; };
+		423BA0742DD2E17B00DFBD9A /* BadgeTrackingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423BA0722DD2E17B00DFBD9A /* BadgeTrackingService.swift */; };
+		423BA0762DD2E19A00DFBD9A /* Badge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423BA0752DD2E19A00DFBD9A /* Badge.swift */; };
+		423BA07E2DD2E1AC00DFBD9A /* MiniNotificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423BA07B2DD2E1AC00DFBD9A /* MiniNotificationView.swift */; };
+		423BA07F2DD2E1AC00DFBD9A /* BadgeSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423BA0792DD2E1AC00DFBD9A /* BadgeSummaryView.swift */; };
+		423BA0802DD2E1AC00DFBD9A /* BadgeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423BA0782DD2E1AC00DFBD9A /* BadgeDetailView.swift */; };
+		423BA0812DD2E1AC00DFBD9A /* BadgeCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423BA0772DD2E1AC00DFBD9A /* BadgeCell.swift */; };
+		423BA0822DD2E1AC00DFBD9A /* NotificationBadgeCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423BA07C2DD2E1AC00DFBD9A /* NotificationBadgeCell.swift */; };
+		423BA0832DD2E1AC00DFBD9A /* BadgesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423BA07A2DD2E1AC00DFBD9A /* BadgesView.swift */; };
+		423BA0842DD2E1AC00DFBD9A /* StateNotificationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423BA07D2DD2E1AC00DFBD9A /* StateNotificationView.swift */; };
 		4284837C2C0D301B0021DDAE /* us_states.geojson in Resources */ = {isa = PBXBuildFile; fileRef = 4284837B2C0D301B0021DDAE /* us_states.geojson */; };
 		42AA80262D7DF0EF008AF2DE /* AlaskaHawaiiSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */; };
 		42B08B7F2DC9C74A00EF756F /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B08B7E2DC9C74A00EF756F /* OnboardingView.swift */; };
@@ -61,6 +71,16 @@
 		423B20902C0BAE9300EE7FEF /* VisitedStatesUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisitedStatesUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		423B209D2C0BAFCC00EE7FEF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		423B20A12C0BB21C00EE7FEF /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
+		423BA0712DD2E17B00DFBD9A /* BadgeNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeNotifier.swift; sourceTree = "<group>"; };
+		423BA0722DD2E17B00DFBD9A /* BadgeTrackingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeTrackingService.swift; sourceTree = "<group>"; };
+		423BA0752DD2E19A00DFBD9A /* Badge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Badge.swift; sourceTree = "<group>"; };
+		423BA0772DD2E1AC00DFBD9A /* BadgeCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeCell.swift; sourceTree = "<group>"; };
+		423BA0782DD2E1AC00DFBD9A /* BadgeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeDetailView.swift; sourceTree = "<group>"; };
+		423BA0792DD2E1AC00DFBD9A /* BadgeSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeSummaryView.swift; sourceTree = "<group>"; };
+		423BA07A2DD2E1AC00DFBD9A /* BadgesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgesView.swift; sourceTree = "<group>"; };
+		423BA07B2DD2E1AC00DFBD9A /* MiniNotificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniNotificationView.swift; sourceTree = "<group>"; };
+		423BA07C2DD2E1AC00DFBD9A /* NotificationBadgeCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationBadgeCell.swift; sourceTree = "<group>"; };
+		423BA07D2DD2E1AC00DFBD9A /* StateNotificationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateNotificationView.swift; sourceTree = "<group>"; };
 		4284837B2C0D301B0021DDAE /* us_states.geojson */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; lineEnding = 0; path = us_states.geojson; sourceTree = "<group>"; };
 		42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlaskaHawaiiSplitView.swift; sourceTree = "<group>"; };
 		42B08B7E2DC9C74A00EF756F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
@@ -175,6 +195,8 @@
 		42EF55FA2DBE8827009684CE /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				423BA0712DD2E17B00DFBD9A /* BadgeNotifier.swift */,
+				423BA0722DD2E17B00DFBD9A /* BadgeTrackingService.swift */,
 				42D174E22DCF96D200A760A6 /* FactoidService.swift */,
 				42D174E32DCF96D200A760A6 /* NotificationService+GoogleSheets.swift */,
 				42DD5A712DB296F9005AC7E8 /* CloudSyncService.swift */,
@@ -190,6 +212,13 @@
 		42EF55FB2DBE883E009684CE /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				423BA0772DD2E1AC00DFBD9A /* BadgeCell.swift */,
+				423BA0782DD2E1AC00DFBD9A /* BadgeDetailView.swift */,
+				423BA0792DD2E1AC00DFBD9A /* BadgeSummaryView.swift */,
+				423BA07A2DD2E1AC00DFBD9A /* BadgesView.swift */,
+				423BA07B2DD2E1AC00DFBD9A /* MiniNotificationView.swift */,
+				423BA07C2DD2E1AC00DFBD9A /* NotificationBadgeCell.swift */,
+				423BA07D2DD2E1AC00DFBD9A /* StateNotificationView.swift */,
 				42B08B7E2DC9C74A00EF756F /* OnboardingView.swift */,
 				4221270E2D8277020033E461 /* AboutView.swift */,
 				42AA80252D7DF0E8008AF2DE /* AlaskaHawaiiSplitView.swift */,
@@ -206,6 +235,7 @@
 		42EF55FC2DBE889B009684CE /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				423BA0752DD2E19A00DFBD9A /* Badge.swift */,
 				42E4E37E2DB408A6002D8FAD /* VisitedStateModel.swift */,
 			);
 			path = Models;
@@ -355,6 +385,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				423B206E2C0BAE9100EE7FEF /* VisitedStatesApp.swift in Sources */,
+				423BA0762DD2E19A00DFBD9A /* Badge.swift in Sources */,
+				423BA0732DD2E17B00DFBD9A /* BadgeNotifier.swift in Sources */,
+				423BA0742DD2E17B00DFBD9A /* BadgeTrackingService.swift in Sources */,
 				42302CDD2D81CB7200B1C06E /* IntroMapView.swift in Sources */,
 				42F551042D7A83F300986E1F /* SettingsView.swift in Sources */,
 				42DD5A702DB296ED005AC7E8 /* StateBoundaryService.swift in Sources */,
@@ -375,6 +408,13 @@
 				423B20752C0BAE9100EE7FEF /* ContentView.swift in Sources */,
 				42DD5A742DB29704005AC7E8 /* SettingsService.swift in Sources */,
 				42DD5A762DB29710005AC7E8 /* NotificationService.swift in Sources */,
+				423BA07E2DD2E1AC00DFBD9A /* MiniNotificationView.swift in Sources */,
+				423BA07F2DD2E1AC00DFBD9A /* BadgeSummaryView.swift in Sources */,
+				423BA0802DD2E1AC00DFBD9A /* BadgeDetailView.swift in Sources */,
+				423BA0812DD2E1AC00DFBD9A /* BadgeCell.swift in Sources */,
+				423BA0822DD2E1AC00DFBD9A /* NotificationBadgeCell.swift in Sources */,
+				423BA0832DD2E1AC00DFBD9A /* BadgesView.swift in Sources */,
+				423BA0842DD2E1AC00DFBD9A /* StateNotificationView.swift in Sources */,
 				42B9C8052D8000BB0012B018 /* USStates.swift in Sources */,
 				42E4E37F2DB408AD002D8FAD /* VisitedStateModel.swift in Sources */,
 				42DD5A782DB33488005AC7E8 /* AppDelegate.swift in Sources */,

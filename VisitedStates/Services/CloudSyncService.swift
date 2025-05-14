@@ -235,11 +235,27 @@ class CloudSyncService: CloudSyncServiceProtocol {
             // Convert back to array
             let deduplicatedStates = Array(stateDict.values)
             
-            // Get badges
-            let badges = self.settings.getEarnedBadges()
+            // Get badges from the BadgeTrackingService directly
+            let badgeTrackingService = BadgeTrackingService()
+            let earnedBadgeDates = badgeTrackingService.getEarnedBadges()
+            
+            // Convert achievement badges to the Badge format expected by CloudKit
+            var badges: [Badge] = []
+            
+            // For each earned badge ID and date, create a proper Badge object
+            for (badgeId, earnedDate) in earnedBadgeDates {
+                // Create a CloudKit-compatible Badge object
+                let badge = Badge(
+                    identifier: badgeId,
+                    earnedDate: earnedDate,
+                    isEarned: true
+                )
+                badges.append(badge)
+            }
             
             // Only show count summary for better log readability
             print("📤 Syncing to cloud - Enhanced states: \(deduplicatedStates.count), Legacy states: \(states.count), Badges: \(badges.count)")
+            print("🏆 Badge IDs being synced: \(badges.map { $0.identifier }.joined(separator: ", "))")
             
             // First sync the enhanced model
             self.syncEnhancedModelToCloud(deduplicatedStates, badges) { enhancedResult in
@@ -728,6 +744,44 @@ class CloudSyncService: CloudSyncServiceProtocol {
     /// Save badge data to CloudKit
     private func saveBadgeDataToCloud(_ badgesJSON: String,
                                     completion: @escaping (Result<Void, Error>) -> Void) {
+        // Debug the JSON being sent to CloudKit
+        print("🏆 Badge JSON for CloudKit: \(badgesJSON)")
+        
+        // If the badgesJSON is "[]", check if we have any badges to sync
+        if badgesJSON == "[]" {
+            // Get badges from BadgeTrackingService directly instead of using settings
+            let badgeTrackingService = BadgeTrackingService()
+            let earnedBadgeDates = badgeTrackingService.getEarnedBadges()
+            
+            // Convert to Badge objects
+            var newBadges: [Badge] = []
+            for (badgeId, earnedDate) in earnedBadgeDates {
+                newBadges.append(Badge(
+                    identifier: badgeId,
+                    earnedDate: earnedDate,
+                    isEarned: true
+                ))
+            }
+            
+            print("🏆 BadgeTrackingService reports \(newBadges.count) earned badges, but JSON is empty array")
+            
+            // If we do have badges but JSON is empty, let's fix it
+            if !newBadges.isEmpty {
+                print("🏆 Fixing empty badge JSON with data from BadgeTrackingService")
+                
+                // Create a new JSON string for badges
+                do {
+                    let badgeData = try JSONEncoder().encode(newBadges)
+                    let newBadgesJSON = String(data: badgeData, encoding: .utf8)!
+                    
+                    // Replace the empty JSON with our new one
+                    return saveBadgeDataToCloud(newBadgesJSON, completion: completion)
+                } catch {
+                    print("⚠️ Error creating badge JSON: \(error.localizedDescription)")
+                }
+            }
+        }
+        
         // Fetch or create the record
         privateDatabase.fetch(withRecordID: badgesRecordID) { [weak self] record, error in
             guard let self = self else { return }
@@ -736,28 +790,53 @@ class CloudSyncService: CloudSyncServiceProtocol {
             
             if let existingRecord = record {
                 recordToSave = existingRecord
+                print("📱 Using existing badge record in CloudKit")
+                
+                // Debug existing content
+                if let existingJSON = existingRecord["badgesJSON"] as? String {
+                    print("📱 Existing badgesJSON in CloudKit: \(existingJSON)")
+                }
             } else if error != nil && (error as? CKError)?.code != .unknownItem {
+                print("⚠️ Error fetching badge record: \(error!.localizedDescription)")
                 completion(.failure(error!))
                 return
             } else {
                 recordToSave = CKRecord(recordType: self.badgesRecordType, recordID: self.badgesRecordID)
+                print("📱 Created new badge record in CloudKit")
             }
             
-            // Update the record with new data
-            recordToSave["badgesJSON"] = badgesJSON as CKRecordValue
-            recordToSave["lastUpdated"] = Date() as CKRecordValue
-            
-            // Save the record
-            self.privateDatabase.save(recordToSave) { _, error in
-                if let error = error {
-                    if let ckError = error as? CKError, ckError.code == .serverRecordChanged {
-                        self.handleBadgeRecordChanged(ckError, badgesJSON: badgesJSON, completion: completion)
+            // Only update if we have meaningful badge data
+            if badgesJSON != "[]" || recordToSave["badgesJSON"] == nil {
+                // Update the record with new data
+                recordToSave["badgesJSON"] = badgesJSON as CKRecordValue
+                recordToSave["lastUpdated"] = Date() as CKRecordValue
+                
+                print("📱 Updating badge record with new data")
+                
+                // Save the record
+                self.privateDatabase.save(recordToSave) { savedRecord, error in
+                    if let error = error {
+                        if let ckError = error as? CKError, ckError.code == .serverRecordChanged {
+                            print("⚠️ Server record changed conflict for badges")
+                            self.handleBadgeRecordChanged(ckError, badgesJSON: badgesJSON, completion: completion)
+                        } else {
+                            print("⚠️ Error saving badge record: \(error.localizedDescription)")
+                            completion(.failure(error))
+                        }
                     } else {
-                        completion(.failure(error))
+                        print("✅ Successfully saved badge record to CloudKit")
+                        
+                        // Verify what was saved
+                        if let savedJSON = savedRecord?["badgesJSON"] as? String {
+                            print("✅ Saved badgesJSON: \(savedJSON)")
+                        }
+                        
+                        completion(.success(()))
                     }
-                } else {
-                    completion(.success(()))
                 }
+            } else {
+                print("⚠️ Skipping badge sync - empty badge array and record already exists")
+                completion(.success(()))
             }
         }
     }
@@ -1141,16 +1220,44 @@ class CloudSyncService: CloudSyncServiceProtocol {
         
         print("🔄 Processed states: \(gpsVerifiedCount) GPS-verified, \(manualEditCount) manually edited, \(activeCount) active")
         
-        // Process badges
+        // Process badges - save them in the BadgeTrackingService
         var earnedBadgeCount = 0
+        let badgeTrackingService = BadgeTrackingService()
+        
+        // First get existing viewed badges to maintain their status
+        let viewedBadges = badgeTrackingService.getViewedBadges()
+        
         for badge in badges {
             if badge.isEarned {
                 earnedBadgeCount += 1
-                // TODO: Process badges when badge UI is implemented
+                
+                // Check if this badge was previously viewed
+                let hasBeenViewed = viewedBadges.contains(badge.identifier)
+                
+                // Save the badge in the BadgeTrackingService, preserving the earned date
+                badgeTrackingService.saveEarnedBadge(
+                    id: badge.identifier,
+                    date: badge.earnedDate ?? Date(),
+                    visitedStates: [] // We don't have this info from the cloud sync
+                )
+                
+                // If it was previously viewed, make sure it doesn't show as new
+                if hasBeenViewed {
+                    var newBadges = badgeTrackingService.getNewBadges()
+                    if let index = newBadges.firstIndex(of: badge.identifier) {
+                        newBadges.remove(at: index)
+                        UserDefaults.standard.set(newBadges, forKey: "new_badges")
+                    }
+                }
             }
         }
         
         print("🔄 Processed \(earnedBadgeCount) earned badges")
+        
+        // If we found any badges, update the UI to show them as new
+        if earnedBadgeCount > 0 {
+            print("🏆 Updating badge data from cloud - \(earnedBadgeCount) badges synchronized")
+        }
     }
     
     /// Process legacy state names by creating basic VisitedState models

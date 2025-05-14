@@ -66,8 +66,8 @@ struct EditStatesView: View {
             }
             .navigationTitle("Edit States")
             .toolbar {
-                // Provide a Done button
-                ToolbarItem(placement: .cancellationAction) {
+                // Provide a Done button in top-right (iOS standard)
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         presentationMode.wrappedValue.dismiss()
                     }

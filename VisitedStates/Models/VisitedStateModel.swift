@@ -1,6 +1,5 @@
 import Foundation
 
-//Testing
 // Core data model for visited states with GPS verification tracking
 struct VisitedState: Codable, Equatable {
     var stateName: String

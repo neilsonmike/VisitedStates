@@ -5,7 +5,7 @@ struct AboutView: View {
     @Environment(\.presentationMode) var presentationMode
     
     var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1"
     }
 
     var body: some View {
@@ -72,9 +72,14 @@ struct AboutView: View {
                 }
             }
             .navigationBarTitle("About", displayMode: .inline)
-            .navigationBarItems(leading: Button("Done") {
-                self.presentationMode.wrappedValue.dismiss()
-            })
+            // Using the modern toolbar API with Done button in top-right (iOS standard)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        self.presentationMode.wrappedValue.dismiss()
+                    }
+                }
+            }
             .background(Color(.systemBackground))
         }
         .navigationViewStyle(StackNavigationViewStyle())

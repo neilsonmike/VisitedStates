@@ -82,5 +82,12 @@ extension Bundle {
 
 /// Global function for convenience access to the Google Sheets API key
 public func getAPIKey() -> String {
-    return Bundle.main.googleSheetsAPIKey()
+    let key = Bundle.main.googleSheetsAPIKey()
+    // Check if key looks valid (API keys are usually fairly long)
+    if key.count < 10 || key == "DUMMY_API_KEY_FOR_CI_BUILD" {
+        print("⚠️ WARNING: API key looks invalid or is using fallback value: \(key.prefix(5))...")
+    } else {
+        print("✅ API key looks valid (length: \(key.count))")
+    }
+    return key
 }
