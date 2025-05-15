@@ -33,6 +33,7 @@ class StateDetectionService: StateDetectionServiceProtocol {
     private let stateCacheDuration: TimeInterval = 3600 * 24 // 24 hours
     private let minimumDistanceForNewDetection: CLLocationDistance = 50 // Reduced for testing
     private var lastStateUpdateTime: Date? // Track when state was last updated
+    private var lastNotificationTime: Date? // Track when last notification was sent
     
     // MARK: - Initialization
     
@@ -487,8 +488,8 @@ class StateDetectionService: StateDetectionServiceProtocol {
             
             // Debouncing: Check if we've sent a notification recently
             let now = Date()
-            if let lastUpdate = strongSelf.lastStateUpdateTime {
-                let timeElapsed = now.timeIntervalSince(lastUpdate)
+            if let lastNotification = strongSelf.lastNotificationTime {
+                let timeElapsed = now.timeIntervalSince(lastNotification)
                 
                 // If less than debounce interval has passed, skip this notification
                 if timeElapsed < strongSelf.notificationDebounceInterval {
@@ -498,7 +499,7 @@ class StateDetectionService: StateDetectionServiceProtocol {
             }
             
             // Update last notification time
-            strongSelf.lastStateUpdateTime = now
+            strongSelf.lastNotificationTime = now
             
             print("🗺️ Notifying about state entry: \(state)")
             
