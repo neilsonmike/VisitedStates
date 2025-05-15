@@ -69,7 +69,7 @@ extension NotificationService {
             request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
 
             // Set User-Agent with app version information
-            let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
+            let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.1"
             request.setValue("VisitedStates/\(appVersion) (\(bundleID))", forHTTPHeaderField: "User-Agent")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             

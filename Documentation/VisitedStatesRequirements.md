@@ -7,11 +7,13 @@
 - [State Detection System](#state-detection-system)
 - [User Interface](#user-interface)
 - [Notification System](#notification-system)
+- [Badge System](#badge-system)
 - [Data Models](#data-models)
 - [Settings and Preferences](#settings-and-preferences)
 - [App Architecture](#app-architecture)
 - [Development Environment](#development-environment)
 - [Testing Guide](#testing-guide)
+- [Future Enhancements](#future-enhancements)
 - [Version History](#version-history)
 
 ## User Customization Sync
@@ -45,7 +47,7 @@ struct VisitedState: Codable, Equatable {
     var wasEverVisited: Bool
 }
 
-// Achievement tracking (implemented but not exposed to users)
+// Achievement badges
 struct Badge: Codable, Equatable {
     let identifier: String
     var earnedDate: Date?
@@ -73,12 +75,15 @@ struct CloudSettings: Codable {
 - After state detection updates the model with a newly visited state
 - After manual edits to visited states in EditStatesView
 - After changing any setting in SettingsView
+- After earning new badges
 
 #### 2.2 Automatic Foreground Sync Triggers
 - When app enters foreground state via ScenePhase change
 - When OS activates the app (UIApplication.didBecomeActiveNotification)
 - On initial app launch after IntroMapView appears
 - After changing any setting that affects map appearance
+- First launch on a new device (automatic data restoration)
+- After fresh installation (restores visited states, badges, and settings from iCloud)
 
 #### 2.3 Manual Sync Triggers
 - Pull-to-refresh in ContentView (not currently implemented in UI)
@@ -115,12 +120,12 @@ struct CloudSettings: Codable {
 ```json
 [
   {
-    "identifier": "RegionalExplorer",
+    "identifier": "newbie",
     "earnedDate": "2023-06-12T18:22:45Z",
     "isEarned": true
   },
   {
-    "identifier": "CoastToCoast",
+    "identifier": "pacific_wanderer",
     "earnedDate": null,
     "isEarned": false
   }
@@ -181,6 +186,8 @@ struct CloudSettings: Codable {
 - Once earned, a badge is never unearned regardless of source
 - Uses earliest earned date when both sources have the badge earned
 - Adds any badges that exist in either source
+- Badge viewing status is synchronized across devices (if viewed on any device, considered viewed on all)
+- Badge "new" status is properly cleared when synced from a device where it was viewed
 
 ### 5. Error Handling
 
@@ -225,10 +232,17 @@ struct CloudSettings: Codable {
 
 ### 7. Edge Cases
 
-#### 7.1 First-Time Sync
-- Special handling when no records exist yet (creates new records)
-- Default state array initialized for new users
-- Default settings applied with standard color scheme
+#### 7.1 First-Time Sync and Device Migration
+- Special handling for different first-time scenarios:
+  - **New User**: When no records exist, creates new records with default states and settings
+  - **New Device**: When records exist in CloudKit but app is freshly installed, automatically fetches and restores:
+    - All visited states with their GPS verification status and visit dates
+    - All earned badges with original earned dates and viewed status
+    - User preferences including color customizations
+    - Notification settings and other app preferences
+- Full state restoration during setup on new devices without user intervention
+- Default state array initialized only for completely new users
+- Default settings applied with standard color scheme for new users
 - Welcome instructions provided to new users
 
 #### 7.2 Multiple Device Sync
@@ -384,12 +398,22 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
 - Special handling for flying between states
 - Takes previous state and location into account
 
-#### 4.3 Duplicate Notifications
+#### 4.3 Duplicate and Rapid Notifications
+- Prevents consecutive notifications for the same state:
+  - Tracks the last notified state in memory and UserDefaults
+  - Never notifies about the same state twice in a row
+  - Allows notifications for the same state only after visiting a different state
 - Detects when app returns to foreground in same state
 - Suppresses duplicate notifications when:
   - App just became active AND
   - Current state matches the last notified state
 - Addresses edge case of background notification followed by foreground open
+- Implements debouncing to prevent notification overload:
+  - Minimum 30-second interval between notifications
+  - Skips notifications that occur too soon after previous ones
+  - Logs skipped notifications for debugging purposes
+  - Maintains app responsiveness during rapid state changes
+- State changes are still recorded even when notifications are suppressed
 
 #### 4.4 Location Service Recovery
 - Handles location permission changes
@@ -408,12 +432,16 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
 - **AboutView**: Accessed from SettingsView
 - **IntroMapView**: Initial launch animation that appears before ContentView
 - **SharePreviewView**: Used for generating shareable map images
+- **BadgesView**: Shows all available and earned achievement badges
+- **BadgeDetailView**: Shows detailed information about a specific badge
+- **BadgeSummaryView**: Appears when user earns a new badge
 
 #### 1.2 Navigation Structure
 - Modal sheets are used for all secondary views (no tab bar or deep navigation hierarchy)
-- Direct navigation from ContentView to SettingsView, EditStatesView
+- Direct navigation from ContentView to SettingsView, EditStatesView, BadgesView
 - SettingsView links to AboutView
 - IntroMapView automatically transitions to ContentView after animation
+- Badge navigation follows hierarchy: BadgesView → BadgeDetailView
 
 ### 2. Screen Functionality
 
@@ -422,10 +450,12 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
 - **Key Components**:
   - MapView as primary visual component
   - Share button to generate shareable image
+  - Badges button to access achievement screen
   - Edit button to access state editing interface
   - Settings button to access app preferences
   - Location permission indicators
   - Telemetry overlay (hidden debug feature)
+  - State detection notifications with badges earned
 
 #### 2.2 MapView
 - **Primary Function**: Render visited states visualization
@@ -444,6 +474,7 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
   - Location permission management with instructions
   - About button to access app information
   - Reset button to restore default settings
+  - Background App Refresh and Precise Location status indicators
 
 #### 2.4 EditStatesView
 - **Primary Function**: Manually edit visited states
@@ -460,12 +491,13 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
   - Developer information and links
   - Copyright notices
   - Credits for AI assistance
+  - Development build indicator (debug builds only)
 
 #### 2.6 OnboardingView
 - **Primary Function**: Guide new users through setup process
 - **Key Components**:
   - Welcome screen with app description
-  - Feature explanation with more realistic descriptions
+  - Feature explanation with realistic descriptions
   - Permission request screens (location, notifications)
   - Guided instructions for optimal settings
   - Setup completion confirmation
@@ -487,6 +519,32 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
   - State count statistics
   - Optimization for social media sharing
 
+#### 2.9 BadgesView
+- **Primary Function**: Display achievement badges
+- **Key Components**:
+  - Grid of all available badges
+  - Filter tabs for All/Earned/Unearned
+  - Progress indicators for in-progress badges
+  - "NEW" indicator for newly earned badges
+  - Badge card with icon and name
+
+#### 2.10 BadgeDetailView
+- **Primary Function**: Show detailed badge information
+- **Key Components**:
+  - Badge icon and name
+  - Badge description and requirements
+  - Progress toward completion
+  - List of states needed to earn badge
+  - Earned date information
+
+#### 2.11 BadgeSummaryView
+- **Primary Function**: Celebrate newly earned badges
+- **Key Components**:
+  - Animation for badge award
+  - Congratulatory message
+  - Badge icon and description
+  - Continue button
+
 ### 3. User Interactions
 
 #### 3.1 Map Interaction
@@ -504,11 +562,19 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
 - Configure notification preferences for new states only
 - Customize map colors through color pickers
 - Access system settings for permission management
+- Check Background App Refresh and Precise Location status
 
 #### 3.4 Sharing Capabilities
 - Generate and share map image via standard iOS share sheet
 - Image includes app branding and state statistics
 - Share text includes count and App Store link
+
+#### 3.5 Badge Interaction
+- View all badges in grid format
+- Filter badges by earned/unearned status
+- View detailed information about each badge
+- See progress toward earning badges
+- Celebrate newly earned badges with animations
 
 ### 4. Visual Design
 
@@ -518,6 +584,7 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
   - State border color (default: white)
   - Map background color (default: white)
 - High contrast borders for better visibility
+- Distinct badge colors based on badge category and type
 
 #### 4.2 Typography
 - Custom font (DoHyeon-Regular) for distinctive appearance
@@ -528,6 +595,7 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
 - Special layouts for different state combinations
 - Adaptive layout for iPhone and iPad screen sizes
 - Portrait orientation optimization
+- Grid layout for badges with responsive sizing
 
 ### 5. Accessibility Features
 
@@ -535,6 +603,7 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
 - Customizable colors to address visual preferences
 - High-contrast state borders
 - Clear permission status indicators with color coding
+- Badge progress indicators with clear visual distinction
 
 #### 5.2 Navigation Patterns
 - Simple, flat navigation structure
@@ -545,6 +614,7 @@ private func isValidLocation(_ location: CLLocation) -> Bool {
 - Detailed step-by-step instructions for permissions
 - Visual indicators for permission status
 - Direct links to system settings where needed
+- Clear explanations of why permissions are needed
 
 ## Notification System
 
@@ -645,6 +715,7 @@ private func loadCachedFactoids() {
 - Tracks last notified state in UserDefaults
 - Checks if app just became active after background notification
 - Suppresses duplicate notifications for same state
+- Respects "Notify Only for New States" setting by checking visit history
 
 #### 5.2 Connection Handling
 - Multiple network check methods:
@@ -665,6 +736,248 @@ private func loadCachedFactoids() {
 - Record-level error handling in batch operations
 - Cache fallbacks for all network failures
 
+## Badge System
+
+### 1. Badge Data Structure
+
+#### 1.1 Achievement Badge Types
+- **Milestone Badges**: Based on total states visited (6)
+  - Newbie: Visit 1 state
+  - Explorer: Visit 10 states
+  - Journeyer: Visit 20 states
+  - Voyager: Visit 30 states
+  - Adventurer: Visit 40 states
+  - Completionist: Visit all 50 states
+
+- **Geographic Collection Badges**: Based on visiting states in specific regions (8)
+  - Four Corners Explorer: Visit AZ, CO, NM, and UT
+  - Atlantic Coaster: Visit all states on Atlantic coast
+  - Pacific Wanderer: Visit all states on Pacific coast
+  - Gulf Coaster: Visit all states on Gulf of Mexico
+  - Mississippi River Runner: Visit all states along Mississippi
+  - Great Lakes Explorer: Visit all states bordering Great Lakes
+  - Rocky Mountain High: Visit all states in Rocky Mountain region
+  - Colonist: Visit all 13 original colonies
+
+- **Special Achievement Badges**: Based on unique conditions (8)
+  - On the Road Again: Visit 3+ states in one day
+  - Border Patrol North: Visit all states bordering Canada
+  - Border Patrol South: Visit all states bordering Mexico
+  - Far Reaches: Visit both Alaska and Hawaii
+  - Four Letter Words: Visit all states with 4-letter names
+  - Directionally Impaired: Visit all directional states (North/South/West)
+  - New to You: Visit all states with "New" in their name
+  - The Wealth is Common: Visit all four commonwealth states
+
+#### 1.2 Badge Model Properties
+```swift
+struct AchievementBadge: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let description: String
+    let requiredStates: [String]
+    let specialCondition: AchievementBadgeCondition?
+    let category: AchievementBadgeCategory
+    
+    // Computed property for badge color
+    var color: Color
+    
+    // Icon name for badge visualization
+    var iconName: String
+}
+
+enum AchievementBadgeCategory: String, CaseIterable {
+    case milestone = "Milestone"
+    case geographic = "Geographic Collection"
+    case special = "Special Achievement"
+}
+
+enum AchievementBadgeCondition: Equatable {
+    case multipleStatesInOneDay(count: Int)
+    case sameCalendarYear(count: Int)
+    case returningVisit(state: String, daysBetween: Int)
+    case directionStates(direction: String)
+}
+```
+
+#### 1.3 Badge Storage Structure
+- Earned badge data stored in UserDefaults via multiple keys:
+  - `earned_badges`: Dictionary mapping badge IDs to earned dates
+  - `earned_badge_states`: Dictionary mapping badge IDs to arrays of states that contributed
+  - `new_badges`: Array of badge IDs that are newly earned but not viewed
+  - `viewed_badges`: Array of badge IDs that have been viewed by the user
+
+### 2. Badge Functionality
+
+#### 2.1 Badge Earning
+- Badges automatically earned when requirements are met
+- Earned through regular state visits (automatic or manual)
+- Special achievements tracked with timestamps and state visits
+- One-time awards that never expire once earned
+- Each badge stores states that contributed to earning it
+
+#### 2.2 Badge Progress Tracking
+- Real-time progress tracking toward each badge (0.0-1.0)
+- Progress indicators displayed in badge UI
+- Lists of visited and needed states for badges
+- Automatic updates when states are visited
+
+#### 2.3 Badge Notifications
+- Badge awards shown in state entry notifications
+- Notification includes badge icon and name
+- Special celebration animation for earned badges
+- Badge counter indicator on main UI for new badges
+- Multiple badges earned simultaneously display with "And X more" indicator for overflow
+- Badge notifications remain visible until explicitly dismissed by user via X button
+- If a new notification is triggered while one is already visible, the new notification replaces the old one (intentional design for simplicity and avoiding clutter)
+
+#### 2.4 Achievement History
+- Complete record of earned badges with acquisition dates
+- Historical record of states that contributed to badges
+- "New" badge status until viewed by user
+- Badge data preserved and synced across devices
+
+### 3. Badge UI Components
+
+#### 3.1 Badge Grid View
+- All badges displayed in a scrollable grid
+- Filtering tabs: All, Earned, Unearned
+- Visual indicators for badge status:
+  - Earned badges are fully colored
+  - Unearned badges are grayed out
+  - Progress indicator for partially completed badges
+  - "NEW" badge for newly earned badges
+
+#### 3.2 Badge Detail View
+- Full badge information with large icon
+- Badge name and description
+- Completion status and earned date (if earned)
+- Progress bar for unearned badges
+- List of states needed to complete badge
+- List of states that contributed to earned badge
+
+#### 3.3 Badge Notification View
+- Animated celebration when badge is earned
+- Badge image with particle effects
+- Congratulatory message
+- Continue button to dismiss
+
+#### 3.4 Badge Access Points
+- Trophy button in main interface
+- Badge notification indicator with count
+- State notifications include newly earned badges
+- Badge summary view for multiple earned badges
+
+### 4. Badge Visual Design
+
+#### 4.1 Badge Appearance
+- Each badge has a unique color based on category and type
+- SF Symbols used for badge icons (specific to each badge)
+- Progress ring around unearned badges
+- Animated effects for earned badges
+
+#### 4.2 Badge Category Styling
+- **Milestone Badges**: Purple/gold palette with number icons
+- **Geographic Badges**: Blues/greens with map-related icons
+- **Special Achievement Badges**: Orange/red with unique icons
+
+#### 4.3 Badge UI States
+- **Earned**: Fully colored with checkmark indicator
+- **In Progress**: Partially colored with progress ring
+- **Unearned**: Gray with faded appearance
+- **New**: Colored with "NEW" banner
+
+### 5. Badge System Logic
+
+#### 5.1 Badge Tracking Service
+- Centralized service to manage all badge operations
+- Checks for new badges when states are visited
+- Tracks multi-state visits using timestamps
+- Calculates badge progress and required states
+- Handles syncing with CloudKit
+- Uses UserDefaults to store badge data locally
+- Maintains earned and viewed badge status separately
+
+#### 5.2 Badge Verification Logic
+```swift
+func isBadgeRequirementsMet(_ badge: AchievementBadge, visitedStates: [String]) -> Bool {
+    // Filter out DC for badge calculations
+    let filteredStates = visitedStates.filter { $0 != "District of Columbia" }
+    
+    // Check milestone badges (based on state count)
+    if badge.category == .milestone && badge.requiredStates.first == "Any" {
+        switch badge.id {
+        case "newbie": return filteredStates.count >= 1
+        case "explorer": return filteredStates.count >= 10
+        case "journeyer": return filteredStates.count >= 20
+        case "voyager": return filteredStates.count >= 30
+        case "adventurer": return filteredStates.count >= 40
+        case "completionist": return filteredStates.count >= 50
+        default: return false
+        }
+    }
+    
+    // Check badges with specific state requirements
+    if !badge.requiredStates.isEmpty {
+        return Set(badge.requiredStates).isSubset(of: Set(filteredStates))
+    }
+    
+    // Check special condition badges
+    if let condition = badge.specialCondition {
+        switch condition {
+        case .multipleStatesInOneDay(let count):
+            return checkMultipleStatesInOneDay(count: count)
+        case .directionStates(let direction):
+            return checkDirectionalStates(direction: direction, visitedStates: filteredStates)
+        case .sameCalendarYear, .returningVisit:
+            // Not implemented yet - future enhancement
+            return false
+        }
+    }
+    
+    return false
+}
+```
+
+#### 5.3 Special Condition Types
+The app supports several special conditions for unique badge requirements:
+
+1. **Multiple States in One Day (Implemented)**
+   - Used by: "On the Road Again" badge
+   - Tracks when multiple states are visited on the same calendar day
+   - Implementation uses timestamp tracking and calendar day grouping
+
+2. **Directional States (Implemented)**
+   - Used by: "Directionally Impaired" badge
+   - Tracks visits to states with directional names (North, South, West)
+   - Implementation checks for specific state names in the visited list
+
+3. **Same Calendar Year (Future Enhancement)**
+   - Not currently used by any badges
+   - Would track visits to multiple states within the same calendar year
+   - Code structure exists but implementation is reserved for future use
+
+4. **Returning Visit (Future Enhancement)**
+   - Not currently used by any badges
+   - Would track when a user revisits a specific state after a certain time period
+   - Code structure exists but implementation is reserved for future use
+
+#### 5.4 Badge CloudKit Sync
+- Badges synced as part of regular CloudKit sync process
+- Badge data encoded as JSON in CloudKit records
+- Conflict resolution preserves badges earned on any device
+- Badge viewing status synchronized across devices
+- Empty badge array handling:
+  - Validates badge JSON before syncing to ensure accuracy
+  - Checks BadgeTrackingService for badge data when JSON appears empty
+  - Prevents overwriting existing badge data with empty arrays
+  - Guards against data loss during synchronization
+- Badge merging strategy:
+  - Uses union approach (combines badges from all sources)
+  - Preserves earned status (once earned, always earned)
+  - Keeps earliest earned date when both sources have earned the badge
+  - Combines viewed status (viewed on any device means viewed everywhere)
+
 ## Data Models
 
 ### 1. Core Data Models
@@ -682,7 +995,7 @@ struct VisitedState: Codable, Equatable {
 }
 ```
 
-#### 1.2 Badge Model (Implemented but not exposed to users)
+#### 1.2 Badge Model
 ```swift
 struct Badge: Codable, Equatable {
     let identifier: String
@@ -690,12 +1003,15 @@ struct Badge: Codable, Equatable {
     var isEarned: Bool // Once true, never reverts to false
 }
 
-enum BadgeType: String, CaseIterable {
-    case regionalExplorer = "RegionalExplorer"
-    case coastToCoast = "CoastToCoast"
-    case timeTraveler = "TimeTraveler"
-    case quarterCentury = "QuarterCentury"
-    case decathlon = "Decathlon"
+struct AchievementBadge: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let description: String
+    let requiredStates: [String]
+    let specialCondition: AchievementBadgeCondition?
+    let category: AchievementBadgeCategory
+    var color: Color // Computed property
+    var iconName: String // Computed property
 }
 ```
 
@@ -739,6 +1055,7 @@ struct EncodableColor: Codable {
   - Visited states (JSON string of VisitedState array)
   - User preferences (via @AppStorage and custom property wrappers)
   - Factoid cache (Dictionary mapping state names to factoid arrays)
+  - Badge data (earned badges, viewed badges, badge states)
   - Last notified state for duplicate prevention
   - App state tracking flags
 
@@ -771,10 +1088,11 @@ struct EncodableColor: Codable {
 - Direct mapping between UI controls and settings values
 - Publisher pattern for reactive updates
 
-#### 3.3 Badge Relationships (Implemented but not exposed to users)
-- Achievements tied to specific conditions
+#### 3.3 Badge Relationships
+- Achievement badges tied to specific collections of states
 - Badge identifiers as unique keys
-- No explicit relationship to states, evaluated from state data
+- State collections defined per badge type
+- Special achievements tied to visit patterns rather than specific states
 
 ### 4. Data Integrity
 
@@ -796,23 +1114,7 @@ struct EncodableColor: Codable {
 - Color opacity enforced minimum of 0.1 to prevent invisible UI
 - Thresholds have sensible minimums and maximums
 - Date values restricted to reasonable ranges
-
-### 5. Future Extensions
-
-#### 5.1 Badge System (Implemented but not exposed to users)
-- Achievement tracking for:
-  - Regional exploration (states in a region)
-  - Coast-to-coast travel (both coasts visited)
-  - Time-based travel (states in time period)
-  - Quantity milestones (25 states - "Quarter Century")
-  - Special combinations ("Decathlon")
-
-#### 5.2 Potential Data Extensions
-- Visit count tracking for multiple visits
-- County-level tracking within states
-- Trip grouping and labeling
-- International expansion (countries, provinces)
-- Custom location marking
+- Badge requirements validated before awarding
 
 ## Settings and Preferences
 
@@ -847,12 +1149,10 @@ struct EncodableColor: Codable {
   - Default: 100.0 mph
   - UserDefaults key: "speedThreshold"
   - Type: Double
-  - Note: UI shows 44.7 but internally hardcoded to 100.0
 - **Altitude Threshold**: Maximum altitude (feet) for valid state detection
   - Default: 10000.0 feet
   - UserDefaults key: "altitudeThreshold"
   - Type: Double
-  - Note: UI shows 3048 but internally hardcoded to 10000.0
 
 ### 2. Settings Storage
 
@@ -997,6 +1297,9 @@ private func initializePublishers() {
 - **SettingsService** (SettingsServiceProtocol)
   - Manages user preferences
   - Handles state tracking and editing
+- **BadgeTrackingService**
+  - Tracks badge achievement
+  - Manages badge storage and notifications
 
 #### 1.3 Implementation
 ```swift
@@ -1007,6 +1310,7 @@ class AppDependencies: ObservableObject {
     let notificationService: NotificationServiceProtocol
     let settingsService: SettingsServiceProtocol
     let stateBoundaryService: StateBoundaryServiceProtocol
+    let badgeTrackingService: BadgeTrackingService
     
     static func live() -> AppDependencies {
         // Create and wire up service instances
@@ -1092,6 +1396,7 @@ NotificationCenter.default.addObserver(
 3. State detection with multiple fallback algorithms
 4. State model updates and notification triggers
 5. CloudKit synchronization of updated state data
+6. Badge checks and updates
 
 ### 5. Threading and Performance
 
@@ -1263,6 +1568,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Verify color settings correctly apply to the map
 - Test notification settings functionality
 - Verify settings persist between app launches
+- Test Background App Refresh and Precise Location indicators
 
 #### 2.5 Sharing Functionality Testing
 - Test generating a shareable image
@@ -1280,6 +1586,20 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Test sync behavior with poor network conditions
 - Verify sync conflict resolution
 
+#### 2.8 Badge System Testing
+- Test earning badges by visiting specified states
+- Verify badge progress tracking accuracy
+- Test badge filtering (All/Earned/Unearned)
+- Verify badge notifications appear when earned
+- Test badge details view functionality
+- Test "multiple states in one day" special badge
+- Verify badge sync between devices
+- Test badge notification auto-dismissal timing
+- Verify badge notification overflow handling with multiple badges
+- Test badge viewing status persistence across app restarts
+- Verify new badge status on each device (not synced across devices)
+- Test special badge conditions including directional states
+
 ### 3. Critical User Flow Test Cases
 
 #### 3.1 First-Time User Flow
@@ -1296,6 +1616,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 4. Check that state is marked as visited
 5. Verify map is updated
 6. Ensure cloud sync is triggered
+7. Check if appropriate badges are earned
 
 #### 3.3 Sharing Flow
 1. Navigate to share functionality
@@ -1317,6 +1638,15 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 3. Remove states
 4. Verify changes reflect on map
 5. Ensure cloud sync occurs
+6. Verify appropriate badges are earned for manual edits
+
+#### 3.6 Badge Exploration Flow
+1. Visit states to earn badges
+2. Navigate to badges view
+3. View earned badges
+4. Check badge details
+5. Filter badges by status
+6. Verify badge progress indicators
 
 ### 4. Edge Case Testing Scenarios
 
@@ -1343,12 +1673,16 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Test with only Alaska and Hawaii visited
 - Test with corrupted local data
 - Test with conflicting cloud data
+- Test with all badges earned
+- Test badges with timestamp edge cases
 
 #### 4.4 Device Edge Cases
 - Test with low storage space
 - Test with low memory conditions
 - Test with battery optimization features enabled
 - Test with VPN connections
+- Test with Background App Refresh disabled
+- Test with Precise Location disabled
 
 ### 5. Performance Testing Guidelines
 
@@ -1368,6 +1702,7 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 - Test UI responsiveness during active tracking
 - Measure time to generate share images
 - Test map rendering performance with all states visited
+- Test badge view performance with all badges
 
 #### 5.4 Network Performance
 - Measure cloud sync speeds under various network conditions
@@ -1387,16 +1722,19 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
    - State detection accuracy
    - Location permission handling
    - Background tracking capability
+   - Badge earning functionality
 
 2. **User-Facing Features**
    - Map rendering
    - Share functionality
+   - Badge display and interaction
    - UI responsiveness
 
 3. **Data Integrity**
    - Visited state persistence
    - Cloud sync reliability
    - Notification delivery
+   - Badge progress tracking
 
 #### 6.3 Regression Test Procedure
 1. Create a baseline test suite covering all critical functionality
@@ -1406,9 +1744,65 @@ func transformedY(_ point: MKMapPoint) -> CGFloat {
 5. Compare test results against baseline after each code change
 6. Prioritize testing based on areas affected by changes
 
+## Future Enhancements
+
+This section documents potential future features and improvements that have been considered but not yet implemented. These items are documented for reference and may be implemented in future versions.
+
+### 1. Notification and User Experience
+
+#### 1.1 Smart Border Notification Management
+- **Description**: Intelligent system to detect when a user is near state borders and experiencing frequent notifications
+- **Implementation Details**:
+  - Track patterns of notifications (e.g., A→B→A→B pattern indicating border travel)
+  - After detecting 4-6 alternating state notifications in a short period, offer to adjust settings
+  - Display prompt: "It looks like you're near a border that's triggering frequent notifications. Would you like to disable notifications for states you've already visited?"
+  - If user selects "Yes", automatically enable the "Notify only for new states" setting
+  - Remember user's choice to avoid asking repeatedly
+- **User Benefits**:
+  - Reduces notification fatigue for users near borders
+  - Provides contextual settings assistance
+  - Maintains important notifications while reducing noise
+- **Technical Considerations**:
+  - Requires pattern detection algorithm
+  - Needs persistent storage for notification history
+  - Should include cooldown period before prompting again
+
+#### 1.2 Badge Special Conditions
+- **Description**: Implementation of additional badge special conditions already defined in the codebase
+- **Implementation Details**:
+  - Complete `sameCalendarYear` condition for awarding badges when users visit multiple states in the same calendar year
+  - Implement `returningVisit` condition for badges related to revisiting states after specific time periods
+- **Status**: Code structure exists but implementation is reserved for future enhancements
+
+### 2. User Interface and Visualization
+
+#### 2.1 Interactive Timeline View
+- **Description**: Visual timeline of state visits and achievements
+- **Implementation Details**:
+  - Chronological visualization of state visits with dates
+  - Badge acquisition markers on the timeline
+  - Interactive filtering and zooming capabilities
+- **User Benefits**:
+  - Historical record of travel activity
+  - Visual progress tracking
+  - Memory aid for travel planning
+
 ## Version History
 
-### Version 1.0.11 (Current Version)
+### Version 1.0.12 (Current Version)
+**Release Date:** May 17, 2025
+**Changes:**
+- Added complete badge system with 22 achievement badges
+- Added badge navigation and UI components
+- Implemented badge earning and progress tracking
+- Added badge notification and celebration system
+- Added badge syncing across devices via CloudKit
+- Fixed badge display and interaction behavior
+- Improved notification handling to respect "Notify Only for New States" setting
+- Enhanced badge tracking with timestamps and state history
+- Added viewing status tracking for badges to prevent repeat notifications
+
+### Version 1.0.11
 **Release Date:** May 12, 2025
 **Changes:**
 - Added visual indicators for optimal permission settings

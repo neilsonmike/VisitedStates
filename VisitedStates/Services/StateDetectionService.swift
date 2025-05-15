@@ -476,12 +476,30 @@ class StateDetectionService: StateDetectionServiceProtocol {
         }
     }
     
+    // Minimum time between notifications to prevent overload (30 seconds)
+    private let notificationDebounceInterval: TimeInterval = 30
+    
     private func notifyStateChange(_ state: String) {
         // Always notify about state changes, even for previously visited states
         // This is the single control point for notifications - BEFORE adding to visited states
         DispatchQueue.main.async { [weak self] in
             guard let strongSelf = self else { return }
-
+            
+            // Debouncing: Check if we've sent a notification recently
+            let now = Date()
+            if let lastUpdate = strongSelf.lastStateUpdateTime {
+                let timeElapsed = now.timeIntervalSince(lastUpdate)
+                
+                // If less than debounce interval has passed, skip this notification
+                if timeElapsed < strongSelf.notificationDebounceInterval {
+                    print("🧩 Skipping notification for \(state) - too soon after previous notification (\(Int(timeElapsed))s < \(Int(strongSelf.notificationDebounceInterval))s)")
+                    return
+                }
+            }
+            
+            // Update last notification time
+            strongSelf.lastStateUpdateTime = now
+            
             print("🗺️ Notifying about state entry: \(state)")
             
             // Initiate the factoid fetch but don't wait for result yet

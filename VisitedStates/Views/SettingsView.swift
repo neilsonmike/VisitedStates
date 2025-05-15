@@ -279,11 +279,13 @@ struct SettingsView: View {
                         showingAboutView = true
                     }
 
-                    // Debug tools - Always show this in development
+                    // Debug tools - Only show in DEBUG builds
+                    #if DEBUG
                     Button("Reset All Badges") {
                         showResetBadgesAlert = true
                     }
                     .foregroundColor(.red)
+                    #endif
                 }
             }
             .navigationTitle("Settings")

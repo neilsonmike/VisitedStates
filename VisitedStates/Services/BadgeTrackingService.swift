@@ -29,7 +29,7 @@ class BadgeTrackingService {
     }
 
     /// Save newly earned badge with timestamp and the states that were visited
-    func saveEarnedBadge(id: String, date: Date = Date(), visitedStates: [String] = []) {
+    func saveEarnedBadge(id: String, date: Date = Date(), visitedStates: [String] = [], hasBeenViewed: Bool = false) {
         // For badges with specific requirements, validate all states are present
         if let badge = AchievementBadgeProvider.allBadges.first(where: { $0.id == id }),
            !badge.requiredStates.isEmpty && badge.requiredStates.first != "Any" {
@@ -61,12 +61,19 @@ class BadgeTrackingService {
             userDefaults.set(encoded, forKey: earnedBadgeStatesKey)
         }
         
-        // Check if this badge has been viewed before
+        // Check if this badge has been viewed before or if we're marking it as viewed
         let viewedBadges = getViewedBadges()
-        let hasBeenViewed = viewedBadges.contains(id)
+        let wasPreviouslyViewed = viewedBadges.contains(id)
+        
+        // Update viewed badges list if hasBeenViewed is true
+        if hasBeenViewed && !wasPreviouslyViewed {
+            var updatedViewedBadges = viewedBadges
+            updatedViewedBadges.append(id)
+            userDefaults.set(updatedViewedBadges, forKey: viewedBadgesKey)
+        }
         
         // Only add to new badges if it's truly new or hasn't been viewed yet
-        if isNewBadge || !hasBeenViewed {
+        if (isNewBadge || !wasPreviouslyViewed) && !hasBeenViewed {
             var newBadges = getNewBadges()
             if !newBadges.contains(id) {
                 newBadges.append(id)

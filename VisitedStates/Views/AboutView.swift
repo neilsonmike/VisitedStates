@@ -5,7 +5,7 @@ struct AboutView: View {
     @Environment(\.presentationMode) var presentationMode
     
     var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.1"
     }
 
     var body: some View {

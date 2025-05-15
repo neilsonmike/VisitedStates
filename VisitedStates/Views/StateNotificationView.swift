@@ -269,14 +269,6 @@ struct StateNotificationView: View {
                 )
         )
         .padding(.horizontal)
-        .onAppear {
-            // Auto-dismiss after 7 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 7) {
-                withAnimation {
-                    isPresented = false
-                }
-            }
-        }
     }
 }
 

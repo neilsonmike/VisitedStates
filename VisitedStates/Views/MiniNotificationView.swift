@@ -113,14 +113,6 @@ struct MiniNotificationView: View {
             }
         )
         .frame(width: 180)
-        .onAppear {
-            // Auto-dismiss after 5 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                withAnimation {
-                    isPresented = false
-                }
-            }
-        }
     }
 }
 

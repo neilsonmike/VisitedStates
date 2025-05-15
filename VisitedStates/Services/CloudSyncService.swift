@@ -238,17 +238,22 @@ class CloudSyncService: CloudSyncServiceProtocol {
             // Get badges from the BadgeTrackingService directly
             let badgeTrackingService = BadgeTrackingService()
             let earnedBadgeDates = badgeTrackingService.getEarnedBadges()
+            let viewedBadges = badgeTrackingService.getViewedBadges()
             
             // Convert achievement badges to the Badge format expected by CloudKit
             var badges: [Badge] = []
             
             // For each earned badge ID and date, create a proper Badge object
             for (badgeId, earnedDate) in earnedBadgeDates {
+                // Check if this badge has been viewed
+                let hasBeenViewed = viewedBadges.contains(badgeId)
+                
                 // Create a CloudKit-compatible Badge object
                 let badge = Badge(
                     identifier: badgeId,
                     earnedDate: earnedDate,
-                    isEarned: true
+                    isEarned: true,
+                    hasBeenViewed: hasBeenViewed
                 )
                 badges.append(badge)
             }
@@ -747,40 +752,8 @@ class CloudSyncService: CloudSyncServiceProtocol {
         // Debug the JSON being sent to CloudKit
         print("🏆 Badge JSON for CloudKit: \(badgesJSON)")
         
-        // If the badgesJSON is "[]", check if we have any badges to sync
-        if badgesJSON == "[]" {
-            // Get badges from BadgeTrackingService directly instead of using settings
-            let badgeTrackingService = BadgeTrackingService()
-            let earnedBadgeDates = badgeTrackingService.getEarnedBadges()
-            
-            // Convert to Badge objects
-            var newBadges: [Badge] = []
-            for (badgeId, earnedDate) in earnedBadgeDates {
-                newBadges.append(Badge(
-                    identifier: badgeId,
-                    earnedDate: earnedDate,
-                    isEarned: true
-                ))
-            }
-            
-            print("🏆 BadgeTrackingService reports \(newBadges.count) earned badges, but JSON is empty array")
-            
-            // If we do have badges but JSON is empty, let's fix it
-            if !newBadges.isEmpty {
-                print("🏆 Fixing empty badge JSON with data from BadgeTrackingService")
-                
-                // Create a new JSON string for badges
-                do {
-                    let badgeData = try JSONEncoder().encode(newBadges)
-                    let newBadgesJSON = String(data: badgeData, encoding: .utf8)!
-                    
-                    // Replace the empty JSON with our new one
-                    return saveBadgeDataToCloud(newBadgesJSON, completion: completion)
-                } catch {
-                    print("⚠️ Error creating badge JSON: \(error.localizedDescription)")
-                }
-            }
-        }
+        // Always ensure we have the most accurate badge data to sync
+        let revisedBadgesJSON = ensureValidBadgeJSON(badgesJSON)
         
         // Fetch or create the record
         privateDatabase.fetch(withRecordID: badgesRecordID) { [weak self] record, error in
@@ -805,20 +778,23 @@ class CloudSyncService: CloudSyncServiceProtocol {
                 print("📱 Created new badge record in CloudKit")
             }
             
-            // Only update if we have meaningful badge data
-            if badgesJSON != "[]" || recordToSave["badgesJSON"] == nil {
-                // Update the record with new data
-                recordToSave["badgesJSON"] = badgesJSON as CKRecordValue
+            // Only update if we have actual badge data or no record exists yet
+            let existingData = recordToSave["badgesJSON"] as? String
+            let isFirstSyncOrHasData = existingData == nil || revisedBadgesJSON != "[]"
+            
+            if isFirstSyncOrHasData {
+                // Update the record with the validated badge data
+                recordToSave["badgesJSON"] = revisedBadgesJSON as CKRecordValue
                 recordToSave["lastUpdated"] = Date() as CKRecordValue
                 
-                print("📱 Updating badge record with new data")
+                print("📱 Updating badge record with validated data")
                 
                 // Save the record
                 self.privateDatabase.save(recordToSave) { savedRecord, error in
                     if let error = error {
                         if let ckError = error as? CKError, ckError.code == .serverRecordChanged {
                             print("⚠️ Server record changed conflict for badges")
-                            self.handleBadgeRecordChanged(ckError, badgesJSON: badgesJSON, completion: completion)
+                            self.handleBadgeRecordChanged(ckError, badgesJSON: revisedBadgesJSON, completion: completion)
                         } else {
                             print("⚠️ Error saving badge record: \(error.localizedDescription)")
                             completion(.failure(error))
@@ -839,6 +815,52 @@ class CloudSyncService: CloudSyncServiceProtocol {
                 completion(.success(()))
             }
         }
+    }
+    
+    /// Ensures we have valid badge JSON by checking with BadgeTrackingService when necessary
+    private func ensureValidBadgeJSON(_ badgesJSON: String) -> String {
+        // If we already have non-empty badge data, use it
+        if badgesJSON != "[]" {
+            return badgesJSON
+        }
+        
+        // When empty, check if BadgeTrackingService has badge data we should be syncing
+        let badgeTrackingService = BadgeTrackingService()
+        let earnedBadgeDates = badgeTrackingService.getEarnedBadges()
+        
+        // If no badges actually exist, the empty array is correct
+        if earnedBadgeDates.isEmpty {
+            return badgesJSON
+        }
+        
+        print("🏆 BadgeTrackingService reports \(earnedBadgeDates.count) earned badges, fixing empty JSON")
+        
+        // Build proper Badge objects from the tracking service data
+        let viewedBadges = badgeTrackingService.getViewedBadges()
+        var badges: [Badge] = []
+        
+        for (badgeId, earnedDate) in earnedBadgeDates {
+            let hasBeenViewed = viewedBadges.contains(badgeId)
+            badges.append(Badge(
+                identifier: badgeId,
+                earnedDate: earnedDate,
+                isEarned: true,
+                hasBeenViewed: hasBeenViewed
+            ))
+        }
+        
+        // Convert the badges to JSON
+        do {
+            let badgeData = try JSONEncoder().encode(badges)
+            if let correctedJSON = String(data: badgeData, encoding: .utf8) {
+                return correctedJSON
+            }
+        } catch {
+            print("⚠️ Error creating badge JSON: \(error.localizedDescription)")
+        }
+        
+        // If encoding fails, return the original JSON as fallback
+        return badgesJSON
     }
     
     /// Fetch the enhanced model data from CloudKit
@@ -1172,20 +1194,8 @@ class CloudSyncService: CloudSyncServiceProtocol {
     
     /// Merge a single Badge from local and cloud
     private func mergeBadge(local: Badge, cloud: Badge) -> Badge {
-        // If either the local or cloud version is earned, the merged version is earned
-        let isEarned = local.isEarned || cloud.isEarned
-        
-        // Use the earliest earned date if both are earned
-        var earnedDate: Date? = nil
-        if isEarned {
-            if let localDate = local.earnedDate, let cloudDate = cloud.earnedDate {
-                earnedDate = localDate < cloudDate ? localDate : cloudDate
-            } else {
-                earnedDate = local.earnedDate ?? cloud.earnedDate
-            }
-        }
-        
-        return Badge(identifier: local.identifier, earnedDate: earnedDate, isEarned: isEarned)
+        // Use the Badge helper method to merge
+        return local.mergeWith(cloud)
     }
     
     /// Process fetched enhanced model data
@@ -1224,33 +1234,25 @@ class CloudSyncService: CloudSyncServiceProtocol {
         var earnedBadgeCount = 0
         let badgeTrackingService = BadgeTrackingService()
         
-        // First get existing viewed badges to maintain their status
-        let viewedBadges = badgeTrackingService.getViewedBadges()
-        
         for badge in badges {
             if badge.isEarned {
                 earnedBadgeCount += 1
                 
-                // Check if this badge was previously viewed
-                let hasBeenViewed = viewedBadges.contains(badge.identifier)
-                
-                // Save the badge in the BadgeTrackingService, preserving the earned date
+                // Save the badge in the BadgeTrackingService, preserving the earned date and viewed status
                 badgeTrackingService.saveEarnedBadge(
                     id: badge.identifier,
                     date: badge.earnedDate ?? Date(),
-                    visitedStates: [] // We don't have this info from the cloud sync
+                    visitedStates: [], // We don't have this info from the cloud sync
+                    hasBeenViewed: badge.hasBeenViewed // Pass the viewed status from the cloud
                 )
                 
-                // If it was previously viewed, make sure it doesn't show as new
-                if hasBeenViewed {
-                    var newBadges = badgeTrackingService.getNewBadges()
-                    if let index = newBadges.firstIndex(of: badge.identifier) {
-                        newBadges.remove(at: index)
-                        UserDefaults.standard.set(newBadges, forKey: "new_badges")
-                    }
-                }
+                // The saveEarnedBadge method now handles viewed status correctly,
+                // so we don't need to manually update viewed or new badges lists here
             }
         }
+        
+        // Direct UserDefaults updates are now handled within saveEarnedBadge
+        print("🏆 Badge data synchronized from cloud")
         
         print("🔄 Processed \(earnedBadgeCount) earned badges")
         

@@ -30,6 +30,34 @@ struct Badge: Codable, Equatable {
     let identifier: String
     var earnedDate: Date?
     var isEarned: Bool // Once true, never reverts to false
+    var hasBeenViewed: Bool = false // Whether the badge has been viewed by the user
+    
+    /// Merge this badge with another one from the cloud
+    /// - Parameter other: The badge to merge with
+    /// - Returns: A new merged badge with the most favorable properties from both
+    func mergeWith(_ other: Badge) -> Badge {
+        // Determine earned date based on earned status
+        var mergedEarnedDate: Date? = nil
+        let isEarnedInEither = self.isEarned || other.isEarned
+        
+        if isEarnedInEither {
+            if let selfDate = self.earnedDate, let otherDate = other.earnedDate {
+                // Use the earliest date if both are available
+                mergedEarnedDate = selfDate < otherDate ? selfDate : otherDate
+            } else {
+                // Otherwise use whichever is available
+                mergedEarnedDate = self.earnedDate ?? other.earnedDate
+            }
+        }
+        
+        // Create and return the merged badge with all properties set at initialization
+        return Badge(
+            identifier: self.identifier,
+            earnedDate: mergedEarnedDate,
+            isEarned: isEarnedInEither,
+            hasBeenViewed: self.hasBeenViewed || other.hasBeenViewed
+        )
+    }
 }
 
 // Badge types
