@@ -299,7 +299,6 @@ struct ContiguousStatesCanvas: View {
         .onDisappear {
             cancellables.removeAll()
         }
-        .background(backgroundColor)
     }
     
     private func setupSubscriptions() {
@@ -441,7 +440,7 @@ struct FullScreenStateView: View {
                     }
                 }
             }
-            .background(backgroundColor)
+            // Remove background here to prevent layering issues
         }
         .onAppear {
             setupSubscriptions()
@@ -520,7 +519,7 @@ struct InsetStateView: View {
                     drawState(mapRect: unionRect, size: size, context: &context)
                 }
             }
-            .background(parentBackgroundColor)
+            // Remove background here to prevent layering issues
         }
         .onAppear {
             // Debug: Log inset view appearance with color information
