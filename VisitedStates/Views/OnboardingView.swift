@@ -86,7 +86,16 @@ struct OnboardingView: View {
                 case "welcome":
                     welcomePage
                 case "valueProposition":
-                    valuePropositionPage
+                    VStack {
+                        valuePropositionPage
+                        
+                        if !isExistingUser {
+                            Text("Next: App Permissions")
+                                .font(.system(.footnote, design: .rounded))
+                                .foregroundColor(.secondary)
+                                .padding(.top, 5)
+                        }
+                    }
                 case "locationPermission":
                     locationPermissionPage
                 case "notificationPermission":
@@ -110,19 +119,32 @@ struct OnboardingView: View {
                     .padding(.bottom)
                 } else if currentPage < pages.count - 1 {
                     HStack {
-                        Button("Back") {
-                            withAnimation {
-                                currentPage -= 1
+                        // Only show Back button for pages other than permission pages
+                        if pages[currentPage] != "locationPermission" && pages[currentPage] != "notificationPermission" {
+                            Button("Back") {
+                                withAnimation {
+                                    currentPage -= 1
+                                }
                             }
+                            .buttonStyle(SecondaryButtonStyle())
+                            
+                            Spacer()
                         }
-                        .buttonStyle(SecondaryButtonStyle())
                         
-                        Spacer()
+                        // Center the Continue button if no Back button
+                        if pages[currentPage] == "locationPermission" || pages[currentPage] == "notificationPermission" {
+                            Spacer()
+                        }
                         
                         Button(getNextButtonText()) {
                             handleNextButton()
                         }
                         .buttonStyle(PrimaryButtonStyle())
+                        
+                        // Balance the layout if no Back button
+                        if pages[currentPage] == "locationPermission" || pages[currentPage] == "notificationPermission" {
+                            Spacer()
+                        }
                     }
                     .padding(.horizontal)
                     .padding(.bottom)
@@ -448,9 +470,9 @@ struct OnboardingView: View {
     private func getNextButtonText() -> String {
         switch pages[currentPage] {
         case "locationPermission":
-            return locationPermissionRequested ? "Continue" : "Request Access"
+            return locationPermissionRequested ? "Continue" : "Continue"
         case "notificationPermission":
-            return notificationPermissionRequested ? "Continue" : "Enable Notifications"
+            return notificationPermissionRequested ? "Continue" : "Continue"
         default:
             return "Next"
         }
