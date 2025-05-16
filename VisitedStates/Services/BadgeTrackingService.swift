@@ -167,6 +167,45 @@ class BadgeTrackingService {
         return statesByDay.values.contains { $0.count >= count }
     }
     
+    /// Check if a certain number of unique states were visited within a rolling window of days
+    private func checkUniqueStatesInDays(count: Int, days: Int) -> Bool {
+        let timestamps = getStateVisitTimestamps()
+        
+        // We need at least the required number of states with timestamps
+        if timestamps.count < count {
+            return false
+        }
+        
+        // Get all dates sorted
+        let sortedEntries = timestamps.sorted { $0.value < $1.value }
+        
+        // Check rolling windows
+        for i in 0..<sortedEntries.count {
+            let startDate = sortedEntries[i].value
+            let endDate = startDate.addingTimeInterval(TimeInterval(days * 24 * 60 * 60))
+            
+            // Count unique states within this window
+            var statesInWindow = Set<String>()
+            statesInWindow.insert(sortedEntries[i].key)
+            
+            // Look at all states that were visited within the window
+            for j in (i+1)..<sortedEntries.count {
+                if sortedEntries[j].value <= endDate {
+                    statesInWindow.insert(sortedEntries[j].key)
+                } else {
+                    break // No need to check further as dates are sorted
+                }
+            }
+            
+            // If we found enough unique states in this window, return true
+            if statesInWindow.count >= count {
+                return true
+            }
+        }
+        
+        return false
+    }
+    
     /// Get actual badge objects for IDs
     func getBadgeObjectsForIds(_ ids: [String]) -> [AchievementBadge] {
         let allBadges = AchievementBadgeProvider.allBadges
@@ -273,6 +312,9 @@ class BadgeTrackingService {
             case .multipleStatesInOneDay(let count):
                 // Use our new timestamp tracking logic
                 return checkMultipleStatesInOneDay(count: count)
+            case .uniqueStatesInDays(let count, let days):
+                // Check for unique states visited within a rolling window
+                return checkUniqueStatesInDays(count: count, days: days)
             case .sameCalendarYear(_):
                 // Not implemented yet - future enhancement
                 return false
@@ -432,6 +474,8 @@ class BadgeTrackingService {
             switch condition {
             case .multipleStatesInOneDay(let count):
                 return ["Visit \(count) states in one day"]
+            case .uniqueStatesInDays(let count, let days):
+                return ["Visit \(count) unique states within \(days) days"]
             case .sameCalendarYear(let count):
                 return ["Visit \(count) states in one calendar year"]
             case .returningVisit(let state, let daysBetween):

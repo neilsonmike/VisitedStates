@@ -37,6 +37,8 @@ struct AchievementBadge: Identifiable, Equatable {
         // Special badges with custom colors
         case "on_the_road":
             return Color(red: 0.2, green: 0.7, blue: 0.3) // Green
+        case "road_trippin":
+            return Color(red: 0.6, green: 0.3, blue: 0.7) // Purple/violet for road trips
         case "border_patrol_north":
             return Color(red: 0.1, green: 0.2, blue: 0.7) // Dark blue
         case "far_reaches":
@@ -108,6 +110,8 @@ struct AchievementBadge: Identifiable, Equatable {
             switch id {
             case "on_the_road":
                 return "road.lanes" // Road
+            case "road_trippin":
+                return "car.fill" // Car for road trip
             case "border_patrol_north":
                 return "snowflake" // Snowflake for northern states
             case "border_patrol_south":
@@ -148,6 +152,7 @@ enum AchievementBadgeCondition: Equatable {
     case sameCalendarYear(count: Int)
     case returningVisit(state: String, daysBetween: Int)
     case directionStates(direction: String)
+    case uniqueStatesInDays(count: Int, days: Int)
     // Add more special conditions as needed
 
     // MARK: - Equatable implementation
@@ -161,6 +166,8 @@ enum AchievementBadgeCondition: Equatable {
             return state1 == state2 && days1 == days2
         case (.directionStates(let dir1), .directionStates(let dir2)):
             return dir1 == dir2
+        case (.uniqueStatesInDays(let count1, let days1), .uniqueStatesInDays(let count2, let days2)):
+            return count1 == count2 && days1 == days2
         default:
             return false
         }
@@ -231,6 +238,10 @@ class AchievementBadgeProvider {
               description: "Visit 3 or more states in a single calendar day",
               requiredStates: [],
               specialCondition: .multipleStatesInOneDay(count: 3), category: .special),
+        AchievementBadge(id: "road_trippin", name: "Road Trippin'",
+              description: "Visit 5 unique states within a 7-day span",
+              requiredStates: [],
+              specialCondition: .uniqueStatesInDays(count: 5, days: 7), category: .special),
         AchievementBadge(id: "border_patrol_north", name: "Border Patrol North",
               description: "Visit all states bordering Canada",
               requiredStates: ["Alaska", "Idaho", "Maine", "Michigan", "Minnesota",

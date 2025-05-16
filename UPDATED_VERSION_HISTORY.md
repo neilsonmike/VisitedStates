@@ -1,7 +1,21 @@
 ## Version History
 
-### Version 1.0.11 (Current Version)
-**Release Date:** May 2025 (Current)
+### Version 1.1.2 (Current Version)
+**Release Date:** May 16, 2025
+**Changes:**
+- Added new "Road Trippin'" badge for visiting 5 unique states within a 7-day span
+- Fixed map background color layering issue when using opacity
+- Fixed App Store submission issues with permission request flow
+- Fixed notification cooldown logic bug
+- Updated documentation for badge system
+- Various bug fixes and improvements
+
+### Version 1.1.1
+**Release Date:** May 2025 (Not Released)
+**Note:** This version was prepared but not released to the App Store
+
+### Version 1.0.11
+**Release Date:** May 2025
 **Changes:**
 - Added visual indicators for optimal permission settings
 - Added orange compass indicator when Background App Refresh or Precise Location are disabled

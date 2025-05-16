@@ -188,6 +188,8 @@ struct BadgeDetailView: View {
             switch badge.specialCondition {
             case .multipleStatesInOneDay(let count):
                 Text("Visit \(count) different states in a single calendar day.")
+            case .uniqueStatesInDays(let count, let days):
+                Text("Visit \(count) unique states within a \(days)-day span.")
             case .sameCalendarYear(let count):
                 Text("Visit \(count) different states within the same calendar year.")
             case .returningVisit(let state, let days):

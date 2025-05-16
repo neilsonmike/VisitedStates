@@ -759,8 +759,9 @@ private func loadCachedFactoids() {
   - Rocky Mountain High: Visit all states in Rocky Mountain region
   - Colonist: Visit all 13 original colonies
 
-- **Special Achievement Badges**: Based on unique conditions (8)
+- **Special Achievement Badges**: Based on unique conditions (9)
   - On the Road Again: Visit 3+ states in one day
+  - Road Trippin': Visit 5 unique states within a 7-day span
   - Border Patrol North: Visit all states bordering Canada
   - Border Patrol South: Visit all states bordering Mexico
   - Far Reaches: Visit both Alaska and Hawaii
@@ -794,6 +795,7 @@ enum AchievementBadgeCategory: String, CaseIterable {
 
 enum AchievementBadgeCondition: Equatable {
     case multipleStatesInOneDay(count: Int)
+    case uniqueStatesInDays(count: Int, days: Int)
     case sameCalendarYear(count: Int)
     case returningVisit(state: String, daysBetween: Int)
     case directionStates(direction: String)
